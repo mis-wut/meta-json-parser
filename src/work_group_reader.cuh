@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <cuda_runtime_api.h>
 #include <cub/util_type.cuh>
+#include <boost/mp11/map.hpp>
+#include <boost/mp11/list.hpp>
 #include "byte_algorithms.h"
 #include "config.h"
 #include "meta_math.h"
@@ -16,12 +18,19 @@ struct WorkGroupReader
 	static constexpr std::size_t ALIGNMENT_MASK = MEMORY_ALIGNMENT - 1;
 	static constexpr std::size_t BUFFER_COUNT = 2;
 	static_assert(BUFFER_COUNT == 2, "Algorithms are fixed for 2 buffers.");
-	static constexpr std::size_t BUFFER_SIZE = 128;
+	//TODO current implementation is inefficient. VectorType should always be 4 bytes.
+	//Different strategies of loading need to be implemented for different group sizes
+	using VectorType = boost::mp11::mp_second<boost::mp11::mp_map_find<
+		boost::mp11::mp_list<
+			boost::mp11::mp_list<boost::mp11::mp_int<32>, uint32_t>,
+			boost::mp11::mp_list<boost::mp11::mp_int<16>, uint16_t>,
+			boost::mp11::mp_list<boost::mp11::mp_int<8>, uint8_t>
+		>,
+		boost::mp11::mp_int<GROUP_SIZE>
+		>>;
+	static constexpr std::size_t BUFFER_SIZE = sizeof(VectorType) * GROUP_SIZE;
 	static_assert(IsPower2_c<BUFFER_SIZE>::type::value, "BUFFER_SIZE must be power of 2.");
-	//typedef cub::Uninitialized<char[BUFFER_COUNT][BUFFER_SIZE]> TempStorage;
 	using MemoryRequest = MemoryRequest_c<BUFFER_COUNT * BUFFER_SIZE, MemoryUsage::ActionUsage, MemoryType::Shared>;
-	using VectorType = uint32_t;
-	static_assert(sizeof(VectorType) * GROUP_SIZE == BUFFER_SIZE, "Vector type must match buffer size");
 private:
 	const char* mSource;
 	const char* mEndSource;
