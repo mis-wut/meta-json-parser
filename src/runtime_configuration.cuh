@@ -44,7 +44,7 @@ struct RuntimeConfiguration
 	}
 	__device__ __forceinline__ static unsigned int GlobalGroupId()
 	{
-		return threadIdx.y + blockIdx.x * BlockSize::value;
+		return threadIdx.y + blockIdx.x * WorkGroupCount::value;
 	}
 	__device__ __forceinline__ static unsigned int InputId()
 	{
