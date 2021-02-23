@@ -1,7 +1,7 @@
 #pragma once
 #include <cuda_runtime_api.h>
 #include <boost/mp11/integral.hpp>
-#include "meta_math.h"
+#include <meta_json_parser/meta_math.h>
 #include <cstdint>
 #include <type_traits>
 

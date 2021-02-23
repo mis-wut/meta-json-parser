@@ -1,9 +1,9 @@
 #pragma once
 #include <cuda_runtime_api.h>
 #include <boost/mp11/list.hpp>
-#include "meta_memory_manager.cuh"
-#include "work_group_reader.cuh"
-#include "config.h"
+#include <meta_json_parser/meta_memory_manager.cuh>
+#include <meta_json_parser/work_group_reader.cuh>
+#include <meta_json_parser/config.h>
 
 template<class ParserConfigurationT>
 struct KernelContext

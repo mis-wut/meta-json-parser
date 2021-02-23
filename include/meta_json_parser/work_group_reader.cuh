@@ -4,10 +4,10 @@
 #include <cub/util_type.cuh>
 #include <boost/mp11/map.hpp>
 #include <boost/mp11/list.hpp>
-#include "byte_algorithms.h"
-#include "config.h"
-#include "meta_math.h"
-#include "memory_request.h"
+#include <meta_json_parser/byte_algorithms.h>
+#include <meta_json_parser/config.h>
+#include <meta_json_parser/meta_math.h>
+#include <meta_json_parser/memory_request.h>
 
 template<typename WorkingGroupSizeT>
 struct WorkGroupReaderBase

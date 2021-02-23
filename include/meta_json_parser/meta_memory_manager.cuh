@@ -4,10 +4,10 @@
 #include <boost/mp11/bind.hpp>
 #include <boost/mp11/list.hpp>
 #include <boost/mp11/integer_sequence.hpp>
-#include "memory_configuration.h"
-#include "parser_configuration.h"
-#include "static_buffer.h"
-#include "byte_algorithms.h"
+#include <meta_json_parser/memory_configuration.h>
+#include <meta_json_parser/parser_configuration.h>
+#include <meta_json_parser/static_buffer.h>
+#include <meta_json_parser/byte_algorithms.h>
 #include <utility>
 
 template<class ParserConfigurationT>

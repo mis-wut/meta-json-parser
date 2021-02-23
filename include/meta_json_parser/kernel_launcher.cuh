@@ -1,7 +1,7 @@
 #pragma once
 #include <cuda_runtime_api.h>
 #include <boost/mp11/list.hpp>
-#include "intelisense_silencer.h"
+#include <meta_json_parser/intelisense_silencer.h>
 
 //Forward declaration
 template<class KernelLauncherT, class ...KernelArgsT>

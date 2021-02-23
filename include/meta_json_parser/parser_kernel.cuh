@@ -1,12 +1,12 @@
 #pragma once
 #include <boost/mp11/list.hpp>
-#include "config.h"
-#include "parsing_error.h"
-#include "intelisense_silencer.h"
-#include "kernel_context.cuh"
-#include "meta_memory_manager.cuh"
-#include "parser_configuration.h"
-#include "kernel_launcher.cuh"
+#include <meta_json_parser/config.h>
+#include <meta_json_parser/parsing_error.h>
+#include <meta_json_parser/intelisense_silencer.h>
+#include <meta_json_parser/kernel_context.cuh>
+#include <meta_json_parser/meta_memory_manager.cuh>
+#include <meta_json_parser/parser_configuration.h>
+#include <meta_json_parser/kernel_launcher.cuh>
 #include <cstdint>
 
 template<class ParserConfigurationT, class BaseActionT>

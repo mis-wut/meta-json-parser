@@ -1,6 +1,6 @@
 #pragma once
 #include <boost/mp11/integral.hpp>
-#include "static_buffer.h"
+#include <meta_json_parser/static_buffer.h>
 
 namespace MemoryType
 {

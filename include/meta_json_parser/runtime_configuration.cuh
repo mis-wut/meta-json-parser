@@ -2,8 +2,8 @@
 #include <cuda_runtime_api.h>
 #include <boost/mp11/integral.hpp>
 #include <boost/mp11/function.hpp>
-#include "meta_math.h"
-#include "work_group_reader.cuh"
+#include <meta_json_parser/meta_math.h>
+#include <meta_json_parser/work_group_reader.cuh>
 
 template<class WorkGroupSizeT, class WorkGroupCountT>
 struct RuntimeConfiguration

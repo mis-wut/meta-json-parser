@@ -1,6 +1,6 @@
 #pragma once
-#include "memory_configuration.h"
-#include "runtime_configuration.cuh"
+#include <meta_json_parser/memory_configuration.h>
+#include <meta_json_parser/runtime_configuration.cuh>
 
 template<class RuntimeConfigurationT, class MemoryConfigurationT>
 struct ParserConfiguration

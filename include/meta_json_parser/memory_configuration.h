@@ -1,7 +1,7 @@
 #pragma once
 #include <boost/mp11/list.hpp>
 #include <boost/mp11/bind.hpp>
-#include "memory_request.h"
+#include <meta_json_parser/memory_request.h>
 
 template<class ReadOnlyListT, class ActionListT, class AtomicListT>
 struct MemoryConfiguration
