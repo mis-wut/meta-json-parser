@@ -44,7 +44,6 @@ protected:
 
 	__device__ __noinline__ VectorType LoadLastBytes()
 	{
-		//Clear buffer
 		VectorType payload = VectorType(0);
 		if (mSource != mEndSource)
 		{
@@ -75,7 +74,12 @@ public:
 			payload = reinterpret_cast<const VectorType*>(mSource)[ThreadIndex()];
 			mSource += BUFFER_SIZE;
 		}
-		else 
+		else if (mSource == mEndSource) 
+		{
+			//Clear buffer
+			payload = VectorType(0);
+		}
+		else
 		{
 			payload = LoadLastBytes();
 		}
