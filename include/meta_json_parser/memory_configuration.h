@@ -31,3 +31,10 @@ using AppendRequest = boost::mp11::mp_rename<
 	>,
 	MemoryConfiguration
 >;
+
+template<class MemoryConfigurationT, class MemoryRequestsT>
+using ExtendRequests = boost::mp11::mp_fold_q<
+	MemoryRequestsT,
+	MemoryConfigurationT,
+	boost::mp11::mp_quote<AppendRequest>
+>;

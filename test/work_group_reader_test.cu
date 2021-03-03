@@ -120,26 +120,26 @@ void templated_ProperDataReading()
 	ASSERT_TRUE(thrust::equal(d_correct.begin(), d_correct.end(), d_result.begin()));
 }
 
-TEST_F(WorkGroupReaderTest, ProperDataReading_32) {
+TEST_F(WorkGroupReaderTest, ProperDataReading_W32) {
 	templated_ProperDataReading<WorkGroupReader, 32>();
 }
 
-TEST_F(WorkGroupReaderTest, ProperDataReading_16) {
+TEST_F(WorkGroupReaderTest, ProperDataReading_W16) {
 	templated_ProperDataReading<WorkGroupReader, 16>();
 }
 
-TEST_F(WorkGroupReaderTest, ProperDataReading_8) {
+TEST_F(WorkGroupReaderTest, ProperDataReading_W8) {
 	templated_ProperDataReading<WorkGroupReader, 8>();
 }
 
-TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_32) {
+TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_W32) {
 	templated_ProperDataReading<WorkGroupReaderPrefetch, 32>();
 }
 
-TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_16) {
+TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_W16) {
 	templated_ProperDataReading<WorkGroupReaderPrefetch, 16>();
 }
 
-TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_8) {
+TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_W8) {
 	templated_ProperDataReading<WorkGroupReaderPrefetch, 8>();
 }

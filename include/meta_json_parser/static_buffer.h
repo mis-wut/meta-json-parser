@@ -17,7 +17,7 @@ struct StaticBuffer
 	constexpr static int size = Size::value;
 
 	template<class T>
-	__host__ __device__ __forceinline__ T& alias()
+	__host__ __device__ __forceinline__ T& Alias()
 	{
 		static_assert(sizeof(T) <= Size::value, "Aliased type is greater than size of a static buffer.");
 		return reinterpret_cast<T&>(*this);
