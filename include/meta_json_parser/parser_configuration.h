@@ -2,7 +2,7 @@
 #include <meta_json_parser/memory_configuration.h>
 #include <meta_json_parser/runtime_configuration.cuh>
 
-template<class RuntimeConfigurationT, class MemoryConfigurationT>
+template<class RuntimeConfigurationT, class MemoryConfigurationT = EmptyMemoryConfiguration>
 struct ParserConfiguration
 {
 	using RuntimeConfiguration = RuntimeConfigurationT;

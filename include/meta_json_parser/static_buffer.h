@@ -24,16 +24,5 @@ struct StaticBuffer
 	}
 };
 
-//template<class SizeT>
-//struct StaticBuffer_impl<SizeT, typename std::enable_if<boost::mp11::mp_less_equal<SizeT, boost::mp11::mp_int<0>>::value>::type>
-//{
-//	using Size = boost::mp11::mp_int<0>;
-//	uint8_t data[1];
-//	constexpr static int size = 0;
-//};
-//
-//template<class SizeT>
-//using StaticBuffer = StaticBuffer_impl<SizeT>;
-
 template<int SizeT>
 using StaticBuffer_c = StaticBuffer<boost::mp11::mp_int<SizeT>>;

@@ -26,12 +26,11 @@ __global__ void __launch_bounds__(1024, 2)
 	)
 {
 	using WGR = WorkerGroupT<GroupSizeT>;
-	using MC = MemoryConfiguration<boost::mp11::mp_list<>, boost::mp11::mp_list<>, boost::mp11::mp_list<>>;
 	using RT = RuntimeConfiguration<GroupSizeT, GroupCountT>;
-	using PC = ParserConfiguration<RT, MC>;
-	using KC = KernelContext<PC>;
+	using PC = ParserConfiguration<RT>;
+	using KC = KernelContext<PC, OutputConfiguration<boost::mp11::mp_list<>>>;
 	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
-	KC context(sharedBuffers, input, indices);
+	KC context(sharedBuffers, input, indices, nullptr);
 	if (RT::InputId() >= count)
 	{
 		return;

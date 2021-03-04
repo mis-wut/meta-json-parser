@@ -53,7 +53,8 @@ struct KernelLauncherCudaArgs
 
 	inline void operator()(KernelArgsT... args)
 	{
-		mLauncher.mKernel CU_LAUNCH(mBlocks, mThreads, mSharedMemory, mStream)(std::template forward<KernelArgsT>(args)...);
+		//TODO start here. On release mKernel is nullptr
+		mLauncher.mKernel CU_LAUNCH(mBlocks, mThreads, mSharedMemory, mStream)(args...);
 	}
 };
 

@@ -4,6 +4,7 @@
 #include <boost/mp11/bind.hpp>
 #include <boost/mp11/list.hpp>
 #include <boost/mp11/integer_sequence.hpp>
+#include <meta_json_parser/memory_request.h>
 #include <meta_json_parser/memory_configuration.h>
 #include <meta_json_parser/parser_configuration.h>
 #include <meta_json_parser/static_buffer.h>
@@ -24,11 +25,12 @@ template<class ...ParserConfigurationArgsT>
 struct MetaMemoryManager<ParserConfiguration<ParserConfigurationArgsT...>>
 {
 	using _ParserConfiguration = ParserConfiguration<ParserConfigurationArgsT...>;
+	using RT = _ParserConfiguration::RuntimeConfiguration;
 
 	struct IntPlusMemoryRequest
 	{
 		template<class Accumulator, class Request>
-		using fn = boost::mp11::mp_int<Accumulator::value + Request::Size::value>;
+		using fn = boost::mp11::mp_int<Accumulator::value + GetRequestSize<Request, RT>::value>;
 	};
 
 	using _MemoryConfiguration = typename _ParserConfiguration::MemoryConfiguration;
@@ -122,10 +124,10 @@ struct MetaMemoryManager<ParserConfiguration<ParserConfigurationArgsT...>>
 			boost::mp11::mp_list<>,
 			boost::mp11::mp_take,
 			_List,
-			boost::mp11::mp_int<_Index::value - 1>
+			boost::mp11::mp_int<static_cast<int>(_Index::value - 1)>
 		>;
 		using _BufferOffset = typename _AccFun::template fn<_Head>;
-		using _Buffer = StaticBuffer<typename MemoryRequestT::Size>;
+		using _Buffer = GetRequestBuffer<MemoryRequestT, RT>;
 		_Buffer& buffer = OffsetBytesAs<_BufferOffset, _Buffer>(GetBuffer<_MemoryUsage>());
 		return std::forward<_Buffer&>((&buffer)[pGroupId]);
 	}

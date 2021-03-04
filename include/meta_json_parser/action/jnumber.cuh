@@ -1,0 +1,23 @@
+#pragma once
+#include <type_traits>
+#include <cuda_runtime_api.h>
+#include <meta_json_parser/output_manager.cuh>
+#include <meta_json_parser/json_parse.cuh>
+#include <meta_json_parser/config.h>
+#include <meta_json_parser/parsing_error.h>
+
+template<class OutT, class TagT>
+struct JNumber
+{
+	using OutputRequests = boost::mp11::mp_list<OutputRequest<TagT, OutT>>;
+	using MemoryRequests = JsonParse::UnsignedIntegerRequests<OutT>;
+	static_assert(std::is_integral_v<OutT>, "OutT must be integral.");
+	static_assert(std::is_unsigned_v<OutT>, "OutT must be unsigned.");
+
+	template<class KernelContextT>
+	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
+	{
+		using RT = typename KernelContextT::RT;
+		return JsonParse::UnsignedInteger<OutT, typename RT::WorkGroupSize>::KC(kc)(kc.om.template Get<KernelContextT, TagT>());
+	}
+};

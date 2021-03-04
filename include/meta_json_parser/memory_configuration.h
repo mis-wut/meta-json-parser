@@ -11,6 +11,12 @@ struct MemoryConfiguration
 	using AtomicList = AtomicListT;
 };
 
+using EmptyMemoryConfiguration = MemoryConfiguration<
+	boost::mp11::mp_list<>,
+	boost::mp11::mp_list<>,
+	boost::mp11::mp_list<>
+>;
+
 template<class MemoryConfigurationT, class MemoryRequestT>
 using AppendRequest = boost::mp11::mp_rename<
 	boost::mp11::mp_second<

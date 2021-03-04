@@ -1,4 +1,5 @@
 #pragma once
+#include <thrust/host_vector.h>
 #include <boost/mp11/list.hpp>
 #include <meta_json_parser/config.h>
 #include <meta_json_parser/parsing_error.h>
@@ -22,9 +23,15 @@ _parser_kernel(
 template<class ParserConfigurationT, class BaseActionT>
 struct ParserKernel
 {
-	using M3 = MetaMemoryManager<ParserConfigurationT>;
-	using KC = KernelContext<ParserConfigurationT>;
-	using RT = ParserConfigurationT::RuntimeConfiguration;
+	using OC = OutputConfiguration<BaseActionT::OutputRequests>;
+	using MC = ExtendRequests<ParserConfigurationT::MemoryConfiguration, BaseActionT::MemoryRequests>;
+	using PC = ParserConfiguration<
+		ParserConfigurationT::RuntimeConfiguration,
+		MC
+	>;
+	using M3 = MetaMemoryManager<PC>;
+	using RT = PC::RuntimeConfiguration;
+	using KC = KernelContext<PC, OC>;
 	using Launcher = KernelLauncherFixedResources<
 		RT::BlockDimX,
 		RT::BlockDimY,
@@ -37,11 +44,17 @@ struct ParserKernel
 		void**,
 		const uint32_t
 	>;
-	static const Launcher kernel;
-};
 
-template<class P, class A>
-const ParserKernel<P, A>::Launcher ParserKernel<P, A>::kernel(_parser_kernel<P, A>);
+	static thrust::host_vector<uint64_t> OutputSizes()
+	{
+		thrust::host_vector<uint64_t> result;
+		boost::mp11::mp_for_each<typename OC::RequestList>([&](auto i){
+			using Request = decltype(i);
+			result.push_back(sizeof(typename Request::OutputType));
+		});
+		return std::move(result);
+	}
+};
 
 template<class ParserConfigurationT, class BaseActionT>
 	/// <summary>
@@ -68,7 +81,11 @@ __global__ void __launch_bounds__(1024, 2)
 	using KC = typename PK::KC;
 	using RT = typename PK::RT;
 	__shared__ typename PK::M3::SharedBuffers sharedBuffers;
-	//TODO fill shared buffers
-	KC context(sharedBuffers, input, indices);
+	KC kc(sharedBuffers, input, indices, output);
+	if (RT::InputId() >= count)
+		return;
+	ParsingError e = BaseActionT::Invoke(kc);
+	if (RT::WorkerId() == 0)
+		err[RT::InputId()] = e;
 }
 

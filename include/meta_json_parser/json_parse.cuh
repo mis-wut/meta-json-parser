@@ -1,6 +1,4 @@
 #pragma once
-#include <cub/cub.cuh>
-#include <cub/warp/warp_reduce.cuh>
 #include <utility>
 #include <cstdint>
 #include <cuda_runtime_api.h>
@@ -9,31 +7,13 @@
 #include <meta_json_parser/parsing_error.h>
 #include <meta_json_parser/byte_algorithms.h>
 #include <meta_json_parser/memory_request.h>
+#include <meta_json_parser/parse.cuh>
+#include <meta_json_parser/cub_wrapper.cuh>
 
 namespace JsonParse
 {
-	constexpr char4 WHITESPACES = { 0x20, 0x9, 0x0A, 0x0D };
+	constexpr char4 WHITESPACES = Parse::WHITESPACES;
 	constexpr char4 VALID_ENDING = { ']', '}', ',', '\0' };
-	template<class WorkGroupSizeT>
-	constexpr unsigned int FULL_WARP_MASK = (0x1u << WorkGroupSizeT::value) - 1;
-
-	struct BitOr
-	{
-		template <typename T>
-		__host__ __device__ __forceinline__ T operator()(const T &a, const T &b) const
-		{
-			return a | b;
-		}
-	};
-
-	struct BitAnd
-	{
-		template <typename T>
-		__host__ __device__ __forceinline__ T operator()(const T &a, const T &b) const
-		{
-			return a & b;
-		}
-	};
 
 	template<typename T>
 	__device__ INLINE_METHOD T& AccessFirst(T& t)
@@ -59,75 +39,6 @@ namespace JsonParse
 		__device__ INLINE_METHOD void operator()(T v) { }
 	};
 
-	template<class OperationT, class WorkGroupSizeT>
-	struct Reduce_impl
-	{
-		using WarpReduce = typename cub::template WarpReduce<OperationT, WorkGroupSizeT::value>;
-		using WarpReduceStorage = typename WarpReduce::TempStorage;
-		using WarpReduceRequest = MemoryRequest<
-			boost::mp11::mp_int<sizeof(WarpReduceStorage)>,
-			MemoryUsage::AtomicUsage
-		>;
-		WarpReduceStorage& storage;
-		__device__ INLINE_METHOD Reduce_impl(WarpReduceStorage& _storage) : storage(_storage) {}
-
-		template<class ReduceOperatorT>
-		__device__ INLINE_METHOD OperationT Reduce(OperationT value, ReduceOperatorT op)
-		{
-			return WarpReduce(storage).Reduce(value, op);
-		}
-
-		template<class ReduceOperatorT>
-		__device__ INLINE_METHOD OperationT Reduce(OperationT value, ReduceOperatorT op, int valid_items)
-		{
-			return WarpReduce(storage).Reduce(value, op, valid_items);
-		}
-	};
-
-	template<class OperationT, class WorkGroupSizeT>
-	using ReduceRequest = Reduce_impl<OperationT, WorkGroupSizeT>::WarpReduceRequest;
-
-	template<class OperationT, class WorkGroupSizeT, class KernelContextT>
-	__device__ INLINE_METHOD Reduce_impl<OperationT, WorkGroupSizeT> Reduce(KernelContextT& kc)
-	{
-		using R = Reduce_impl<OperationT, WorkGroupSizeT>;
-		return R(kc.m3
-			.template Receive<typename R::WarpReduceRequest>()
-			.template Alias<typename R::WarpReduceStorage>()
-		);
-	}
-
-	template<class OperationT, class WorkGroupSizeT>
-	struct Scan_impl
-	{
-		using WarpScan = typename cub::template WarpScan<OperationT, WorkGroupSizeT::value>;
-		using WarpScanStorage = typename WarpScan::TempStorage;
-		using WarpScanRequest = MemoryRequest<
-			boost::mp11::mp_int<sizeof(WarpScanStorage)>,
-			MemoryUsage::AtomicUsage
-		>;
-		WarpScanStorage& storage;
-		__device__ INLINE_METHOD Scan_impl(WarpScanStorage& _storage) : storage(_storage) {}
-
-		__device__ INLINE_METHOD OperationT Broadcast(OperationT value, int sourceThread)
-		{
-			return WarpScan(storage).Broadcast(value, sourceThread);
-		}
-	};
-
-	template<class OperationT, class WorkGroupSizeT>
-	using ScanRequest = Scan_impl<OperationT, WorkGroupSizeT>::WarpScanRequest;
-
-	template<class OperationT, class WorkGroupSizeT, class KernelContextT>
-	__device__ INLINE_METHOD Scan_impl<OperationT, WorkGroupSizeT> Scan(KernelContextT& kc)
-	{
-		using R = Scan_impl<OperationT, WorkGroupSizeT>;
-		return R(kc.m3
-			.template Receive<typename R::WarpScanRequest>()
-			.template Alias<typename R::WarpScanStorage>()
-		);
-	}
-
 	template<class OutTypeT>
 	using UnsignedIntegerOperationType = boost::mp11::mp_if_c<
 		sizeof(OutTypeT) <= sizeof(uint32_t),
@@ -135,19 +46,16 @@ namespace JsonParse
 		uint64_t
 	>;
 
-	template<class OutTypeT, class WorkGroupSizeT>
+	template<class OutTypeT>
 	using UnsignedIntegerRequests = boost::mp11::mp_list<
 		ReduceRequest<
-			int,
-			WorkGroupSizeT
+			int
 		>,
 		ReduceRequest<
-			UnsignedIntegerOperationType<OutTypeT>,
-			WorkGroupSizeT
+			UnsignedIntegerOperationType<OutTypeT>
 		>,
 		ScanRequest<
-			int,
-			WorkGroupSizeT
+			int
 		>
 	>;
 
@@ -155,7 +63,7 @@ namespace JsonParse
 	struct UnsignedIntegerParser
 	{
 		using KC = KernelContextT;
-		using R = UnsignedIntegerRequests<OutTypeT, WorkGroupSizeT>;
+		using R = UnsignedIntegerRequests<OutTypeT>;
 		using WS = WorkGroupSizeT;
 		using OP = UnsignedIntegerOperationType<OutTypeT>;
 		using RT = KC::RT;
