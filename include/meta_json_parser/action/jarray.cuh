@@ -4,6 +4,7 @@
 #include <boost/mp11/algorithm.hpp>
 #include <boost/mp11/function.hpp>
 #include <boost/mp11/bind.hpp>
+#include <boost/mp11/utility.hpp>
 #include <meta_json_parser/config.h>
 #include <meta_json_parser/meta_math.h>
 #include <meta_json_parser/parsing_error.h>
@@ -37,6 +38,22 @@ struct JArray
 	>;
 	using MaxIndex = boost::mp11::mp_back<SortedIndices>;
 
+	template<class T>
+	using GetOutputRequests = boost::mp11::mp_second<T>::OutputRequests;
+
+	template<class T>
+	using GetMemoryRequests = boost::mp11::mp_second<T>::MemoryRequests;
+
+	using OutputRequests = boost::mp11::mp_flatten<boost::mp11::mp_transform<
+		GetOutputRequests,
+		EntriesList
+	>>;
+
+	using MemoryRequests = boost::mp11::mp_flatten<boost::mp11::mp_transform<
+		GetMemoryRequests,
+		EntriesList
+	>>;
+
 	template<class Idx, class KernelContextT>
 	static __device__ INLINE_METHOD typename std::enable_if<
 		std::is_same_v<
@@ -50,8 +67,16 @@ struct JArray
 	>::type DispatchIndex(KernelContextT& kc)
 	{
 		//TODO add skip
-		assert(0);
 		//return SKIP
+		static_assert(
+			!std::is_same_v<
+				boost::mp11::mp_map_find<
+					SortedEntries,
+					Idx
+				>,
+				void
+			>,
+			"Skipped indices aren't supported yet");
 		return ParsingError::None;
 	}
 
@@ -67,10 +92,10 @@ struct JArray
 		ParsingError
 	>::type DispatchIndex(KernelContextT& kc)
 	{
-		using Action = boost::mp11::mp_map_find<
+		using Action = boost::mp11::mp_second<boost::mp11::mp_map_find<
 			SortedEntries,
 			Idx
-		>;
+		>>;
 		return Action::Invoke(kc);
 	}
 
@@ -94,9 +119,10 @@ struct JArray
 			return ParsingError::None;
 		}
 		bool endOfArray = false;
-		boost::mp11::mp_for_each<boost::mp11::mp_iota<MaxIndex>>([&](auto i)
+		//TODO add mis-wut/mp11 as submodule
+		boost::mp11::mp_for_each<boost::mp11::mp_iota_c<MaxIndex::value + 1>>([&](auto i)
 		{
-			using Idx = decltype(i);
+			using Idx = boost::mp11::mp_int<decltype(i)::value>;
 			if (err != ParsingError::None || endOfArray)
 				return;
 			err = DispatchIndex<Idx>(kc);
