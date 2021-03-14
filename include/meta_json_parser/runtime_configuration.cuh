@@ -42,6 +42,10 @@ struct RuntimeConfiguration
 	{
 		return threadIdx.y;
 	}
+	__device__ __forceinline__ static unsigned int WarpGroupId()
+	{
+		return threadIdx.y % (32 / GroupSize());
+	}
 	__device__ __forceinline__ static unsigned int GlobalGroupId()
 	{
 		return threadIdx.y + blockIdx.x * WorkGroupCount::value;

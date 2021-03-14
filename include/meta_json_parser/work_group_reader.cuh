@@ -22,6 +22,45 @@ struct WorkGroupReaderBase
 	static constexpr std::size_t BUFFER_SIZE = sizeof(VectorType) * GROUP_SIZE;
 	static_assert(IsPower2_c<BUFFER_SIZE>::type::value, "BUFFER_SIZE must be power of 2.");
 	using MemoryRequest = MemoryRequest_c<BUFFER_COUNT * BUFFER_SIZE, MemoryUsage::ActionUsage, MemoryType::Shared>;
+
+private:
+	template<int WorkGroupSize>
+	static __device__ __forceinline__ uint32_t __detail_ballot_sync(int predicate)
+	{
+		constexpr uint32_t GROUPS_IN_WARP = 32 / WorkGroupSize;
+		constexpr uint32_t MASK = 0xFF'FF'FF'FFu >> (32 - WorkGroupSize);
+		uint32_t result = __ballot_sync(0xFF'FF'FF'FFu, predicate);
+		return (result >> ((threadIdx.y % GROUPS_IN_WARP) * WorkGroupSize)) & MASK;
+	}
+
+	template<>
+	static __device__ __forceinline__ uint32_t __detail_ballot_sync<32>(int predicate)
+	{
+		return __ballot_sync(0xFF'FF'FF'FFu, predicate);
+	}
+
+	template<int WorkGroupSize>
+	static __device__ __forceinline__ uint32_t __detail_all_sync(int predicate)
+	{
+		constexpr uint32_t MASK = 0xFF'FF'FF'FFu >> (32 - WorkGroupSize);
+		return __detail_ballot_sync<WorkGroupSize>(predicate) == MASK;
+	}
+
+	template<>
+	static __device__ __forceinline__ uint32_t __detail_all_sync<32>(int predicate)
+	{
+		return __all_sync(0xFF'FF'FF'FFu, predicate);
+	}
+public:
+	__device__ __forceinline__ uint32_t ballot_sync(int predicate)
+	{
+		return __detail_ballot_sync<GROUP_SIZE>(predicate);
+	}
+
+	__device__ __forceinline__ uint32_t all_sync(int predicate)
+	{
+		return __detail_all_sync<GROUP_SIZE>(predicate);
+	}
 };
 
 template<typename WorkingGroupSizeT>

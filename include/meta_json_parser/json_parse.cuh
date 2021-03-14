@@ -13,7 +13,10 @@
 namespace JsonParse
 {
 	constexpr char4 WHITESPACES = Parse::WHITESPACES;
+	constexpr char4 ESCAPEABLE_1 = { '"', '\\', '/', 'b' };
+	constexpr char4 ESCAPEABLE_2 = { 'f', 'n', 'r', 't' };
 	constexpr char4 VALID_ENDING = { ']', '}', ',', '\0' };
+	static constexpr char CHARS_FROM = 0x20;
 
 	template<typename T>
 	__device__ INLINE_METHOD T& AccessFirst(T& t)
@@ -146,6 +149,114 @@ namespace JsonParse
 		__device__ __forceinline__ static UnsignedIntegerParser<OutTypeT, WorkGroupSizeT, KernelContextT> KC(KernelContextT& kc)
 		{
 			return UnsignedIntegerParser<OutTypeT, WorkGroupSizeT, KernelContextT>(kc);
+		}
+	};
+
+	using StringRequests = boost::mp11::mp_list<
+		ReduceRequest<
+			int
+		>,
+		ScanRequest<
+			int
+		>
+	>;
+
+	template<class WorkGroupSizeT, class KernelContextT>
+	struct StringParser
+	{
+		using KC = KernelContextT;
+		using R = StringRequests;
+		using WS = WorkGroupSizeT;
+		//using OP = UnsignedIntegerOperationType<OutTypeT>;
+		using RT = KC::RT;
+
+		__device__ __forceinline__ StringParser(KC& kc) : _kc(kc) {}
+	private:
+		KC& _kc;
+
+		template<typename ...ArgsT>
+		__device__ INLINE_METHOD ParsingError Parse(ArgsT& ...args)
+		{
+			if (_kc.wgr.PeekChar(0) != '"')
+				return ParsingError::Other;
+			_kc.wgr.AdvanceBy(1);
+			constexpr unsigned int previousActiveBackSlash = 0x7F'FF'FF'FFu;
+			constexpr unsigned int previousNoBackSlash = 0xFF'FF'FF'FFu;
+			unsigned int previousBackSlashes = previousNoBackSlash;
+			do
+			{
+				unsigned char c = _kc.wgr.CurrentChar();
+				//Example, for 16 bits:
+				//notSlash = 0011'1011'1000'1001, for an example: "a\\b\\\nLK\rAB\\"
+				//bit set for each no backslash
+				uint32_t notSlash = ~_kc.wgr.ballot_sync(c == '\\');
+				//before =
+				//  t[0] = 1111'1111'1111'1111,  t[8] = 1000'1001'1111'1111
+				//  t[1] = 1111'1111'1111'1111,  t[9] = 1100'0100'1111'1111
+				//  t[2] = 0111'1111'1111'1111,  t[A] = 1110'0010'0111'1111
+				//  t[3] = 0011'1111'1111'1111,  t[B] = 0111'0001'0011'1111
+				//  t[4] = 1001'1111'1111'1111,  t[C] = 1011'1000'1001'1111
+				//  t[5] = 0100'1111'1111'1111,  t[D] = 1101'1100'0100'1111
+				//  t[6] = 0010'0111'1111'1111,  t[E] = 1110'1110'0010'0111
+				//  t[7] = 0001'0011'1111'1111,  t[F] = 0111'0111'0001'0011
+				//each zero indicates backslash, bits are shifted to appropriate positions
+				uint32_t before = __funnelshift_lc(previousBackSlashes, notSlash, RT::GroupSize() - RT::WorkerId());
+				//consecutiveZeros =
+				//  t[0] = 0,  t[8] = 0
+				//  t[1] = 0,  t[9] = 0
+				//  t[2] = 1,  t[A] = 0
+				//  t[3] = 2,  t[B] = 1
+				//  t[4] = 0,  t[C] = 0
+				//  t[5] = 1,  t[D] = 0
+				//  t[6] = 2,  t[E] = 0
+				//  t[7] = 3,  t[F] = 1
+				//length of preceding backslashes sequence
+				uint32_t consecutiveZeros = __clz(before << (32 - RT::GroupSize()));
+				//If there are odd number of backslashes before, it is escaped
+				bool isEscaped = consecutiveZeros & 0x1;
+				previousBackSlashes = (!isEscaped && c == '\\') ? previousActiveBackSlash : previousNoBackSlash;
+				// Test if escapes are valid
+				{
+					bool valid = !isEscaped || HasThisByte(ESCAPEABLE_1, c) || HasThisByte(ESCAPEABLE_2, c);
+					//TODO hex support
+					if (!_kc.wgr.all_sync(valid))
+						return ParsingError::Other;
+				}
+				int activeThreads;
+				activeThreads = Reduce<int, WS>(_kc).Reduce((!isEscaped && c == '"') ? RT::WorkerId() : WS::value, cub::Min());
+				activeThreads = Scan<int, WS>(_kc).Broadcast(activeThreads, 0);
+				if (!_kc.wgr.all_sync(RT::WorkerId() > activeThreads || c >= CHARS_FROM))
+					return ParsingError::Other;
+				//Call function after validation
+				//TODO callback
+				//ParsingError err = CallFunctionDispatch(std::forward<ArgsT&>(args)..., isEscaped, activeThread);
+				//if (err != ParsingError::None)
+				//	return err;
+				//Advance
+				if (activeThreads != WS::value)
+				{
+					_kc.wgr.AdvanceBy(activeThreads + 1);
+					break;
+				}
+				previousBackSlashes = Scan<int, WS>(_kc).Broadcast(previousBackSlashes, WS::value - 1);
+				_kc.wgr.AdvanceBy(WS::value);
+			} while (true);
+			return ParsingError::None;
+		}
+	public:
+		__device__ __forceinline__ ParsingError operator()()
+		{
+			return Parse();
+		}
+	};
+
+	template<class WorkGroupSizeT>
+	struct String
+	{
+		template<class KernelContextT>
+		__device__ __forceinline__ static StringParser<WorkGroupSizeT, KernelContextT> KC(KernelContextT& kc)
+		{
+			return StringParser<WorkGroupSizeT, KernelContextT>(kc);
 		}
 	};
 }
