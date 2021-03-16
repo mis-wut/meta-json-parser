@@ -8,8 +8,8 @@
 template<class SizeT>
 struct StaticBuffer
 {
-	using Size = boost::mp11::mp_if<
-		boost::mp11::mp_less_equal<SizeT, boost::mp11::mp_int<0>>,
+	using Size = boost::mp11::mp_if_c<
+		SizeT::value < 0,
 		boost::mp11::mp_int<0>,
 		SizeT
 		>;

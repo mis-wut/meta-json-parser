@@ -42,6 +42,21 @@ namespace JsonParse
 		__device__ INLINE_METHOD void operator()(T v) { }
 	};
 
+
+	template<typename FuncT = void, typename ...ArgsT>
+	__device__ INLINE_METHOD auto CallFunctionDispatch(...)
+		-> decltype(ParsingError())
+	{
+		return ParsingError::None;
+	}
+
+	template<typename FuncT, typename ...ArgsT>
+	__device__ INLINE_METHOD auto CallFunctionDispatch(FuncT& fun, ArgsT&... args)
+		-> decltype(fun(std::forward<ArgsT&>(args)...), ParsingError())
+	{
+		return fun(std::forward<ArgsT&>(args)...);
+	}
+
 	template<class OutTypeT>
 	using UnsignedIntegerOperationType = boost::mp11::mp_if_c<
 		sizeof(OutTypeT) <= sizeof(uint32_t),
@@ -228,10 +243,9 @@ namespace JsonParse
 				if (!_kc.wgr.all_sync(RT::WorkerId() > activeThreads || c >= CHARS_FROM))
 					return ParsingError::Other;
 				//Call function after validation
-				//TODO callback
-				//ParsingError err = CallFunctionDispatch(std::forward<ArgsT&>(args)..., isEscaped, activeThread);
-				//if (err != ParsingError::None)
-				//	return err;
+				ParsingError err = CallFunctionDispatch(std::forward<ArgsT&>(args)..., isEscaped, activeThreads);
+				if (err != ParsingError::None)
+					return err;
 				//Advance
 				if (activeThreads != WS::value)
 				{
@@ -244,9 +258,10 @@ namespace JsonParse
 			return ParsingError::None;
 		}
 	public:
-		__device__ __forceinline__ ParsingError operator()()
+		template<class ...ArgsT>
+		__device__ __forceinline__ ParsingError operator()(ArgsT& ...args)
 		{
-			return Parse();
+			return Parse(std::forward<ArgsT&>(args)...);
 		}
 	};
 
