@@ -1,6 +1,7 @@
 #pragma once
 #include <meta_json_parser/json_parse.cuh>
 #include <meta_json_parser/static_buffer.h>
+#include <meta_json_parser/output_manager.cuh>
 
 //Only parsing/validation
 struct JString

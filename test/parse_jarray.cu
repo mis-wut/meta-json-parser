@@ -140,10 +140,6 @@ void templated_ParseArray2UInt(ParseJArrayTest &test)
 	ASSERT_TRUE(thrust::equal(context.d_correct_2.begin(), context.d_correct_2.end(), d_result_2.begin()));
 }
 
-//TEST_F(ParseJArrayTest, uint32_uint32_W32) {
-//	templated_ParseArray2UInt<uint32_t, uint32_t, 32>(*this);
-//}
-
 TEST_F(ParseJArrayTest, uint8_uint32_W32) {
 	templated_ParseArray2UInt<uint8_t, uint32_t, 32>(*this);
 }
