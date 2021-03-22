@@ -73,3 +73,13 @@ using MemoryRequestRT = MemoryRequestRT_q<boost::mp11::mp_quote<SizeF>, MemoryUs
 
 template<int SizeT, class MemoryUsageT, class MemoryTypeT = MemoryType::Shared>
 using MemoryRequest_c = MemoryRequest<boost::mp11::mp_int<SizeT>, MemoryUsageT, MemoryTypeT>;
+
+template<class SizeT, class FillFnT, class MemoryUsageT, class MemoryTypeT>
+struct FilledMemoryRequest
+{
+	using Size = SizeT;
+	using Buffer = StaticBuffer<Size>;
+	using MemoryType = MemoryTypeT;
+	using MemoryUsage = MemoryUsageT;
+	using FillFn = FillFnT;
+};

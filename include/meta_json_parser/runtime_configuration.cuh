@@ -26,6 +26,22 @@ struct RuntimeConfiguration
 	{
 		return { BlockDimX::value, BlockDimY::value, BlockDimZ::value };
 	}
+	__device__ __forceinline__ static unsigned int BlockId()
+	{
+		return blockIdx.x;
+	}
+	__device__ __forceinline__ static unsigned int GroupInBlockId()
+	{
+		return threadIdx.y;
+	}
+	__device__ __forceinline__ static unsigned int WorkersInBlock()
+	{
+		return WorkGroupSize::value + WorkGroupCount::value;
+	}
+	__device__ __forceinline__ static unsigned int WorkerInBlockId()
+	{
+		return GroupInBlockId() * WorkGroupSize::value + WorkerId();
+	}
 	__device__ __forceinline__ static unsigned int WorkerId()
 	{
 		return threadIdx.x;

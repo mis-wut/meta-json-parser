@@ -19,12 +19,13 @@ struct KernelContext
 	OM om;
 
 	__device__ __forceinline__ KernelContext(
+		M3::ReadOnlyBuffer* readonlyBuffers,
 		M3::SharedBuffers& sharedBuffers,
 		const char* input,
 		const InputIndex* indices,
 		void** output
 	) :
-		m3(sharedBuffers),
+		m3(sharedBuffers, readonlyBuffers),
 		wgr(
 			m3.template Receive<typename WGR::MemoryRequest>(),
 			input + indices[RT::InputId()],

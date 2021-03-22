@@ -30,7 +30,7 @@ __global__ void __launch_bounds__(1024, 2)
 	using PC = ParserConfiguration<RT>;
 	using KC = KernelContext<PC, OutputConfiguration<boost::mp11::mp_list<>>>;
 	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
-	KC context(sharedBuffers, input, indices, nullptr);
+	KC context(nullptr, sharedBuffers, input, indices, nullptr);
 	if (RT::InputId() >= count)
 	{
 		return;

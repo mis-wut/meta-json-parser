@@ -64,7 +64,6 @@ TEST_F(KeyWriterTest, four_long_keys) {
 	DictCheck<Dict>(correct);
 }
 
-
 TEST_F(KeyWriterTest, six_keys) {
 	using Dict = JDict<mp_list<
 		mp_list<K_xyz, JString>,

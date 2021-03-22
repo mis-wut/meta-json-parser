@@ -25,22 +25,6 @@ struct JDict
 	static_assert(UniqueKeys::value, "Keys must be unique in JDict.");
 	static_assert(boost::mp11::mp_size<JDict>::value, "JDict needs at least 1 entry.");
 
-	template<class T>
-	using GetOutputRequests = boost::mp11::mp_second<T>::OutputRequests;
-
-	template<class T>
-	using GetMemoryRequests = boost::mp11::mp_second<T>::MemoryRequests;
-
-	using OutputRequests = boost::mp11::mp_flatten<boost::mp11::mp_transform<
-		GetOutputRequests,
-		EntriesList
-	>>;
-
-	using MemoryRequests = boost::mp11::mp_flatten<boost::mp11::mp_transform<
-		GetMemoryRequests,
-		EntriesList
-	>>;
-
 	struct KeyWriter
 	{
 		using KeyCount = boost::mp11::mp_size<Keys>;
@@ -87,4 +71,90 @@ struct JDict
 			});
 		}
 	};
+
+	using KeyRequest = FilledMemoryRequest<KeyWriter::StorageSize, KeyWriter, MemoryUsage::ReadOnly, MemoryType::Shared>;
+
+	template<class T>
+	using GetOutputRequests = boost::mp11::mp_second<T>::OutputRequests;
+
+	template<class T>
+	using GetMemoryRequests = boost::mp11::mp_second<T>::MemoryRequests;
+
+	using OutputRequests = boost::mp11::mp_flatten<boost::mp11::mp_transform<
+		GetOutputRequests,
+		EntriesList
+	>>;
+
+	using MemoryRequests = boost::mp11::mp_push_front<
+		boost::mp11::mp_flatten<boost::mp11::mp_transform<
+			GetMemoryRequests,
+			EntriesList
+		>>,
+		KeyRequest
+	>;
+
+	template<class KernelContextT>
+	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
+	{
+		using KC = KernelContextT;
+		using RT = typename KC::RT;
+		using WS = typename RT::WorkGroupSize;
+		static_assert(WS::value == 32, "JDict currently is hardcoded for 32 workgroup size.");
+		ParsingError err;
+		if (kc.wgr.PeekChar(0) != '{')
+			return ParsingError::Other;
+		kc.wgr.AdvanceBy(1);
+		char c;
+		err = Parse::FindNoneWhite<WS>::KC(kc).template Do<Parse::StopTag::StopAt>();
+		if (err != ParsingError::None)
+			return err;
+		c = kc.wgr.PeekChar(0);
+		if (c == '}')
+		{
+			kc.wgr.AdvanceBy(1);
+			return ParsingError::None;
+		}
+		/*
+		do
+		{
+			typename KeyWriter::Buffer& keys = m kc.m3
+				.template Receive<ScanRequest<OperationT>>()
+				.template Alias<typename R::WarpScanStorage>();
+			constexpr int OUTER_LOOPS = (KeyWriter::KeyCount::value + 31) / 32;
+			boost::mp11::mp_for_each<boost::mp11::mp_iota_c<OUTER_LOOPS>>([&](auto i) {
+				constexpr int OUTER_I = decltype(i)::value;
+				uint32_t keyBits = OUTER_I == (OUTER_LOOPS - 1)
+					? 0xFF'FF'FF'FFu ^ ((0x1u << (32 - KeyWriter::KeyCount::value)) - 1)
+					: 0x0u;
+				err = JsonParse::String<typename RT::WorkGroupSize>::KC(kc)([&](bool& isEscaped, int& activeThreads) {
+					constexpr int ROW_COUNT = KeyWriter::RowCount::value;
+					char c = kc.wgr.CurrentChar();
+					char4 c4{ c, c, c, c };
+					boost::mp11::mp_for_each<boost::mp11::mp_iota_c<ROW_COUNT>>([&](auto j) {
+						constexpr int INNER_I = decltype(j)::value;
+						if (INNER_I != 0 && INNER_I % 32 == 0)
+						{
+							static_assert(KeyWriter::KeyCount::value <= 32, "JDict currently is hardcoded for max 32 keys.");
+						}
+						//Example (. for null bytes):
+						//INNER_I = 2
+						//4key = . a 1 x
+						//c = 'a'
+						//keyBytes = 0x00'FF'00'00
+						//_ & 0x01'01'01'01 -> 0x00'01'00'00
+						//(_ >> 7) | _ -> 0x__'01'__'00
+						//(_ >> 14) | _ -> 0x__'__'__'04
+						//_ & 0x0F -> 0x4
+						//_ | 0xFF'FF'FF'F0 -> 0xFF'FF'FF'F4
+						//_:0xFF'FF'FF'FF << (28 - 4 * 2) -> 0xFF'4F'FF'FF
+						char4 key4{ '\0', '\0', '\0', '\0' };
+						if (RT::WorkerId() < KeyWriter::Longest::value)
+							key4 = reinterpret_cast<char*>(keys)[RT::WorkerId() + KeyWriter::Longest::value * INNER_I];
+					});
+				});
+			});
+		} while (false);
+		*/
+		return ParsingError::None;
+	}
 };

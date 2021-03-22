@@ -14,7 +14,7 @@
 template<class ParserConfigurationT>
 struct MetaMemoryManager
 {
-	static_assert(!std::is_same_v<
+	static_assert(std::is_same_v<
 			boost::mp11::mp_rename<ParserConfigurationT, ParserConfiguration>,
 			ParserConfigurationT
 		>,
@@ -63,15 +63,32 @@ struct MetaMemoryManager<ParserConfiguration<ParserConfigurationArgsT...>>
 		AtomicBuffer __align__(16) atomicBuffer;
 	} &sharedBuffers;
 
-	__host__ __device__ __forceinline__ MetaMemoryManager(SharedBuffers& pSharedBuffer)
-		: sharedBuffers(pSharedBuffer) { }
+	__device__ __forceinline__ MetaMemoryManager(
+		SharedBuffers& pSharedBuffer,
+		ReadOnlyBuffer* pInputBuffers)
+		: sharedBuffers(pSharedBuffer)
+	{
+		uint32_t* out = reinterpret_cast<uint32_t*>(&sharedBuffers.readOnlyBuffer);
+		uint32_t* it = reinterpret_cast<uint32_t*>(pInputBuffers);
+		const uint32_t* end = reinterpret_cast<uint32_t*>(reinterpret_cast<char*>(it) + ReadOnlyBuffer::size);
+		out += RT::WorkerInBlockId();
+		it += RT::WorkerInBlockId();
+		for (; it < end; it += RT::WorkersInBlock(), out += RT::WorkersInBlock())
+		{
+			*out = *it;
+		}
+		__syncthreads();
+	}
 
 	__host__ static void FillReadOnlyBuffer(ReadOnlyBuffer& readOnlyBuffer)
 	{
-		//TODO fill based on configuration
-		boost::mp11::mp_for_each<boost::mp11::mp_iota<typename ReadOnlyBuffer::Size>>([&](auto x)
-		{
-			readOnlyBuffer.data[decltype(x)::value] = decltype(x)::value;
+		using ROL = typename _MemoryConfiguration::ReadOnlyList;
+		boost::mp11::mp_for_each<boost::mp11::mp_iota<boost::mp11::mp_size<ROL>>>([&](auto i) {
+			constexpr int I = decltype(i)::value;
+			constexpr int OFFSET = SumRequests<boost::mp11::mp_take_c<ROL, I>>::value;
+			using RQ = boost::mp11::mp_at_c<ROL, I>;
+			using B = typename RQ::Buffer;
+			RQ::FillFn::Fill(*reinterpret_cast<B*>(&readOnlyBuffer.data[OFFSET]));
 		});
 	}
 
@@ -129,7 +146,9 @@ struct MetaMemoryManager<ParserConfiguration<ParserConfigurationArgsT...>>
 		using _BufferOffset = typename _AccFun::template fn<_Head>;
 		using _Buffer = GetRequestBuffer<MemoryRequestT, RT>;
 		_Buffer& buffer = OffsetBytesAs<_BufferOffset, _Buffer>(GetBuffer<_MemoryUsage>());
-		return std::forward<_Buffer&>((&buffer)[pGroupId]);
+		return std::is_same_v<_MemoryUsage, MemoryUsage::ReadOnly>
+			? std::forward<_Buffer&>((&buffer)[0])
+			: std::forward<_Buffer&>((&buffer)[pGroupId]);
 	}
 
 	template<class MemoryRequestT>

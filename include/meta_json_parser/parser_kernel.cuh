@@ -9,11 +9,24 @@
 #include <meta_json_parser/parser_configuration.h>
 #include <meta_json_parser/kernel_launcher.cuh>
 #include <cstdint>
+#include <type_traits>
+
+template<class PC, class BA>
+using __NewM3 = MetaMemoryManager<
+	ParserConfiguration<
+		PC::RuntimeConfiguration,
+		ExtendRequests<
+			PC::MemoryConfiguration,
+			BA::MemoryRequests
+		>
+	>
+>;
+
 
 template<class ParserConfigurationT, class BaseActionT>
 __global__ void __launch_bounds__(1024, 2)
 _parser_kernel(
-	MetaMemoryManager<ParserConfigurationT>::ReadOnlyBuffer* readOnlyBuffer,
+	__NewM3<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer* readOnlyBuffer,
 	const char* input,
 	const InputIndex* indices,
 	ParsingError* err,
@@ -30,6 +43,7 @@ struct ParserKernel
 		MC
 	>;
 	using M3 = MetaMemoryManager<PC>;
+	static_assert(std::is_same_v<M3, __NewM3<ParserConfigurationT, BaseActionT>>, "__NewM3 inconsistent with implementation of ParserKernel.");
 	using RT = PC::RuntimeConfiguration;
 	using KC = KernelContext<PC, OC>;
 	using Launcher = KernelLauncherFixedResources<
@@ -37,7 +51,7 @@ struct ParserKernel
 		RT::BlockDimY,
 		RT::BlockDimZ,
 		boost::mp11::mp_int<0>,
-		typename MetaMemoryManager<ParserConfigurationT>::ReadOnlyBuffer*,
+		typename __NewM3<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer*,
 		const char*,
 		const InputIndex*,
 		ParsingError*,
@@ -69,7 +83,7 @@ template<class ParserConfigurationT, class BaseActionT>
 	/// <returns></returns>
 __global__ void __launch_bounds__(1024, 2)
 	_parser_kernel(
-		typename MetaMemoryManager<ParserConfigurationT>::ReadOnlyBuffer* readOnlyBuffer,
+		typename __NewM3<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer* readOnlyBuffer,
 		const char* input,
 		const InputIndex* indices,
 		ParsingError* err,
@@ -81,7 +95,7 @@ __global__ void __launch_bounds__(1024, 2)
 	using KC = typename PK::KC;
 	using RT = typename PK::RT;
 	__shared__ typename PK::M3::SharedBuffers sharedBuffers;
-	KC kc(sharedBuffers, input, indices, output);
+	KC kc(readOnlyBuffer, sharedBuffers, input, indices, output);
 	if (RT::InputId() >= count)
 		return;
 	ParsingError e = BaseActionT::Invoke(kc);
