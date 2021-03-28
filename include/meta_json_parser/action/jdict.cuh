@@ -9,6 +9,7 @@
 #include <meta_json_parser/meta_math.h>
 #include <meta_json_parser/parsing_error.h>
 #include <meta_json_parser/parse.cuh>
+#include <meta_json_parser/json_parse.cuh>
 #include <type_traits>
 
 template<class EntriesList>
@@ -90,7 +91,9 @@ struct JDict
 			GetMemoryRequests,
 			EntriesList
 		>>,
-		KeyRequest
+		KeyRequest,
+		ScanRequest<uint32_t>,
+		ReduceRequest<uint32_t>
 	>;
 
 	template<class KernelContextT>
@@ -114,13 +117,13 @@ struct JDict
 			kc.wgr.AdvanceBy(1);
 			return ParsingError::None;
 		}
-		/*
 		do
 		{
-			typename KeyWriter::Buffer& keys = m kc.m3
-				.template Receive<ScanRequest<OperationT>>()
-				.template Alias<typename R::WarpScanStorage>();
+			typename KeyWriter::Buffer& keys = kc.m3
+				.template Receive<KeyRequest>()
+				.template Alias<typename KeyWriter::Buffer>();
 			constexpr int OUTER_LOOPS = (KeyWriter::KeyCount::value + 31) / 32;
+			static_assert(OUTER_LOOPS == 1, "JDict currently is hardcoded for max 32 keys.");
 			boost::mp11::mp_for_each<boost::mp11::mp_iota_c<OUTER_LOOPS>>([&](auto i) {
 				constexpr int OUTER_I = decltype(i)::value;
 				uint32_t keyBits = OUTER_I == (OUTER_LOOPS - 1)
@@ -149,12 +152,72 @@ struct JDict
 						//_:0xFF'FF'FF'FF << (28 - 4 * 2) -> 0xFF'4F'FF'FF
 						char4 key4{ '\0', '\0', '\0', '\0' };
 						if (RT::WorkerId() < KeyWriter::Longest::value)
-							key4 = reinterpret_cast<char*>(keys)[RT::WorkerId() + KeyWriter::Longest::value * INNER_I];
+							key4 = reinterpret_cast<char4*>(&keys)[RT::WorkerId() + KeyWriter::Longest::value * INNER_I];
+						uint32_t keyByte = (__vcmpeq4(BytesCast<uint32_t>(key4), 0x00'00'00'00u) &
+							(threadIdx.x < activeThreads ? 0x00'00'00'00u : 0xFF'FF'FF'FFu)) |
+							(__vcmpeq4(BytesCast<uint32_t>(key4), BytesCast<uint32_t>(c4)));
+						keyByte &= 0x01'01'01'01u;
+						keyByte |= keyByte >> 7;
+						keyByte |= keyByte >> 14;
+						keyByte &= 0x0F;
+						constexpr int shift_by = (32 - 4) - ((INNER_I % 32) * 4);
+						keyByte = __funnelshift_lc(0xFF'FF'FF'FFu, keyByte | 0xFF'FF'FF'F0u, shift_by);
+						keyBits &= keyByte;
 					});
+					return ParsingError::None;
 				});
+				if (err != ParsingError::None)
+					return err;
+				keyBits = Reduce<uint32_t, WS>(kc).Reduce(keyBits, BitAnd());
+				keyBits = Scan<uint32_t, WS>(kc).Broadcast(keyBits, 0);
+				err = Parse::FindNext<':', WS>::KC(kc).template Do<Parse::StopTag::StopAfter>();
+				if (err != ParsingError::None)
+					return err;
+				err = Parse::FindNoneWhite<WS>::KC(kc).template Do<Parse::StopTag::StopAt>();
+				if (err != ParsingError::None)
+					return err;
+				if (keyBits == 0)
+				{
+					//TODO skip
+					assert(false);
+					return ParsingError::Other;
+					//err = SKIP
+					//if (err != ParsingError::None)
+					//	return err;
+				}
+				else
+				{
+					boost::mp11::mp_for_each<boost::mp11::mp_iota_c<KeyWriter::KeyCount::value>>([&](auto key_index) {
+						if (err != ParsingError::None)
+							return;
+						constexpr int KEY_INDEX = decltype(key_index)::value;
+						using Key = boost::mp11::mp_at_c<Keys, KEY_INDEX>;
+						if (keyBits & (0x80'00'00'00u >> KEY_INDEX))
+						{
+							using Action = boost::mp11::mp_second<boost::mp11::mp_map_find<
+								EntriesList,
+								Key
+							>>;
+							err = Action::Invoke(kc);
+						}
+					});
+				}
+				if (err != ParsingError::None)
+					return err;
 			});
-		} while (false);
-		*/
+			err = Parse::FindNoneWhite<WS>::KC(kc).template Do<Parse::StopTag::StopAt>();
+			if (err != ParsingError::None)
+				return err;
+			c = kc.wgr.PeekChar(0);
+			kc.wgr.AdvanceBy(1);
+			if (c == '}')
+				break;
+			if (c != ',')
+				return ParsingError::Other;
+			err = Parse::FindNext<'"', WS>::KC(kc).template Do<Parse::StopTag::StopAt>();
+			if (err != ParsingError::None)
+				return err;
+		} while (true);
 		return ParsingError::None;
 	}
 };
