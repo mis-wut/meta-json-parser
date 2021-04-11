@@ -171,14 +171,47 @@ TEST_F(ParseJDictTest, uint8_uint32_W32) {
 	templated_ParseDict2UInt<uint8_t, uint32_t, 32>(*this);
 }
 
+TEST_F(ParseJDictTest, uint8_uint32_W16) {
+	templated_ParseDict2UInt<uint8_t, uint32_t, 16>(*this);
+}
+
+TEST_F(ParseJDictTest, uint8_uint32_W8) {
+	templated_ParseDict2UInt<uint8_t, uint32_t, 8>(*this);
+}
+
 TEST_F(ParseJDictTest, uint64_uint16_W32) {
 	templated_ParseDict2UInt<uint64_t, uint16_t, 32>(*this);
+}
+
+TEST_F(ParseJDictTest, uint64_uint16_W16) {
+	templated_ParseDict2UInt<uint64_t, uint16_t, 16>(*this);
+}
+
+TEST_F(ParseJDictTest, uint64_uint16_W8) {
+	templated_ParseDict2UInt<uint64_t, uint16_t, 8>(*this);
 }
 
 TEST_F(ParseJDictTest, uint64_uint64_W32) {
 	templated_ParseDict2UInt<uint64_t, uint64_t, 32>(*this);
 }
 
+TEST_F(ParseJDictTest, uint64_uint64_W16) {
+	templated_ParseDict2UInt<uint64_t, uint64_t, 16>(*this);
+}
+
+TEST_F(ParseJDictTest, uint64_uint64_W8) {
+	templated_ParseDict2UInt<uint64_t, uint64_t, 8>(*this);
+}
+
 TEST_F(ParseJDictTest, uint8_uint8_W32) {
 	templated_ParseDict2UInt<uint8_t, uint8_t, 32>(*this);
 }
+
+TEST_F(ParseJDictTest, uint8_uint8_W16) {
+	templated_ParseDict2UInt<uint8_t, uint8_t, 16>(*this);
+}
+
+TEST_F(ParseJDictTest, uint8_uint8_W8) {
+	templated_ParseDict2UInt<uint8_t, uint8_t, 8>(*this);
+}
+

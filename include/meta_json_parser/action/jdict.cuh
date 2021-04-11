@@ -102,7 +102,6 @@ struct JDict
 		using KC = KernelContextT;
 		using RT = typename KC::RT;
 		using WS = typename RT::WorkGroupSize;
-		static_assert(WS::value == 32, "JDict currently is hardcoded for 32 workgroup size.");
 		ParsingError err;
 		if (kc.wgr.PeekChar(0) != '{')
 			return ParsingError::Other;
@@ -125,11 +124,19 @@ struct JDict
 			constexpr int OUTER_LOOPS = (KeyWriter::KeyCount::value + 31) / 32;
 			static_assert(OUTER_LOOPS == 1, "JDict currently is hardcoded for max 32 keys.");
 			boost::mp11::mp_for_each<boost::mp11::mp_iota_c<OUTER_LOOPS>>([&](auto i) {
+				if (err != ParsingError::None)
+					return;
 				constexpr int OUTER_I = decltype(i)::value;
+				//keyBits = i-th bit set indicates that i-th key was not disqualified    
+				//at the beginning bit is set for each key.
+				//e.g. if we are checking first 32 keys of out 42 keys, mask will be 0xFF'FF'FF'FF
+				//if we are checking only 10 remaining keys, mask will be 0x00'00'03'FF
 				uint32_t keyBits = OUTER_I == (OUTER_LOOPS - 1)
 					? 0xFF'FF'FF'FFu ^ ((0x1u << (32 - KeyWriter::KeyCount::value)) - 1)
 					: 0x0u;
+				int stringReadIdx = 0;
 				err = JsonParse::String<typename RT::WorkGroupSize>::KC(kc)([&](bool& isEscaped, int& activeThreads) {
+					//Each row contains 4 combined keys.
 					constexpr int ROW_COUNT = KeyWriter::RowCount::value;
 					char c = kc.wgr.CurrentChar();
 					char4 c4{ c, c, c, c };
@@ -151,11 +158,19 @@ struct JDict
 						//_ | 0xFF'FF'FF'F0 -> 0xFF'FF'FF'F4
 						//_:0xFF'FF'FF'FF << (28 - 4 * 2) -> 0xFF'4F'FF'FF
 						char4 key4{ '\0', '\0', '\0', '\0' };
-						if (RT::WorkerId() < KeyWriter::Longest::value)
-							key4 = reinterpret_cast<char4*>(&keys)[RT::WorkerId() + KeyWriter::Longest::value * INNER_I];
-						uint32_t keyByte = (__vcmpeq4(BytesCast<uint32_t>(key4), 0x00'00'00'00u) &
-							(threadIdx.x < activeThreads ? 0x00'00'00'00u : 0xFF'FF'FF'FFu)) |
-							(__vcmpeq4(BytesCast<uint32_t>(key4), BytesCast<uint32_t>(c4)));
+						if (stringReadIdx * RT::GroupSize() + RT::WorkerId() < KeyWriter::Longest::value)
+							key4 = reinterpret_cast<char4*>(&keys)[
+								KeyWriter::Longest::value * INNER_I + //Key offset
+								stringReadIdx * RT::GroupSize() + //In-key offset
+								RT::WorkerId() //Thread offset
+							];
+						//If thread is inactive, it should vote for match of a key only if key has ended.
+						// + Set bits for inactive threads
+						uint32_t keyByte = threadIdx.x < activeThreads ? 0x00'00'00'00u : 0xFF'FF'FF'FFu;
+						// + Keep bits only if there is no key chars to check
+						keyByte &= __vcmpeq4(BytesCast<uint32_t>(key4), 0x00'00'00'00u);
+						// Set bits if key chars match an input
+						keyByte |= __vcmpeq4(BytesCast<uint32_t>(key4), BytesCast<uint32_t>(c4));
 						keyByte &= 0x01'01'01'01u;
 						keyByte |= keyByte >> 7;
 						keyByte |= keyByte >> 14;
@@ -164,23 +179,25 @@ struct JDict
 						keyByte = __funnelshift_lc(0xFF'FF'FF'FFu, keyByte | 0xFF'FF'FF'F0u, shift_by);
 						keyBits &= keyByte;
 					});
+					++stringReadIdx;
 					return ParsingError::None;
 				});
 				if (err != ParsingError::None)
-					return err;
+					return;
 				keyBits = Reduce<uint32_t, WS>(kc).Reduce(keyBits, BitAnd());
 				keyBits = Scan<uint32_t, WS>(kc).Broadcast(keyBits, 0);
 				err = Parse::FindNext<':', WS>::KC(kc).template Do<Parse::StopTag::StopAfter>();
 				if (err != ParsingError::None)
-					return err;
+					return;
 				err = Parse::FindNoneWhite<WS>::KC(kc).template Do<Parse::StopTag::StopAt>();
 				if (err != ParsingError::None)
-					return err;
+					return;
 				if (keyBits == 0)
 				{
 					//TODO skip
 					assert(false);
-					return ParsingError::Other;
+					err = ParsingError::Other;
+					return;
 					//err = SKIP
 					//if (err != ParsingError::None)
 					//	return err;
@@ -202,9 +219,10 @@ struct JDict
 						}
 					});
 				}
-				if (err != ParsingError::None)
-					return err;
+				return;
 			});
+			if (err != ParsingError::None)
+				return err;
 			err = Parse::FindNoneWhite<WS>::KC(kc).template Do<Parse::StopTag::StopAt>();
 			if (err != ParsingError::None)
 				return err;
