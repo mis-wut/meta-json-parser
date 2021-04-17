@@ -41,7 +41,7 @@ constexpr __device__ __forceinline__ bool HasZeroByte(uint32_t value)
 //Source: https://graphics.stanford.edu/~seander/bithacks.html#ValueInWord
 
 template<typename Input>
-const __device__ __forceinline__ bool HasThisByte(Input value, uint8_t byte)
+__device__ __forceinline__ bool HasThisByte(Input value, uint8_t byte)
 {
 	static_assert(sizeof(Input) == 4, "Input type must have size of 4 bytes");
 //#ifdef __CUDA_ARCH__
@@ -53,7 +53,7 @@ const __device__ __forceinline__ bool HasThisByte(Input value, uint8_t byte)
 }
 
 template<>
-const __device__ __forceinline__ bool HasThisByte<uint32_t>(uint32_t value, uint8_t byte)
+__device__ __forceinline__ bool HasThisByte<uint32_t>(uint32_t value, uint8_t byte)
 {
 //#ifdef __CUDA_ARCH__
 #if false

@@ -92,6 +92,7 @@ struct MetaMemoryManager<ParserConfiguration<ParserConfigurationArgsT...>>
 		});
 	}
 
+#pragma nv_exec_check_disable
 	template<class MemoryUsageT>
 	__host__ __device__ __forceinline__ decltype(auto) GetBuffer() { }
 

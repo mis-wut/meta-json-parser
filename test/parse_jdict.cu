@@ -33,8 +33,8 @@ struct TestContextJDict2UInt {
 	{
 		using Generate1T = boost::mp11::mp_if_c<sizeof(OutType1T) == 1, uint16_t, OutType1T>;
 		using Generate2T = boost::mp11::mp_if_c<sizeof(OutType1T) == 1, uint16_t, OutType1T>;
-		Generate1T MAX_VAL_1 = std::numeric_limits<OutType1T>::max() - 1;
-		Generate2T MAX_VAL_2 = std::numeric_limits<OutType2T>::max() - 1;
+		Generate1T MAX_VAL_1 = static_cast<Generate1T>(std::numeric_limits<OutType1T>::max() - 1);
+		Generate2T MAX_VAL_2 = static_cast<Generate2T>(std::numeric_limits<OutType2T>::max() - 1);
 		size_t MAX_KEY_LEN_1 = boost::mp11::mp_size<Key1T>::value + 2;
 		size_t MAX_KEY_LEN_2 = boost::mp11::mp_size<Key2T>::value + 2;
 		size_t MAX_UINT_LEN_1 = (size_t)std::ceil(std::log10((double)MAX_VAL_1));

@@ -24,6 +24,7 @@ struct WorkGroupReaderBase
 	using MemoryRequest = MemoryRequest_c<BUFFER_COUNT * BUFFER_SIZE, MemoryUsage::ActionUsage, MemoryType::Shared>;
 
 private:
+#pragma nv_exec_check_disable
 	template<int WorkGroupSize>
 	static __device__ __forceinline__ uint32_t __detail_ballot_sync(int predicate)
 	{
@@ -39,6 +40,7 @@ private:
 		return __ballot_sync(0xFF'FF'FF'FFu, predicate);
 	}
 
+#pragma nv_exec_check_disable
 	template<int WorkGroupSize>
 	static __device__ __forceinline__ uint32_t __detail_all_sync(int predicate)
 	{
@@ -52,11 +54,13 @@ private:
 		return __all_sync(0xFF'FF'FF'FFu, predicate);
 	}
 public:
+#pragma nv_exec_check_disable
 	__device__ __forceinline__ uint32_t ballot_sync(int predicate)
 	{
 		return __detail_ballot_sync<GROUP_SIZE>(predicate);
 	}
 
+#pragma nv_exec_check_disable
 	__device__ __forceinline__ uint32_t all_sync(int predicate)
 	{
 		return __detail_all_sync<GROUP_SIZE>(predicate);
