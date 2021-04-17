@@ -57,6 +57,88 @@ namespace JsonParse
 		return fun(std::forward<ArgsT&>(args)...);
 	}
 
+	struct JsonKeywords
+	{
+		struct Words
+		{
+			char _null[4];
+			char _true[4];
+			char _false[5];
+			char _unused[3];
+		} words;
+		//0x0 | n u l l t r u e
+		//0x8 | f a l s e . . .
+		using Buffer = StaticBuffer_c<sizeof(Words)>;
+
+		static void __host__ Fill(Buffer& buffer)
+		{
+			auto buf = "nulltruefalse\0\0\0";
+			std::copy_n(buf, sizeof(Words), buffer.data);
+		}
+	};
+
+	using BooleanRequest = FilledMemoryRequest<
+		JsonKeywords::Buffer::Size,
+		JsonKeywords,
+		MemoryUsage::ReadOnly,
+		MemoryType::Shared
+	>;
+
+	using BooleanRequests = boost::mp11::mp_list<
+		BooleanRequest,
+		ReduceRequest<
+			int
+		>,
+		ScanRequest<
+			int
+		>
+	>;
+
+	template<class WorkGroupSizeT, class KernelContextT, class ...ArgsT>
+	__device__ INLINE_METHOD ParsingError Boolean(KernelContextT& _kc, ArgsT& ...args)
+	{
+		using KC = KernelContextT;
+		using WS = WorkGroupSizeT;
+		using RT = typename KC::RT;
+		static_assert(WorkGroupSizeT::value >= 5, "WorkGroup must have a size of at least 5.");
+		JsonKeywords& keywords = _kc.m3
+				.template Receive<BooleanRequest>()
+				.template Alias<JsonKeywords>();
+		int found = 0x0;
+		char c = _kc.wgr.CurrentChar();
+		{
+			int isTrue = 1;
+			if (RT::WorkerId() < 4)
+				isTrue = c == keywords.words._true[RT::WorkerId()];
+			else if (RT::WorkerId() == 4)
+				isTrue = HasThisByte(VALID_ENDING, c) || HasThisByte(WHITESPACES, c);
+			found |= isTrue ? 0x1 : 0x0;
+		}
+		{
+			int isFalse = 1;
+			if (RT::WorkerId() < 5)
+				isFalse = c == keywords.words._false[RT::WorkerId()];
+			else if (RT::WorkerId() == 5)
+				isFalse = HasThisByte(VALID_ENDING, c) || HasThisByte(WHITESPACES, c);
+			found |= isFalse ? 0x2 : 0x0;
+		}
+		found = Reduce<int, WS>(_kc).Reduce(found, BitAnd());
+		found = Scan<int, WS>(_kc).Broadcast(found, 0);
+		if (found & 0x1)
+		{
+			_kc.wgr.AdvanceBy(4);
+			SetValueDispatch<ArgsT&...>()(args..., true);
+			return ParsingError::None;
+		}
+		else if (found & 0x2)
+		{
+			_kc.wgr.AdvanceBy(5);
+			SetValueDispatch<ArgsT&...>()(args..., false);
+			return ParsingError::None;
+		}
+		return ParsingError::Other;
+	}
+
 	template<class OutTypeT>
 	using UnsignedIntegerOperationType = boost::mp11::mp_if_c<
 		sizeof(OutTypeT) <= sizeof(uint32_t),
