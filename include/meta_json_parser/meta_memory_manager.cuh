@@ -142,7 +142,7 @@ struct MetaMemoryManager<ParserConfiguration<ParserConfigurationArgsT...>>
 			boost::mp11::mp_list<>,
 			boost::mp11::mp_take,
 			_List,
-			boost::mp11::mp_int<static_cast<int>(_Index::value - 1)>
+			boost::mp11::mp_int<static_cast<int>(_Index::value)>
 		>;
 		using _BufferOffset = typename _AccFun::template fn<_Head>;
 		using _Buffer = GetRequestBuffer<MemoryRequestT, RT>;
