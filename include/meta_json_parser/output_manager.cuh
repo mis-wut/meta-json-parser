@@ -36,20 +36,23 @@ struct OutputManager
 	//mp_second as OutputTypeT is second argument for OutputRequest
 	using OutType = boost::mp11::mp_second<boost::mp11::mp_map_find<RequestList, TagT>>;
 
+	template<class TagT>
+	using TagIndex = boost::mp11::mp_find_if_q<
+		boost::mp11::mp_transform<
+			boost::mp11::mp_first,
+			RequestList
+		>,
+		boost::mp11::mp_bind_q<
+			boost::mp11::mp_quote<boost::mp11::mp_same>,
+			boost::mp11::_1,
+			TagT
+		>
+	>;
+
 	template<class KC, class TagT>
 	__device__ __forceinline__ OutType<TagT>* Pointer()
 	{
-		using Index = boost::mp11::mp_find_if_q<
-			boost::mp11::mp_transform<
-				boost::mp11::mp_first,
-				RequestList
-			>,
-			boost::mp11::mp_bind_q<
-				boost::mp11::mp_quote<boost::mp11::mp_same>,
-				boost::mp11::_1,
-				TagT
-			>
-		>;
+		using Index = TagIndex<TagT>;
 		static_assert(Index::value < boost::mp11::mp_size<RequestList>::value, "Requested tag is not present in OutputRequests");
 		return reinterpret_cast<OutType<TagT>*>(mOutputs[Index::value]) + KC::RT::InputId();
 	}
