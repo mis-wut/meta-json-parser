@@ -97,11 +97,11 @@ class OutputIndicesIterator
 public:
 
     // Required iterator traits
-    typedef OutputIndicesIterator                    self_type;              ///< My own type
-    typedef ptrdiff_t                                difference_type;        ///< Type to express the result of subtracting one iterator from another
-    typedef cub::KeyValuePair<difference_type, char> value_type;             ///< The type of the element the iterator can point to
-    typedef value_type*                              pointer;                ///< The type of a pointer to an element the iterator can point to
-    typedef value_type                               reference;              ///< The type of a reference to an element the iterator can point to
+    typedef OutputIndicesIterator                        self_type;              ///< My own type
+    typedef ptrdiff_t                                    difference_type;        ///< Type to express the result of subtracting one iterator from another
+    typedef cub::KeyValuePair<difference_type, uint32_t> value_type;             ///< The type of the element the iterator can point to
+    typedef value_type*                                  pointer;                ///< The type of a pointer to an element the iterator can point to
+    typedef value_type                                   reference;              ///< The type of a reference to an element the iterator can point to
 
 #if (THRUST_VERSION >= 100700)
     // Use Thrust's iterator categories so we can use these iterators in Thrust 1.7 (or newer) methods
@@ -125,9 +125,30 @@ public:
     __host__ __device__ __forceinline__ OutputIndicesIterator(InputIndex* itr) : itr(itr) {}
 
 	/// Assignment operator
-	__host__ __device__ __forceinline__ self_type& operator=(const value_type &val)
+	__device__ __forceinline__ self_type& operator=(const value_type &val)
 	{
-		*itr = static_cast<InputIndex>(val.key) + 1; // +1, because of key point to \n, we want to point to the beginning of json
+		int inner_offset = 1;
+		//undefined behavior for 2 byte jsons. e.g. \n[]\n or \n{}\n
+		//Windows endline format with \n\r is not supported and will result in udefined behavior
+		uint32_t mask = __vcmpeq4(val.value, '\n\n\n\n') | __vcmpeq4(val.value, '\r\r\r\r');
+		switch (mask)
+		{
+		case 0xFF'00'00'00u:
+			inner_offset = 4;
+			break;
+		case 0x00'FF'00'00u:
+			inner_offset = 3;
+			break;
+		case 0x00'00'FF'00u:
+			inner_offset = 2;
+			break;
+		case 0x00'00'00'FFu:
+			inner_offset = 1;
+			break;
+		default:
+			break;
+		}
+		*itr = static_cast<InputIndex>(val.key * 4) + inner_offset;
 		return *this;
 	}
 
@@ -142,8 +163,8 @@ public:
 
 struct IsNewLine
 {
-	__host__ __device__ __forceinline__ bool operator()(const cub::KeyValuePair<ptrdiff_t, char> c) const {
-		return c.value == '\r' || c.value == '\n';
+	__device__ __forceinline__ bool operator()(const cub::KeyValuePair<ptrdiff_t, uint32_t> c) const {
+		return __vcmpeq4(c.value, '\n\n\n\n') | __vcmpeq4(c.value, '\r\r\r\r');
 	}
 };
 
@@ -263,6 +284,8 @@ void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int 
 void copy_output(benchmark_device_buffers& device_buffers);
 void print_results();
 
+constexpr bool check_err_code = false;
+
 int main(int argc, char** argv)
 {
 	init_gpu();
@@ -364,7 +387,7 @@ void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int 
 	InputIndex just_zero = 0;
 	cudaMemcpyAsync(d_indices, &just_zero, sizeof(InputIndex), cudaMemcpyHostToDevice, stream);
 	
-	cub::ArgIndexInputIterator<char*> arg_iter(d_input);
+	cub::ArgIndexInputIterator<uint32_t*> arg_iter(reinterpret_cast<uint32_t*>(d_input));
 	OutputIndicesIterator out_iter(d_indices + 1); // +1, we need to add 0 at index 0
 	
 	int* d_temp_storage = nullptr;
@@ -378,7 +401,7 @@ void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int 
 		arg_iter,
 		out_iter,
 		d_num_selected,
-		input_size,
+		(input_size + 3) / 4,
 		IsNewLine(),
 		stream
 	);
@@ -391,7 +414,7 @@ void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int 
 		arg_iter,
 		out_iter,
 		d_num_selected,
-		input_size,
+		(input_size + 3) / 4,
 		IsNewLine(),
 		stream
 	);
@@ -433,6 +456,15 @@ void copy_output(benchmark_device_buffers& device_buffers)
 		cudaMemcpyAsync(temp_uint8_bufs.back().data(), buf, sizeof(uint8_t) * device_buffers.count, cudaMemcpyDeviceToHost, stream);
 	}
 	cudaMemcpyAsync(temp_err.data(), device_buffers.err_buffer, sizeof(ParsingError) * device_buffers.count, cudaMemcpyDeviceToHost, stream);
+
+	if (check_err_code)
+	{
+		cudaStreamSynchronize(stream);
+		if (!all_of(temp_err.begin(), temp_err.end(), [](ParsingError e) { return e == ParsingError::None; }))
+		{
+			cout << "Parsing errors!\n";
+		}
+	}
 }
 
 benchmark_device_buffers initialize_buffers_dynamic(benchmark_input& input)
