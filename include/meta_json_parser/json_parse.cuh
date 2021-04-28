@@ -166,7 +166,7 @@ namespace JsonParse
 		using R = UnsignedIntegerRequests<OutTypeT>;
 		using WS = WorkGroupSizeT;
 		using OP = UnsignedIntegerOperationType<OutTypeT>;
-		using RT = KC::RT;
+		using RT = typename KC::RT;
 		static_assert(std::is_arithmetic_v<OutTypeT>, "OutTypeT must be arithmetic.");
 
 		__device__ __forceinline__ UnsignedIntegerParser(KC& kc) : _kc(kc) {}
@@ -265,7 +265,7 @@ namespace JsonParse
 		using R = StringRequests;
 		using WS = WorkGroupSizeT;
 		//using OP = UnsignedIntegerOperationType<OutTypeT>;
-		using RT = KC::RT;
+		using RT = typename KC::RT;
 
 		__device__ __forceinline__ StringParser(KC& kc) : _kc(kc) {}
 	private:

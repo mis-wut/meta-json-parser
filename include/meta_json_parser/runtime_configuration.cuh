@@ -21,7 +21,7 @@ struct RuntimeConfiguration
 		>::value,
 		"Workers count cannot be greater than maximum block size"
 	);
-	using MemoryRequest = WorkGroupReader<WorkGroupSize>::MemoryRequest;
+	using MemoryRequest = typename WorkGroupReader<WorkGroupSize>::MemoryRequest;
 	static dim3 BlockDim()
 	{
 		return { BlockDimX::value, BlockDimY::value, BlockDimZ::value };

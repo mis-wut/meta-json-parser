@@ -34,11 +34,11 @@ private:
 		return (result >> ((threadIdx.y % GROUPS_IN_WARP) * WorkGroupSize)) & MASK;
 	}
 
-	template<>
-	static __device__ __forceinline__ uint32_t __detail_ballot_sync<32>(int predicate)
-	{
-		return __ballot_sync(0xFF'FF'FF'FFu, predicate);
-	}
+	//template<>
+	//static __device__ __forceinline__ uint32_t __detail_ballot_sync<32>(int predicate)
+	//{
+	//	return __ballot_sync(0xFF'FF'FF'FFu, predicate);
+	//}
 
 #pragma nv_exec_check_disable
 	template<int WorkGroupSize>
@@ -48,11 +48,11 @@ private:
 		return __detail_ballot_sync<WorkGroupSize>(predicate) == MASK;
 	}
 
-	template<>
-	static __device__ __forceinline__ uint32_t __detail_all_sync<32>(int predicate)
-	{
-		return __all_sync(0xFF'FF'FF'FFu, predicate);
-	}
+	//template<>
+	//static __device__ __forceinline__ uint32_t __detail_all_sync<32>(int predicate)
+	//{
+	//	return __all_sync(0xFF'FF'FF'FFu, predicate);
+	//}
 public:
 #pragma nv_exec_check_disable
 	__device__ __forceinline__ uint32_t ballot_sync(int predicate)
@@ -75,9 +75,9 @@ struct WorkGroupReader : public WorkGroupReaderBase<WorkingGroupSizeT>
 	static constexpr std::size_t MEMORY_ALIGNMENT = Base::MEMORY_ALIGNMENT;
 	static constexpr std::size_t ALIGNMENT_MASK = Base::ALIGNMENT_MASK;
 	static constexpr std::size_t BUFFER_COUNT = Base::BUFFER_COUNT;
-	using VectorType = Base::VectorType;
+	using VectorType = typename Base::VectorType;
 	static constexpr std::size_t BUFFER_SIZE = Base::BUFFER_SIZE;
-	using MemoryRequest = Base::MemoryRequest;
+	using MemoryRequest = typename Base::MemoryRequest;
 protected:
 	const char* mSource;
 	const char* mEndSource;
@@ -176,7 +176,7 @@ public:
 	}
 
 	__device__ INLINE_METHOD WorkGroupReader(
-		MemoryRequest::Buffer& pBuffers,
+		typename MemoryRequest::Buffer& pBuffers,
 		const char* pSource,
 		const char* pEndSource = nullptr) :
 		mSource(pSource),
@@ -219,9 +219,9 @@ struct WorkGroupReaderPrefetch : public WorkGroupReaderBase<WorkingGroupSizeT>
 	static constexpr std::size_t MEMORY_ALIGNMENT = Base::MEMORY_ALIGNMENT;
 	static constexpr std::size_t ALIGNMENT_MASK = Base::ALIGNMENT_MASK;
 	static constexpr std::size_t BUFFER_COUNT = Base::BUFFER_COUNT;
-	using VectorType = Base::VectorType;
+	using VectorType = typename Base::VectorType;
 	static constexpr std::size_t BUFFER_SIZE = Base::BUFFER_SIZE;
-	using MemoryRequest = Base::MemoryRequest;
+	using MemoryRequest = typename Base::MemoryRequest;
 	//TODO current implementation is inefficient. VectorType should always be 4 bytes.
 	//Different strategies of loading need to be implemented for different group sizes
 protected:
@@ -316,7 +316,7 @@ public:
 	}
 
 	__device__ INLINE_METHOD WorkGroupReaderPrefetch(
-		MemoryRequest::Buffer& pBuffers,
+		typename MemoryRequest::Buffer& pBuffers,
 		const char* pSource,
 		const char* pEndSource = nullptr) :
 		mSource(pSource),

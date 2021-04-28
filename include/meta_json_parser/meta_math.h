@@ -9,10 +9,10 @@ struct IsPower2_impl
 };
 
 template<typename ValueT>
-using IsPower2 = IsPower2_impl<ValueT>::type;
+using IsPower2 = typename IsPower2_impl<ValueT>::type;
 
 template<int ValueT>
-using IsPower2_c = IsPower2_impl<boost::mp11::mp_int<ValueT>>::type;
+using IsPower2_c = typename IsPower2_impl<boost::mp11::mp_int<ValueT>>::type;
 
 namespace boost {
 namespace mp11 {

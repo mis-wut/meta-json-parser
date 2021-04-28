@@ -6,6 +6,6 @@ template<class RuntimeConfigurationT, class MemoryConfigurationT = EmptyMemoryCo
 struct ParserConfiguration
 {
 	using RuntimeConfiguration = RuntimeConfigurationT;
-	using MemoryConfiguration = AppendRequest<MemoryConfigurationT, RuntimeConfiguration::MemoryRequest>;
+	using MemoryConfiguration = AppendRequest<MemoryConfigurationT, typename RuntimeConfiguration::MemoryRequest>;
 };
 

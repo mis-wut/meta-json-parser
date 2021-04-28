@@ -39,10 +39,10 @@ struct JArray
 	using MaxIndex = boost::mp11::mp_back<SortedIndices>;
 
 	template<class T>
-	using GetOutputRequests = boost::mp11::mp_second<T>::OutputRequests;
+	using GetOutputRequests = typename boost::mp11::mp_second<T>::OutputRequests;
 
 	template<class T>
-	using GetMemoryRequests = boost::mp11::mp_second<T>::MemoryRequests;
+	using GetMemoryRequests = typename boost::mp11::mp_second<T>::MemoryRequests;
 
 	using OutputRequests = boost::mp11::mp_flatten<boost::mp11::mp_transform<
 		GetOutputRequests,

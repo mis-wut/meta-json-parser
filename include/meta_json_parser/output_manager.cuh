@@ -12,10 +12,10 @@ struct OutputConfiguration
 };
 
 template<class OutputConfigurationT, class RequestT>
-using AppendOutputRequest = OutputConfiguration<boost::mp11::mp_push_back<OutputConfigurationT::RequestList, RequestT>>;
+using AppendOutputRequest = OutputConfiguration<boost::mp11::mp_push_back<typename OutputConfigurationT::RequestList, RequestT>>;
 
 template<class OutputConfigurationT, class RequestsT>
-using AppendOutputRequests = OutputConfiguration<boost::mp11::mp_append<OutputConfigurationT::RequestList, RequestsT>>;
+using AppendOutputRequests = OutputConfiguration<boost::mp11::mp_append<typename OutputConfigurationT::RequestList, RequestsT>>;
 
 template<class OutputTagT, class OutputTypeT>
 struct OutputRequest
@@ -27,7 +27,7 @@ struct OutputRequest
 template<class OutputConfigurationT>
 struct OutputManager
 {
-	using RequestList = OutputConfigurationT::RequestList;
+	using RequestList = typename OutputConfigurationT::RequestList;
 
 	void** mOutputs;
 	__device__ __forceinline__ OutputManager(void** outputs) : mOutputs(outputs) {}

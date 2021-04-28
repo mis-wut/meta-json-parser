@@ -18,8 +18,8 @@ using EmptyMemoryConfiguration = MemoryConfiguration<
 >;
 
 template<class MemoryConfigurationT, class MemoryRequestT>
-using AppendRequest = boost::mp11::mp_rename<
-	boost::mp11::mp_second<
+using AppendRequest = typename boost::mp11::mp_rename<
+	typename boost::mp11::mp_second<
 		boost::mp11::mp_map_find<
 			boost::mp11::mp_list<
 				boost::mp11::mp_list<MemoryUsage::ReadOnly, boost::mp11::mp_quote<boost::mp11::mp_transform_first_q>>,

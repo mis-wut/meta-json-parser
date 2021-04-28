@@ -29,7 +29,7 @@ namespace Parse
 		using KC = KernelContextT;
 		using R = FindNoneWhiteRequests;
 		using WS = WorkGroupSizeT;
-		using RT = KC::RT;
+		using RT = typename KC::RT;
 
 		static constexpr char CHARS_FROM = 0x20;
 
@@ -78,7 +78,7 @@ namespace Parse
 		using KC = KernelContextT;
 		using R = FindNoneWhiteRequests;
 		using WS = WorkGroupSizeT;
-		using RT = KC::RT;
+		using RT = typename KC::RT;
 
 		static constexpr char CHARS_FROM = 0x20;
 
