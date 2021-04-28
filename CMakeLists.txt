@@ -55,12 +55,12 @@ target_sources(meta-json-parser-test PRIVATE
 	test/work_group_reader_test.cu
 )
 
-set_target_properties(lib-meta-json-parser meta-json-parser-test PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE CUDA_SEPARABLE_COMPILATION OFF CUDA_ARCHITECTURES 52)
+#set_target_properties(lib-meta-json-parser meta-json-parser-test PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE CUDA_SEPARABLE_COMPILATION OFF CUDA_ARCHITECTURES 52)
 
 target_compile_features(meta-json-parser-test INTERFACE cxx_std_17 cuda_std_17)
 
 target_compile_options(meta-json-parser-test PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr> $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
 
-enable_testing()
+#enable_testing()
 
 gtest_discover_tests(meta-json-parser-test)
