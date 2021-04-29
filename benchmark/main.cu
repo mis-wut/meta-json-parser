@@ -92,6 +92,25 @@ struct benchmark_device_buffers
 	int count;
 };
 
+chrono::high_resolution_clock::time_point cpu_start;
+chrono::high_resolution_clock::time_point cpu_stop;
+cudaEvent_t gpu_start;
+cudaEvent_t gpu_memory_checkpoint;
+cudaEvent_t gpu_preprocessing_checkpoint;
+cudaEvent_t gpu_parsing_checkpoint;
+cudaEvent_t gpu_output_checkpoint;
+cudaEvent_t gpu_stop;
+cudaStream_t stream;
+
+void usage();
+void init_gpu();
+benchmark_input get_input(int argc, char** argv);
+benchmark_device_buffers initialize_buffers_dynamic(benchmark_input& input);
+void launch_kernel_dynamic(benchmark_device_buffers& device_buffers, workgroup_size wg_size);
+void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count);
+void copy_output(benchmark_device_buffers& device_buffers);
+void print_results();
+
 class OutputIndicesIterator
 {
 public:
@@ -264,25 +283,6 @@ void launch_kernel(benchmark_device_buffers& device_buffers)
 		device_buffers.count
 	);
 }
-
-chrono::high_resolution_clock::time_point cpu_start;
-chrono::high_resolution_clock::time_point cpu_stop;
-cudaEvent_t gpu_start;
-cudaEvent_t gpu_memory_checkpoint;
-cudaEvent_t gpu_preprocessing_checkpoint;
-cudaEvent_t gpu_parsing_checkpoint;
-cudaEvent_t gpu_output_checkpoint;
-cudaEvent_t gpu_stop;
-cudaStream_t stream;
-
-void usage();
-void init_gpu();
-benchmark_input get_input(int argc, char** argv);
-benchmark_device_buffers initialize_buffers_dynamic(benchmark_input& input);
-void launch_kernel_dynamic(benchmark_device_buffers& device_buffers, workgroup_size wg_size);
-void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count);
-void copy_output(benchmark_device_buffers& device_buffers);
-void print_results();
 
 constexpr bool check_err_code = false;
 
@@ -471,14 +471,13 @@ benchmark_device_buffers initialize_buffers_dynamic(benchmark_input& input)
 {
 	switch (input.wg_size)
 	{
+	default:
 	case workgroup_size::W32:
 		return initialize_buffers<32>(input);
 	case workgroup_size::W16:
 		return initialize_buffers<16>(input);
 	case workgroup_size::W8:
 		return initialize_buffers<8>(input);
-	default:
-		break;
 	}
 }
 

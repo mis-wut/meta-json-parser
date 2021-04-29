@@ -30,7 +30,9 @@ private:
 	{
 		constexpr uint32_t GROUPS_IN_WARP = 32 / WorkGroupSize;
 		constexpr uint32_t MASK = 0xFF'FF'FF'FFu >> (32 - WorkGroupSize);
-		uint32_t result = __ballot_sync(0xFF'FF'FF'FFu, predicate);
+        //TODO calculate activemask based on groupszie and group in warp index
+		//uint32_t result = __ballot_sync(0xFF'00'00'00u >> (WorkGroupSize * threadIdx.y), predicate);
+		uint32_t result = __ballot_sync(__activemask(), predicate);
 		return (result >> ((threadIdx.y % GROUPS_IN_WARP) * WorkGroupSize)) & MASK;
 	}
 

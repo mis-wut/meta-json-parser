@@ -73,13 +73,13 @@ struct JDict
 		}
 	};
 
-	using KeyRequest = FilledMemoryRequest<KeyWriter::StorageSize, KeyWriter, MemoryUsage::ReadOnly, MemoryType::Shared>;
+	using KeyRequest = FilledMemoryRequest<typename KeyWriter::StorageSize, KeyWriter, MemoryUsage::ReadOnly, MemoryType::Shared>;
 
 	template<class T>
-	using GetOutputRequests = boost::mp11::mp_second<T>::OutputRequests;
+	using GetOutputRequests = typename boost::mp11::mp_second<T>::OutputRequests;
 
 	template<class T>
-	using GetMemoryRequests = boost::mp11::mp_second<T>::MemoryRequests;
+	using GetMemoryRequests = typename boost::mp11::mp_second<T>::MemoryRequests;
 
 	using OutputRequests = boost::mp11::mp_flatten<boost::mp11::mp_transform<
 		GetOutputRequests,
@@ -135,7 +135,7 @@ struct JDict
 					? 0xFF'FF'FF'FFu ^ ((0x1u << (32 - KeyWriter::KeyCount::value)) - 1)
 					: 0x0u;
 				int stringReadIdx = 0;
-				err = JsonParse::String<typename RT::WorkGroupSize>::KC(kc)([&](bool& isEscaped, int& activeThreads) {
+				err = JsonParse::String<KC>(kc)([&](bool& isEscaped, int& activeThreads) {
 					//Each row contains 4 combined keys.
 					constexpr int ROW_COUNT = KeyWriter::RowCount::value;
 					char c = kc.wgr.CurrentChar();

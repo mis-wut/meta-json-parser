@@ -4,12 +4,14 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 #include <gtest/gtest.h>
-#include <meta_json_parser/meta_memory_manager.cuh>
-#include <meta_json_parser/kernel_launcher.cuh>
-#include <meta_json_parser/kernel_context.cuh>
+#include <meta_json_parser/work_group_reader.cuh>
+#include <meta_json_parser/runtime_configuration.cuh>
 #include <meta_json_parser/parser_configuration.h>
-#include <meta_json_parser/config.h>
-#include <meta_json_parser/intelisense_silencer.h>
+#include <meta_json_parser/meta_memory_manager.cuh>
+#include <meta_json_parser/kernel_context.cuh>
+#include <meta_json_parser/kernel_launcher.cuh>
+//#include <meta_json_parser/config.h>
+//#include <meta_json_parser/intelisense_silencer.h>
 
 constexpr int MAX_SENTENCE = 512;
 
@@ -102,9 +104,9 @@ void templated_ProperDataReading()
 	for (int i_sentence = 0; i_sentence < SENTENCE_COUNT; ++i_sentence)
 	{
 		const char* const sentence = sentences[i_sentence];
-		*(h_correct_it + std::snprintf(h_correct_it, MAX_SENTENCE, sentence)) = '%';
+		*(h_correct_it + std::snprintf(h_correct_it, MAX_SENTENCE, "%s", sentence)) = '%';
 		h_correct_it += MAX_SENTENCE;
-		h_input_it += std::snprintf(h_input_it, MAX_SENTENCE - 2ull, sentence);
+		h_input_it += std::snprintf(h_input_it, MAX_SENTENCE - 2ull, "%s", sentence);
 		*h_indices_it = h_input_it - h_input.data();
 		++h_indices_it;
 	}

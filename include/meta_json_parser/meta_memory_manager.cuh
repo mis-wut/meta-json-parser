@@ -1,5 +1,6 @@
 #pragma once
 #include <cuda_runtime_api.h>
+#include <type_traits>
 #include <boost/mp11/function.hpp>
 #include <boost/mp11/bind.hpp>
 #include <boost/mp11/list.hpp>
@@ -11,21 +12,45 @@
 #include <meta_json_parser/byte_algorithms.h>
 #include <utility>
 
+template<class MetaMemoryManagerT, class MemoryUsageT>
+struct __GetBuffer
+{
+    static __host__ __device__ __forceinline__ decltype(auto) fn(MetaMemoryManagerT& m3) { }
+};
+
+template<class MetaMemoryManagerT>
+struct __GetBuffer<MetaMemoryManagerT, MemoryUsage::ReadOnly>
+{
+    static __host__ __device__ __forceinline__ decltype(auto) fn(MetaMemoryManagerT& m3)
+    {
+        return std::forward<typename MetaMemoryManagerT::ReadOnlyBuffer&>(m3.sharedBuffers.readOnlyBuffer);
+    }
+};
+
+template<class MetaMemoryManagerT>
+struct __GetBuffer<MetaMemoryManagerT, MemoryUsage::ActionUsage>
+{
+    static __host__ __device__ __forceinline__ decltype(auto) fn(MetaMemoryManagerT& m3)
+    {
+        return std::forward<typename MetaMemoryManagerT::ActionBuffer&>(m3.sharedBuffers.actionBuffer);
+    }
+};
+
+template<class MetaMemoryManagerT>
+struct __GetBuffer<MetaMemoryManagerT, MemoryUsage::AtomicUsage>
+{
+    static __host__ __device__ __forceinline__ decltype(auto) fn(MetaMemoryManagerT& m3)
+    {
+        return std::forward<typename MetaMemoryManagerT::AtomicBuffer&>(m3.sharedBuffers.atomicBuffer);
+    }
+};
+
 template<class ParserConfigurationT>
 struct MetaMemoryManager
 {
-	static_assert(std::is_same_v<
-			boost::mp11::mp_rename<ParserConfigurationT, ParserConfiguration>,
-			ParserConfigurationT
-		>,
-		"MetaMemoryManager takes ParserConfiguration as its input");
-};
-
-template<class ...ParserConfigurationArgsT>
-struct MetaMemoryManager<ParserConfiguration<ParserConfigurationArgsT...>>
-{
-	using _ParserConfiguration = ParserConfiguration<ParserConfigurationArgsT...>;
-	using RT = _ParserConfiguration::RuntimeConfiguration;
+    using type = MetaMemoryManager<ParserConfigurationT>;
+	using _ParserConfiguration = ParserConfigurationT;
+	using RT = typename _ParserConfiguration::RuntimeConfiguration;
 
 	struct IntPlusMemoryRequest
 	{
@@ -51,9 +76,9 @@ struct MetaMemoryManager<ParserConfiguration<ParserConfigurationArgsT...>>
 		typename _ParserConfiguration::RuntimeConfiguration::WorkGroupCount
 	>;
 
-	using ReadOnlyBuffer = StaticBuffer<OnePerBlockSize<_MemoryConfiguration::ReadOnlyList>>;
-	using ActionBuffer = StaticBuffer<OnePerGroupSize<_MemoryConfiguration::ActionList>>;
-	using AtomicBuffer = StaticBuffer<OnePerGroupSize<_MemoryConfiguration::AtomicList>>;
+	using ReadOnlyBuffer = StaticBuffer<OnePerBlockSize<typename _MemoryConfiguration::ReadOnlyList>>;
+	using ActionBuffer = StaticBuffer<OnePerGroupSize<typename _MemoryConfiguration::ActionList>>;
+	using AtomicBuffer = StaticBuffer<OnePerGroupSize<typename _MemoryConfiguration::AtomicList>>;
 
 	//TODO now only shared memory is supported, add support for global and constant
 	//TODO take alignment into account
@@ -92,27 +117,10 @@ struct MetaMemoryManager<ParserConfiguration<ParserConfigurationArgsT...>>
 		});
 	}
 
-#pragma nv_exec_check_disable
-	template<class MemoryUsageT>
-	__host__ __device__ __forceinline__ decltype(auto) GetBuffer() { }
-
-	template<>
-	__host__ __device__ __forceinline__ decltype(auto) GetBuffer<MemoryUsage::ReadOnly>()
-	{
-		return std::forward<ReadOnlyBuffer&>(sharedBuffers.readOnlyBuffer);
-	}
-
-	template<>
-	__host__ __device__ __forceinline__ decltype(auto) GetBuffer<MemoryUsage::ActionUsage>()
-	{
-		return std::forward<ActionBuffer&>(sharedBuffers.actionBuffer);
-	}
-
-	template<>
-	__host__ __device__ __forceinline__ decltype(auto) GetBuffer<MemoryUsage::AtomicUsage>()
-	{
-		return std::forward<AtomicBuffer&>(sharedBuffers.atomicBuffer);
-	}
+    template<class MemoryUsageT>
+    __host__ __device__ __forceinline__ decltype(auto) GetBuffer() {
+        return __GetBuffer<type, MemoryUsageT>::fn(*this);
+    }
 
 	//TODO take alignment into account
 	template<class MemoryRequestT>
@@ -158,3 +166,4 @@ struct MetaMemoryManager<ParserConfiguration<ParserConfigurationArgsT...>>
 		return ReceiveForGroup<MemoryRequestT>(threadIdx.y);
 	}
 };
+

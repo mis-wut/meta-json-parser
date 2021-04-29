@@ -14,10 +14,10 @@
 template<class PC, class BA>
 using __NewM3 = MetaMemoryManager<
 	ParserConfiguration<
-		PC::RuntimeConfiguration,
+		typename PC::RuntimeConfiguration,
 		ExtendRequests<
-			PC::MemoryConfiguration,
-			BA::MemoryRequests
+			typename PC::MemoryConfiguration,
+			typename BA::MemoryRequests
 		>
 	>
 >;
@@ -26,7 +26,7 @@ using __NewM3 = MetaMemoryManager<
 template<class ParserConfigurationT, class BaseActionT>
 __global__ void __launch_bounds__(1024, 2)
 _parser_kernel(
-	__NewM3<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer* readOnlyBuffer,
+	typename __NewM3<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer* readOnlyBuffer,
 	const char* input,
 	const InputIndex* indices,
 	ParsingError* err,
@@ -36,20 +36,20 @@ _parser_kernel(
 template<class ParserConfigurationT, class BaseActionT>
 struct ParserKernel
 {
-	using OC = OutputConfiguration<BaseActionT::OutputRequests>;
-	using MC = ExtendRequests<ParserConfigurationT::MemoryConfiguration, BaseActionT::MemoryRequests>;
+	using OC = OutputConfiguration<typename BaseActionT::OutputRequests>;
+	using MC = ExtendRequests<typename ParserConfigurationT::MemoryConfiguration, typename BaseActionT::MemoryRequests>;
 	using PC = ParserConfiguration<
-		ParserConfigurationT::RuntimeConfiguration,
+		typename ParserConfigurationT::RuntimeConfiguration,
 		MC
 	>;
 	using M3 = MetaMemoryManager<PC>;
 	static_assert(std::is_same_v<M3, __NewM3<ParserConfigurationT, BaseActionT>>, "__NewM3 inconsistent with implementation of ParserKernel.");
-	using RT = PC::RuntimeConfiguration;
+	using RT = typename PC::RuntimeConfiguration;
 	using KC = KernelContext<PC, OC>;
 	using Launcher = KernelLauncherFixedResources<
-		RT::BlockDimX,
-		RT::BlockDimY,
-		RT::BlockDimZ,
+		typename RT::BlockDimX,
+		typename RT::BlockDimY,
+		typename RT::BlockDimZ,
 		boost::mp11::mp_int<0>,
 		typename __NewM3<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer*,
 		const char*,

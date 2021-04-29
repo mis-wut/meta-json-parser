@@ -258,21 +258,21 @@ namespace JsonParse
 		>
 	>;
 
-	template<class WorkGroupSizeT, class KernelContextT>
-	struct StringParser
+	template<class KernelContextT>
+	struct String
 	{
 		using KC = KernelContextT;
 		using R = StringRequests;
-		using WS = WorkGroupSizeT;
 		//using OP = UnsignedIntegerOperationType<OutTypeT>;
 		using RT = typename KC::RT;
+		using WS = typename RT::WorkGroupSize;
 
-		__device__ __forceinline__ StringParser(KC& kc) : _kc(kc) {}
+		__device__ __forceinline__ String(KC& kc) : _kc(kc) {}
 	private:
 		KC& _kc;
 
-		template<typename ...ArgsT>
-		__device__ INLINE_METHOD ParsingError Parse(ArgsT& ...args)
+		template<class CallbackFn>
+		__device__ INLINE_METHOD ParsingError Parse(CallbackFn&& fn)
 		{
 			if (_kc.wgr.PeekChar(0) != '"')
 				return ParsingError::Other;
@@ -325,7 +325,7 @@ namespace JsonParse
 				if (!_kc.wgr.all_sync(RT::WorkerId() > activeThreads || c >= CHARS_FROM))
 					return ParsingError::Other;
 				//Call function after validation
-				ParsingError err = CallFunctionDispatch(std::forward<ArgsT&>(args)..., isEscaped, activeThreads);
+				ParsingError err = fn(isEscaped, activeThreads);
 				if (err != ParsingError::None)
 					return err;
 				//Advance
@@ -340,13 +340,14 @@ namespace JsonParse
 			return ParsingError::None;
 		}
 	public:
-		template<class ...ArgsT>
-		__device__ __forceinline__ ParsingError operator()(ArgsT& ...args)
+		template<class CallbackFn>
+		__device__ __forceinline__ ParsingError operator()(CallbackFn&& fn)
 		{
-			return Parse(std::forward<ArgsT&>(args)...);
+			return Parse(std::forward<CallbackFn&>(fn));
 		}
 	};
 
+    /*
 	template<class WorkGroupSizeT>
 	struct String
 	{
@@ -356,4 +357,5 @@ namespace JsonParse
 			return StringParser<WorkGroupSizeT, KernelContextT>(kc);
 		}
 	};
+    */
 }

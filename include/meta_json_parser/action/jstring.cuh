@@ -12,8 +12,8 @@ struct JString
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
-		using RT = typename KernelContextT::RT;
-		return JsonParse::String<typename RT::WorkGroupSize>::KC(kc)();
+        using KC = KernelContextT;
+		return JsonParse::String<KC>(kc)([](bool&, int&){ return ParsingError::None; });
 	}
 };
 
@@ -28,10 +28,11 @@ struct JStringStaticCopy
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
-		using RT = typename KernelContextT::RT;
+        using KC = KernelContextT;
+		using RT = typename KC::RT;
 		char (&result)[BytesT::value] = kc.om.template Get<KernelContextT, TagT>().template Alias<char[BytesT::value]>();
 		uint32_t offset = 0;
-		ParsingError err = JsonParse::String<typename RT::WorkGroupSize>::KC(kc)([&](bool& isEscaped, int& activeThreads) {
+		ParsingError err = JsonParse::String<KC>(kc)([&](bool& isEscaped, int& activeThreads) {
 			uint32_t worker_offset = offset + RT::WorkerId();
 			char c = RT::WorkerId() < activeThreads ? kc.wgr.CurrentChar() : '\0';
 			if (worker_offset < BytesT::value)

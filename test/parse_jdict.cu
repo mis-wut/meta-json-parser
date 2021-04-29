@@ -83,8 +83,8 @@ struct TestContextJDict2UInt {
 		*key_it = 0;
 		for (size_t i = 0; i < testSize; ++i)
 		{
-			auto x1 = static_cast<uint64_t>(h_correct_1[i]);
-			auto x2 = static_cast<uint64_t>(h_correct_2[i]);
+			auto x1 = static_cast<long long unsigned int>(h_correct_1[i]);
+			auto x2 = static_cast<long long unsigned int>(h_correct_2[i]);
 			char* k1 = key_1.data();
 			char* k2 = key_2.data();
 			if (dist_1(rng) & 0x1)

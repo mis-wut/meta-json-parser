@@ -40,7 +40,7 @@ struct TestContext {
 		++ind_it;
 		for (auto& x : h_correct)
 		{
-			inp_it += snprintf(inp_it, MAX_UINT_LEN + 1, "%llu", static_cast<uint64_t>(x));
+			inp_it += snprintf(inp_it, MAX_UINT_LEN + 1, "%llu", static_cast<long long unsigned int>(x));
 			*ind_it = (inp_it - h_input.data());
 			++ind_it;
 		}

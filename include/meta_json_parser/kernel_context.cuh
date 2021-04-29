@@ -11,16 +11,16 @@ struct KernelContext
 {
 	using M3 = MetaMemoryManager<ParserConfigurationT>;
 	using OM = OutputManager<OutputConfigurationT>;
-	using WGR = WorkGroupReader<ParserConfigurationT::RuntimeConfiguration::WorkGroupSize>;
-	using RT = ParserConfigurationT::RuntimeConfiguration;
+	using WGR = WorkGroupReader<typename ParserConfigurationT::RuntimeConfiguration::WorkGroupSize>;
+	using RT = typename ParserConfigurationT::RuntimeConfiguration;
 
 	M3 m3;
 	WGR wgr;
 	OM om;
 
 	__device__ __forceinline__ KernelContext(
-		M3::ReadOnlyBuffer* readonlyBuffers,
-		M3::SharedBuffers& sharedBuffers,
+		typename M3::ReadOnlyBuffer* readonlyBuffers,
+		typename M3::SharedBuffers& sharedBuffers,
 		const char* input,
 		const InputIndex* indices,
 		void** output

@@ -70,7 +70,7 @@ struct TestContextArray2UInt {
 		{
 			auto x1 = h_correct_1[i];
 			auto x2 = h_correct_2[i];
-			inp_it += snprintf(inp_it, MAX_LEN + 1, "[ %llu, %llu ]", static_cast<uint64_t>(x1), static_cast<uint64_t>(x2));
+			inp_it += snprintf(inp_it, MAX_LEN + 1, "[ %llu, %llu ]", static_cast<long long unsigned int>(x1), static_cast<long long unsigned int>(x2));
 			*ind_it = (inp_it - h_input.data());
 			++ind_it;
 		}
