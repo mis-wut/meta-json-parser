@@ -64,3 +64,16 @@ target_compile_options(meta-json-parser-test PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
 #enable_testing()
 
 gtest_discover_tests(meta-json-parser-test)
+
+# benchmarks
+add_executable(meta-json-parser-benchmark)
+
+target_link_libraries(meta-json-parser-benchmark PRIVATE lib-meta-json-parser GTest::gtest)
+
+target_sources(meta-json-parser-benchmark PRIVATE
+	benchmark/main.cu
+)
+
+target_compile_features(meta-json-parser-benchmark INTERFACE cxx_std_17 cuda_std_17)
+
+target_compile_options(meta-json-parser-benchmark PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr> $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
