@@ -7,6 +7,9 @@
 #include <chrono>
 #include <functional>
 #include <cuda_runtime_api.h>
+#include <thrust/logical.h>
+#include <meta_json_parser/parser_output_device.cuh>
+#include <meta_json_parser/output_printer.cuh>
 #include <meta_json_parser/memory_configuration.h>
 #include <meta_json_parser/runtime_configuration.cuh>
 #include <meta_json_parser/parser_configuration.h>
@@ -68,6 +71,13 @@ using BaseAction = JDict < mp_list <
 	mp_list<K_L1_3_name, JStringStaticCopy<mp_int<32>, K_L1_3_name>>
 >> ;
 
+using PrinterMap = mp_list<
+	mp_list<K_L1_is_checked, mp_quote<BoolPrinter>>,
+	mp_list<K_L1_1_is_checked, mp_quote<BoolPrinter>>,
+	mp_list<K_L1_2_is_checked, mp_quote<BoolPrinter>>,
+	mp_list<K_L1_3_is_checked, mp_quote<BoolPrinter>>
+>;
+
 constexpr int CHARS_PER_JSTRING = 32;
 
 enum workgroup_size { W32, W16, W8 };
@@ -81,9 +91,7 @@ struct benchmark_input
 
 struct benchmark_device_buffers
 {
-	array<char*, 8> output_char_buffers;
-	array<uint32_t*, 8> output_uint32_buffers;
-	array<uint8_t*, 4> output_uint8_buffers;
+	ParserOutputDevice<BaseAction> parser_output_buffers;
 	char* readonly_buffers;
 	char* input_buffer;
 	InputIndex* indices_buffer;
@@ -92,6 +100,14 @@ struct benchmark_device_buffers
 	int count;
 };
 
+struct cmd_args {
+	std::string filename;
+	int count;
+	workgroup_size wg_size;
+	std::string output_csv;
+	bool error_check;
+} g_args;
+
 chrono::high_resolution_clock::time_point cpu_start;
 chrono::high_resolution_clock::time_point cpu_stop;
 cudaEvent_t gpu_start;
@@ -99,17 +115,19 @@ cudaEvent_t gpu_memory_checkpoint;
 cudaEvent_t gpu_preprocessing_checkpoint;
 cudaEvent_t gpu_parsing_checkpoint;
 cudaEvent_t gpu_output_checkpoint;
+cudaEvent_t gpu_error_checkpoint;
 cudaEvent_t gpu_stop;
 cudaStream_t stream;
 
-void usage();
 void init_gpu();
-benchmark_input get_input(int argc, char** argv);
+void parse_args(int argc, char** argv);
+benchmark_input get_input();
 benchmark_device_buffers initialize_buffers_dynamic(benchmark_input& input);
 void launch_kernel_dynamic(benchmark_device_buffers& device_buffers, workgroup_size wg_size);
 void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count);
-void copy_output(benchmark_device_buffers& device_buffers);
+ParserOutputHost<BaseAction> copy_output(benchmark_device_buffers& device_buffers);
 void print_results();
+void to_csv(ParserOutputHost<BaseAction>& output_hosts);
 
 class OutputIndicesIterator
 {
@@ -206,18 +224,7 @@ benchmark_device_buffers initialize_buffers(benchmark_input& input)
 	cudaEventRecord(gpu_memory_checkpoint, stream);
 	benchmark_device_buffers result;
 	result.count = input.count;
-	for (auto& buf : result.output_char_buffers)
-	{
-		cudaMalloc(&buf, CHARS_PER_JSTRING * input.count);
-	}
-	for (auto& buf : result.output_uint32_buffers)
-	{
-		cudaMalloc(&buf, sizeof(uint32_t) * input.count);
-	}
-	for (auto& buf : result.output_uint8_buffers)
-	{
-		cudaMalloc(&buf, sizeof(uint8_t) * input.count);
-	}
+	result.parser_output_buffers = ParserOutputDevice<BaseAction>(result.count);
 	cudaMalloc(&result.readonly_buffers, sizeof(BUF));
 	cudaMalloc(&result.input_buffer, input.data.size());
 	cudaMalloc(&result.indices_buffer, sizeof(InputIndex) * (input.count + 1));
@@ -225,26 +232,10 @@ benchmark_device_buffers initialize_buffers(benchmark_input& input)
 	cudaMalloc(&result.output_buffers, sizeof(void*) * 20);
 
 	vector<void*> output_buffers(20);
-	output_buffers[OM::template TagIndex<K_L1_date>::value  ] = result.output_char_buffers[0];
-	output_buffers[OM::template TagIndex<K_L1_name>::value  ] = result.output_char_buffers[1];
-	output_buffers[OM::template TagIndex<K_L1_1_date>::value] = result.output_char_buffers[2];
-	output_buffers[OM::template TagIndex<K_L1_1_name>::value] = result.output_char_buffers[3];
-	output_buffers[OM::template TagIndex<K_L1_2_date>::value] = result.output_char_buffers[4];
-	output_buffers[OM::template TagIndex<K_L1_2_name>::value] = result.output_char_buffers[5];
-	output_buffers[OM::template TagIndex<K_L1_3_date>::value] = result.output_char_buffers[6];
-	output_buffers[OM::template TagIndex<K_L1_3_name>::value] = result.output_char_buffers[7];
-	output_buffers[OM::template TagIndex<K_L1_lat>::value  ] = result.output_uint32_buffers[0];
-	output_buffers[OM::template TagIndex<K_L1_lon>::value  ] = result.output_uint32_buffers[1];
-	output_buffers[OM::template TagIndex<K_L1_1_lat>::value] = result.output_uint32_buffers[2];
-	output_buffers[OM::template TagIndex<K_L1_1_lon>::value] = result.output_uint32_buffers[3];
-	output_buffers[OM::template TagIndex<K_L1_2_lat>::value] = result.output_uint32_buffers[4];
-	output_buffers[OM::template TagIndex<K_L1_2_lon>::value] = result.output_uint32_buffers[5];
-	output_buffers[OM::template TagIndex<K_L1_3_lat>::value] = result.output_uint32_buffers[6];
-	output_buffers[OM::template TagIndex<K_L1_3_lon>::value] = result.output_uint32_buffers[7];
-	output_buffers[OM::template TagIndex<K_L1_is_checked>::value  ] = result.output_uint8_buffers[0];
-	output_buffers[OM::template TagIndex<K_L1_1_is_checked>::value] = result.output_uint8_buffers[1];
-	output_buffers[OM::template TagIndex<K_L1_2_is_checked>::value] = result.output_uint8_buffers[2];
-	output_buffers[OM::template TagIndex<K_L1_3_is_checked>::value] = result.output_uint8_buffers[3];
+	for (int i = 0; i < 20; ++i)
+	{
+		output_buffers[i] = result.parser_output_buffers.m_d_outputs[i].data().get();
+	}
 
 	BUF readonly_buffer;
 	M3::FillReadOnlyBuffer(readonly_buffer);
@@ -284,80 +275,109 @@ void launch_kernel(benchmark_device_buffers& device_buffers)
 	);
 }
 
-constexpr bool check_err_code = false;
-
 int main(int argc, char** argv)
 {
 	init_gpu();
-	benchmark_input input = get_input(argc, argv);
+	parse_args(argc, argv);
+	benchmark_input input = get_input();
 	cudaEventRecord(gpu_start, stream);
 	benchmark_device_buffers device_buffers = initialize_buffers_dynamic(input);
 	launch_kernel_dynamic(device_buffers, input.wg_size);
-	copy_output(device_buffers);
+	auto host_output = copy_output(device_buffers);
 	cudaEventRecord(gpu_stop, stream);
 	cudaEventSynchronize(gpu_stop);
 	cpu_stop = chrono::high_resolution_clock::now();
 	print_results();
+	if (!g_args.output_csv.empty())
+		to_csv(host_output);
 }
 
 void usage()
 {
-	cout << "usage: benchmark JSONLINES_FILE JSON_COUNT [WORKGROUP_SIZE=32]\n";
+	cout << "usage: benchmark JSONLINES_FILE JSON_COUNT\n"
+		 << "       [--ws=32|16|8] [-o=CSV_FILENAME] [-b]\n";
 	exit(1);
 }
 
-benchmark_input get_input(int argc, char** argv)
+void parse_args(int argc, char** argv)
 {
-	if (argc < 3 || argc > 4)
-		usage();
-	const char* filename_cstr = argv[1];
-	const char* count_cstr = argv[2];
-	const char* wg_cstr = argv[3];
-	ifstream file(filename_cstr, std::ifstream::ate | std::ifstream::binary);
-	if (!file.good())
-	{
-		cout << "Error reading file \"" << filename_cstr << "\".\n";
-		usage();
-	}
-	vector<char> data(file.tellg());
-	int count = 0;
-	workgroup_size wg_size = workgroup_size::W32;
+	int pos_arg = 1;
+	int wg_size = 32;
+	g_args.error_check = false;
 	try
 	{
-		count = std::stoi(count_cstr);
+		for (int i = 1; i < argc; ++i)
+		{
+			std::string opt(argv[i]);
+			if (opt[0] == '-')
+			{
+				if (opt.rfind("--ws=", 0) == 0)
+					wg_size = std::stoi(opt.substr(5));
+				else if (opt.rfind("-o=", 0) == 0)
+					g_args.output_csv = opt.substr(3);
+				else if (opt == "-b")
+					g_args.error_check = true;
+				else
+				{
+					cout << "Unknown option.\n";
+					usage();
+				}
+			}
+			else
+			{
+				switch (pos_arg)
+				{
+				case 1:
+					g_args.filename = opt;
+					break;
+				case 2:
+					g_args.count = std::stoi(opt);
+					break;
+				default:
+					cout << "Exactly 2 positional arguments are supported.";
+					usage();
+					break;
+				}
+				++pos_arg;
+			}
+		}
 	}
 	catch (...)
 	{
-		cout << "Error parsing count of Jsons \"" << count_cstr << "\".\n";
+		cout << "Error in parsing arguments\n";
 		usage();
 	}
-	if (argc >= 4)
+	if (pos_arg < 3)
 	{
-		try
-		{
-			auto wg = std::stoi(wg_cstr);
-			switch (wg)
-			{
-			case 32:
-				wg_size = workgroup_size::W32;
-				break;
-			case 16:
-				wg_size = workgroup_size::W16;
-				break;
-			case 8:
-				wg_size = workgroup_size::W8;
-				break;
-			default:
-				cout << "Only allowed workgroup sizes are: 32, 16 and 8.\n";
-				usage();
-			}
-		}
-		catch (...)
-		{
-			cout << "Error parsing workgroup size \"" << wg_cstr << "\".\n";
-			usage();
-		}
+		cout << "Not enough positional arguments.\n";
+		usage();
 	}
+	switch (wg_size)
+	{
+	case 32:
+		g_args.wg_size = workgroup_size::W32;
+		break;
+	case 16:
+		g_args.wg_size = workgroup_size::W16;
+		break;
+	case 8:
+		g_args.wg_size = workgroup_size::W8;
+		break;
+	default:
+		cout << "Only allowed workgroup sizes are: 32, 16 and 8.\n";
+		usage();
+	}
+}
+
+benchmark_input get_input()
+{
+	ifstream file(g_args.filename, std::ifstream::ate | std::ifstream::binary);
+	if (!file.good())
+	{
+		cout << "Error reading file \"" << g_args.filename << "\".\n";
+		usage();
+	}
+	vector<char> data(file.tellg());
 	file.seekg(0);
 	//Start measuring CPU time with reading data form disk
 	cpu_start = chrono::high_resolution_clock::now();
@@ -365,8 +385,8 @@ benchmark_input get_input(int argc, char** argv)
 	return benchmark_input
 	{
 		std::move(data),
-		count,
-		wg_size
+		g_args.count,
+		g_args.wg_size
 	};
 }
 
@@ -377,6 +397,7 @@ void init_gpu()
 	cudaEventCreate(&gpu_preprocessing_checkpoint);
 	cudaEventCreate(&gpu_parsing_checkpoint);
 	cudaEventCreate(&gpu_output_checkpoint);
+	cudaEventCreate(&gpu_error_checkpoint);
 	cudaEventCreate(&gpu_stop);
 	cudaStreamCreate(&stream);
 }
@@ -433,38 +454,36 @@ void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int 
 	cudaFree(d_num_selected);
 }
 
-void copy_output(benchmark_device_buffers& device_buffers)
+struct NoError
 {
-	cudaEventRecord(gpu_output_checkpoint);
-	vector<vector<char>> temp_char_bufs;
-	vector<vector<uint32_t>> temp_uint32_bufs;
-	vector<vector<uint8_t>> temp_uint8_bufs;
-	vector<ParsingError> temp_err(device_buffers.count);
-	for (auto& buf : device_buffers.output_char_buffers)
+	__device__ __host__ bool operator()(ParsingError e)
 	{
-		temp_char_bufs.push_back(vector<char>(CHARS_PER_JSTRING * device_buffers.count));
-		cudaMemcpyAsync(temp_char_bufs.back().data(), buf, CHARS_PER_JSTRING * device_buffers.count, cudaMemcpyDeviceToHost, stream);
+		return ParsingError::None == e;
 	}
-	for (auto& buf : device_buffers.output_uint32_buffers)
-	{
-		temp_uint32_bufs.push_back(vector<uint32_t>(device_buffers.count));
-		cudaMemcpyAsync(temp_uint32_bufs.back().data(), buf, sizeof(uint32_t) * device_buffers.count, cudaMemcpyDeviceToHost, stream);
-	}
-	for (auto& buf : device_buffers.output_uint8_buffers)
-	{
-		temp_uint8_bufs.push_back(vector<uint8_t>(device_buffers.count));
-		cudaMemcpyAsync(temp_uint8_bufs.back().data(), buf, sizeof(uint8_t) * device_buffers.count, cudaMemcpyDeviceToHost, stream);
-	}
-	cudaMemcpyAsync(temp_err.data(), device_buffers.err_buffer, sizeof(ParsingError) * device_buffers.count, cudaMemcpyDeviceToHost, stream);
+};
 
-	if (check_err_code)
+ParserOutputHost<BaseAction> copy_output(benchmark_device_buffers& device_buffers)
+{
+	cudaEventRecord(gpu_output_checkpoint, stream);
+	vector<ParsingError> temp_err(device_buffers.count);
+	cudaMemcpyAsync(temp_err.data(), device_buffers.err_buffer, sizeof(ParsingError) * device_buffers.count, cudaMemcpyDeviceToHost, stream);
+	ParserOutputHost<BaseAction> output = device_buffers.parser_output_buffers.CopyToHost(stream);
+
+	if (g_args.error_check)
 	{
-		cudaStreamSynchronize(stream);
-		if (!all_of(temp_err.begin(), temp_err.end(), [](ParsingError e) { return e == ParsingError::None; }))
+		cudaEventRecord(gpu_error_checkpoint, stream);
+		bool correct = thrust::all_of(
+			thrust::cuda::par.on(stream),
+			device_buffers.err_buffer,
+			device_buffers.err_buffer + device_buffers.count,
+			NoError()
+		);
+		if (!correct)
 		{
 			cout << "Parsing errors!\n";
 		}
 	}
+	return output;
 }
 
 benchmark_device_buffers initialize_buffers_dynamic(benchmark_input& input)
@@ -479,6 +498,16 @@ benchmark_device_buffers initialize_buffers_dynamic(benchmark_input& input)
 	case workgroup_size::W8:
 		return initialize_buffers<8>(input);
 	}
+}
+
+void to_csv(ParserOutputHost<BaseAction>& output_hosts)
+{
+	if (g_args.output_csv.empty())
+		return;
+	cout << "Saving results to " << g_args.output_csv << ".";
+	OutputPrinter<BaseAction, PrinterMap> printer;
+	std::ofstream csv(g_args.output_csv);
+	printer.ToCsv(csv, output_hosts);
 }
 
 void launch_kernel_dynamic(benchmark_device_buffers& device_buffers, workgroup_size wg_size)
@@ -510,29 +539,40 @@ void print_results()
 	int64_t gpu_preproc = static_cast<int64_t>(ms * 1'000'000.0);
 	cudaEventElapsedTime(&ms, gpu_parsing_checkpoint, gpu_output_checkpoint);
 	int64_t gpu_parsing = static_cast<int64_t>(ms * 1'000'000.0);
-	cudaEventElapsedTime(&ms, gpu_output_checkpoint, gpu_stop);
+	if (!g_args.error_check)
+		cudaEventElapsedTime(&ms, gpu_output_checkpoint, gpu_stop);
+	else
+		cudaEventElapsedTime(&ms, gpu_output_checkpoint, gpu_error_checkpoint);
 	int64_t gpu_output = static_cast<int64_t>(ms * 1'000'000.0);
+	if (g_args.error_check)
+		cudaEventElapsedTime(&ms, gpu_error_checkpoint, gpu_stop);
+	int64_t gpu_error = static_cast<int64_t>(ms * 1'000'000.0);
 
 	const int c1 = 40;
 	const int c2 = 10;
 
 	cout
 		<< "Time measured by GPU:\n"
-		//<< setw(c1) << left << "Time measured by GPU:\n"
-		<< setw(c1) << left << "+ Initialization: "
+		<< setw(c1) << left  << "+ Initialization: "
 		<< setw(c2) << right << gpu_init << " ns\n"
-		<< setw(c1) << left << "+ Memory allocation and copying: "
+		<< setw(c1) << left  << "+ Memory allocation and copying: "
 		<< setw(c2) << right << gpu_memory << " ns\n"
-		<< setw(c1) << left << "+ Finding newlines offsets (indices): "
+		<< setw(c1) << left  << "+ Finding newlines offsets (indices): "
 		<< setw(c2) << right << gpu_preproc << " ns\n"
-		<< setw(c1) << left << "+ Parsing json: "
+		<< setw(c1) << left  << "+ Parsing json: "
 		<< setw(c2) << right << gpu_parsing << " ns\n"
-		<< setw(c1) << left << "+ Copying output: "
+		<< setw(c1) << left  << "+ Copying output: "
 		<< setw(c2) << right << gpu_output << " ns\n"
+		;
+	if (g_args.error_check)
+	cout
+		<< setw(c1) << left  << "+ Checking parsing errors: "
+		<< setw(c2) << right << gpu_error << " ns\n";
+	cout
 		<< setw(c1 + c2 + 4) << setfill('-') << "\n" << setfill(' ')
-		<< setw(c1) << left << "Total time measured by GPU: "
+		<< setw(c1) << left  << "Total time measured by GPU: "
 		<< setw(c2) << right << gpu_total << " ns\n"
-		<< setw(c1) << left << "Total time measured by CPU: "
+		<< setw(c1) << left  << "Total time measured by CPU: "
 		<< setw(c2) << right << cpu_ns << " ns\n"
 		;
 }

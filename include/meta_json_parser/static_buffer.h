@@ -1,4 +1,6 @@
 #pragma once
+#include <iostream>
+#include <string>
 #include <cuda_runtime_api.h>
 #include <boost/mp11/integral.hpp>
 #include <meta_json_parser/meta_math.h>
@@ -8,6 +10,7 @@
 template<class SizeT>
 struct StaticBuffer
 {
+	using type = StaticBuffer<SizeT>;
 	using Size = boost::mp11::mp_if_c<
 		SizeT::value < 0,
 		boost::mp11::mp_int<0>,
