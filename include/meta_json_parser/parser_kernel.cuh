@@ -1,4 +1,5 @@
 #pragma once
+#include <cuda_runtime_api.h>
 #include <thrust/host_vector.h>
 #include <boost/mp11/list.hpp>
 #include <meta_json_parser/config.h>
@@ -22,7 +23,6 @@ using __NewM3 = MetaMemoryManager<
 	>
 >;
 
-
 template<class ParserConfigurationT, class BaseActionT>
 __global__ void __launch_bounds__(1024, 2)
 _parser_kernel(
@@ -43,6 +43,7 @@ struct ParserKernel
 		MC
 	>;
 	using M3 = MetaMemoryManager<PC>;
+  	using ROB = typename M3::ReadOnlyBuffer;
 	static_assert(std::is_same_v<M3, __NewM3<ParserConfigurationT, BaseActionT>>, "__NewM3 inconsistent with implementation of ParserKernel.");
 	using RT = typename PC::RuntimeConfiguration;
 	using KC = KernelContext<PC, OC>;
@@ -58,6 +59,23 @@ struct ParserKernel
 		void**,
 		const uint32_t
 	>;
+
+	ROB* m_d_rob;
+
+	ParserKernel(cudaStream_t stream = 0)
+	{
+		cudaMalloc(&m_d_rob, sizeof(ROB));
+		ROB rob;
+		M3::FillReadOnlyBuffer(rob);
+		cudaMemcpyAsync(m_d_rob, &rob, sizeof(ROB), cudaMemcpyHostToDevice, stream);
+		//Wait for copying of "rob"
+		cudaStreamSynchronize(stream);
+	}
+
+	~ParserKernel()
+	{
+		cudaFree(m_d_rob);
+	}
 
 	static thrust::host_vector<uint64_t> OutputSizes()
 	{
