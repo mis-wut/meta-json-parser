@@ -22,6 +22,16 @@
 #include <meta_json_parser/action/jbool.cuh>
 #include <cub/cub.cuh>
 
+// TODO: make configurable with CMake
+#define HAVE_LIBCUDF
+#if defined(HAVE_LIBCUDF)
+#include <cudf/table/table.hpp>
+#include <cudf/io/types.hpp>
+#include <cudf/io/json.hpp>
+//#include <cudf/io/csv.hpp>
+#endif /* HAVE_LIBCUDF */
+
+
 using namespace boost::mp11;
 using namespace std;
 
@@ -275,11 +285,10 @@ void launch_kernel(benchmark_device_buffers& device_buffers)
 	);
 }
 
-void main_metajson(int argc, char** argv)
+void main_metajson()
 {
 	init_gpu();
-	parse_args(argc, argv);
-	benchmark_input input = get_input();
+    benchmark_input input = get_input();
 	cudaEventRecord(gpu_start, stream);
 	benchmark_device_buffers device_buffers = initialize_buffers_dynamic(input);
 	launch_kernel_dynamic(device_buffers, input.wg_size);
@@ -292,10 +301,47 @@ void main_metajson(int argc, char** argv)
 		to_csv(host_output);
 }
 
+#if defined(HAVE_LIBCUDF)
+void init_libcudf();
+cudf::io::json_reader_options prepare_libcudf(benchmark_input& input);
+cudf::io::table_with_metadata parse_json_libcudf(cudf::io::json_reader_options const& json_in_opts);
+//ParserOutputHost<BaseAction> copy_output_libcudf(cudf::io::table_with_metadata const& table_with_metadata);
+void print_results_libcudf();
+
+void main_libcudf()
+{
+    init_libcudf();
+    benchmark_input input = get_input();
+    cudaEventRecord(gpu_start, stream);
+    auto json_reader_options = prepare_libcudf(input);
+    auto libcudf_result = parse_json_libcudf(json_reader_options);
+    //TODO: auto host_output = copy_output_libcudf(libcudf_result);
+    cudaEventRecord(gpu_stop, stream);
+    cudaEventSynchronize(gpu_stop);
+    cpu_stop = chrono::high_resolution_clock::now();
+    print_results_libcudf();
+    // TODO: to csv for libcudf
+    //if (!g_args.output_csv.empty())
+    //    to_csv_libcudf(libcudf_result);
+}
+#endif /* HAVE_LIBCUDF */
+
+
 int main(int argc, char** argv)
 {
+    cout << "INITIALIZATION\n";
+    parse_args(argc, argv);
+
     cout << "META-JSON-PARSER\n";
-    main_metajson(argc, argv);
+    main_metajson();
+
+#if defined(HAVE_LIBCUDF)
+    // NOTE: must be second
+    cout << "\nLIBCUDF\n";
+    main_libcudf();
+#else
+    cout << "LIBCUDF not available, or not configured\n";
+#endif /* HAVE_LIBCUDF */
 }
 
 void usage()
@@ -408,6 +454,19 @@ void init_gpu()
 	cudaStreamCreate(&stream);
 }
 
+#if defined(HAVE_LIBCUDF)
+void init_libcudf()
+{
+    /*
+     * events and streams are created by init_gpu()
+     * events needed:
+     * - gpu_start
+     * - gpu_parsing_checkpoint
+     * - gpu_stop
+     */
+}
+#endif /* HAVE_LIBCUDF */
+
 void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count)
 {
 	cudaEventRecord(gpu_preprocessing_checkpoint, stream);
@@ -506,6 +565,24 @@ benchmark_device_buffers initialize_buffers_dynamic(benchmark_input& input)
 	}
 }
 
+#if defined(HAVE_LIBCUDF)
+cudf::io::json_reader_options prepare_libcudf(benchmark_input& input)
+{
+    cudaEventRecord(gpu_memory_checkpoint, stream);
+
+    cudf::io::source_info json_in_info =
+        cudf::io::source_info{
+            input.data.data(),
+            input.data.size()
+        };
+    cudf::io::json_reader_options json_in_opts =
+        cudf::io::json_reader_options::builder(json_in_info)
+        .lines(true);
+
+    return json_in_opts;
+}
+#endif /* HAVE_LIBCUDF */
+
 void to_csv(ParserOutputHost<BaseAction>& output_hosts)
 {
 	if (g_args.output_csv.empty())
@@ -530,6 +607,16 @@ void launch_kernel_dynamic(benchmark_device_buffers& device_buffers, workgroup_s
 		break;
 	}
 }
+
+#if defined(HAVE_LIBCUDF)
+cudf::io::table_with_metadata parse_json_libcudf(cudf::io::json_reader_options const& json_in_opts)
+{
+    cudaEventRecord(gpu_parsing_checkpoint, stream);
+
+    auto result = cudf::io::read_json(json_in_opts);
+    return result;
+}
+#endif /* HAVE_LIBCUDF */
 
 void print_results()
 {
@@ -583,3 +670,41 @@ void print_results()
 		;
 }
 
+#if defined(HAVE_LIBCUDF)
+void print_results_libcudf()
+{
+    float ms;
+    int64_t cpu_ns = (cpu_stop - cpu_start).count();
+    cudaEventElapsedTime(&ms, gpu_start, gpu_stop);
+    int64_t gpu_total = static_cast<int64_t>(ms * 1'000'000.0);
+    cudaEventElapsedTime(&ms, gpu_start, gpu_memory_checkpoint);
+    int64_t gpu_init = static_cast<int64_t>(ms * 1'000'000.0);
+    cudaEventElapsedTime(&ms, gpu_memory_checkpoint, gpu_parsing_checkpoint);
+    int64_t gpu_prep = static_cast<int64_t>(ms * 1'000'000.0);
+    cudaEventElapsedTime(&ms, gpu_parsing_checkpoint, gpu_stop);
+    int64_t gpu_parsing = static_cast<int64_t>(ms * 1'000'000.0);
+
+    const int c1 = 40; // description width
+    const int c2 = 10; // results width
+
+    cout
+            << "Time measured by GPU:\n"
+            << setw(c1) << left  << "+ Initialization: "
+            << setw(c2) << right << gpu_init << " ns\n"
+            << setw(c1) << left  << "+ Building input options: "
+            << setw(c2) << right << gpu_prep << " ns\n"
+            << setw(c1) << left  << "+ Parsing json: "
+            << setw(c2) << right << gpu_parsing << " ns\n"
+            //<< setw(c1) << left  << "+ Copying output: "
+            //<< setw(c2) << right << gpu_output << " ns\n"
+            ;
+
+    cout
+        << setw(c1 + c2 + 4) << setfill('-') << "\n" << setfill(' ')
+        << setw(c1) << left  << "Total time measured by GPU: "
+        << setw(c2) << right << gpu_total << " ns\n"
+        << setw(c1) << left  << "Total time measured by CPU: "
+        << setw(c2) << right << cpu_ns << " ns\n"
+        ;
+}
+#endif /* HAVE_LIBCUDF */
