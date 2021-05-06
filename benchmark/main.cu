@@ -275,7 +275,7 @@ void launch_kernel(benchmark_device_buffers& device_buffers)
 	);
 }
 
-int main(int argc, char** argv)
+void main_metajson(int argc, char** argv)
 {
 	init_gpu();
 	parse_args(argc, argv);
@@ -290,6 +290,12 @@ int main(int argc, char** argv)
 	print_results();
 	if (!g_args.output_csv.empty())
 		to_csv(host_output);
+}
+
+int main(int argc, char** argv)
+{
+    cout << "META-JSON-PARSER\n";
+    main_metajson(argc, argv);
 }
 
 void usage()
