@@ -15,7 +15,7 @@ struct StaticBuffer
 		SizeT::value < 0,
 		boost::mp11::mp_int<0>,
 		SizeT
-		>;
+	>;
 	uint8_t data[Size::value > 0 ? Size::value : 1];
 	constexpr static int size = Size::value;
 

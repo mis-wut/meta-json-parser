@@ -10,11 +10,13 @@
 #include <meta_json_parser/parsing_error.h>
 #include <meta_json_parser/parse.cuh>
 #include <meta_json_parser/json_parse.cuh>
+#include <meta_json_parser/kernel_launch_configuration.cuh>
 #include <type_traits>
 
 template<class EntriesList>
 struct JDict
 {
+	using Children = EntriesList;
 	using Keys = boost::mp11::mp_transform<
 		boost::mp11::mp_first,
 		EntriesList
@@ -41,7 +43,7 @@ struct JDict
 		using StorageSize = boost::mp11::mp_int<RowCount::value * ColCount::value>;
 		using Buffer = StaticBuffer_c<StorageSize::value>;
 
-		static void __host__ Fill(Buffer& buffer)
+		static void __host__ Fill(Buffer& buffer, KernelLaunchConfiguration* _)
 		{
 			boost::mp11::mp_for_each<boost::mp11::mp_iota<RowCount>>([&](auto row) {
 				boost::mp11::mp_for_each<boost::mp11::mp_iota<ColCount>>([&](auto col) {

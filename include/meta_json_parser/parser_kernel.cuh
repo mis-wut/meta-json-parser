@@ -9,24 +9,54 @@
 #include <meta_json_parser/meta_memory_manager.cuh>
 #include <meta_json_parser/parser_configuration.h>
 #include <meta_json_parser/kernel_launcher.cuh>
+#include <meta_json_parser/kernel_launch_configuration.cuh>
+#include <meta_json_parser/action_iterator.h>
 #include <cstdint>
 #include <type_traits>
 
-template<class PC, class BA>
-using __NewM3 = MetaMemoryManager<
-	ParserConfiguration<
-		typename PC::RuntimeConfiguration,
-		ExtendRequests<
-			typename PC::MemoryConfiguration,
-			typename BA::MemoryRequests
-		>
+template<class BaseActionT>
+using CreateOutputConfig = OutputConfiguration<typename BaseActionT::OutputRequests>;
+
+template<class ParserConfigurationT, class BaseActionT>
+using CreateMemoryConfig = ExtendRequests<
+	typename ParserConfigurationT::MemoryConfiguration,
+	boost::mp11::mp_append<
+		typename BaseActionT::MemoryRequests,
+		typename CreateOutputConfig<BaseActionT>::MemoryRequests
 	>
 >;
 
 template<class ParserConfigurationT, class BaseActionT>
+using UpdateParserConfig = ParserConfiguration<
+	typename ParserConfigurationT::RuntimeConfiguration,
+	CreateMemoryConfig<ParserConfigurationT, BaseActionT>
+>;
+
+template<class ParserConfigurationT, class BaseActionT>
+using CreateMetaMemoryManager = MetaMemoryManager<
+	UpdateParserConfig<
+		ParserConfigurationT,
+		BaseActionT
+	>
+>;
+
+
+template<class ActionT, typename = int>
+struct HavePostKernelHook : std::false_type {};
+
+template<class ActionT>
+struct HavePostKernelHook<
+	ActionT,
+	decltype(
+		ActionT::PostKernelHook(std::declval<int&>(), 0, nullptr),
+		0
+	)
+> : std::true_type {};
+
+template<class ParserConfigurationT, class BaseActionT>
 __global__ void __launch_bounds__(1024, 2)
 _parser_kernel(
-	typename __NewM3<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer* readOnlyBuffer,
+	typename CreateMetaMemoryManager<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer* readOnlyBuffer,
 	const char* input,
 	const InputIndex* indices,
 	ParsingError* err,
@@ -36,15 +66,11 @@ _parser_kernel(
 template<class ParserConfigurationT, class BaseActionT>
 struct ParserKernel
 {
-	using OC = OutputConfiguration<typename BaseActionT::OutputRequests>;
-	using MC = ExtendRequests<typename ParserConfigurationT::MemoryConfiguration, typename BaseActionT::MemoryRequests>;
-	using PC = ParserConfiguration<
-		typename ParserConfigurationT::RuntimeConfiguration,
-		MC
-	>;
-	using M3 = MetaMemoryManager<PC>;
+	using OC = CreateOutputConfig<BaseActionT>;
+	using MC = CreateMemoryConfig<ParserConfigurationT, BaseActionT>;
+	using PC = UpdateParserConfig<ParserConfigurationT, BaseActionT>;
+	using M3 = CreateMetaMemoryManager<ParserConfigurationT, BaseActionT>;
   	using ROB = typename M3::ReadOnlyBuffer;
-	static_assert(std::is_same_v<M3, __NewM3<ParserConfigurationT, BaseActionT>>, "__NewM3 inconsistent with implementation of ParserKernel.");
 	using RT = typename PC::RuntimeConfiguration;
 	using KC = KernelContext<PC, OC>;
 	using Launcher = KernelLauncherFixedResources<
@@ -52,7 +78,7 @@ struct ParserKernel
 		typename RT::BlockDimY,
 		typename RT::BlockDimZ,
 		boost::mp11::mp_int<0>,
-		typename __NewM3<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer*,
+		typename CreateMetaMemoryManager<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer*,
 		const char*,
 		const InputIndex*,
 		ParsingError*,
@@ -61,15 +87,51 @@ struct ParserKernel
 	>;
 
 	ROB* m_d_rob;
+	KernelLaunchConfiguration* m_launch_config;
+	cudaStream_t m_stream;
 
-	ParserKernel(cudaStream_t stream = 0)
+	ParserKernel(KernelLaunchConfiguration* launch_config, cudaStream_t stream = 0)
+		: m_launch_config(launch_config), m_stream(stream)
 	{
 		cudaMalloc(&m_d_rob, sizeof(ROB));
 		ROB rob;
-		M3::FillReadOnlyBuffer(rob);
-		cudaMemcpyAsync(m_d_rob, &rob, sizeof(ROB), cudaMemcpyHostToDevice, stream);
-		//Wait for copying of "rob"
-		cudaStreamSynchronize(stream);
+		M3::FillReadOnlyBuffer(rob, m_launch_config);
+		cudaMemcpyAsync(m_d_rob, &rob, sizeof(ROB), cudaMemcpyHostToDevice, m_stream);
+	}
+
+	void Run(
+		const char* input,
+		const InputIndex* indices,
+		ParsingError* errors,
+		void** d_outputs, // Device array of pointers to device outputs
+		const uint32_t count,
+		void** h_outputs // Host array of pointers to device outputs
+	)
+	{
+		constexpr int GROUP_SIZE = RT::WorkGroupSize::value;
+		constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
+		const unsigned int BLOCKS_COUNT = (count + GROUP_COUNT - 1) / GROUP_COUNT;
+		constexpr auto kernel_ptr = &_parser_kernel<ParserConfigurationT, BaseActionT>;
+		Launcher l(kernel_ptr);
+		l(BLOCKS_COUNT, m_stream)(
+			m_d_rob,
+			input,
+			indices,
+			errors,
+			d_outputs,
+			count
+		);
+
+		using Actions = ActionIterator<BaseActionT>;
+
+		using PostKernelHooks = boost::mp11::mp_filter<
+			HavePostKernelHook,
+			Actions
+		>;
+
+		boost::mp11::mp_for_each<PostKernelHooks>([&](auto action) {
+			decltype(action)::PostKernelHook(*this, count, h_outputs);
+		});
 	}
 
 	~ParserKernel()
@@ -101,7 +163,7 @@ template<class ParserConfigurationT, class BaseActionT>
 	/// <returns></returns>
 __global__ void __launch_bounds__(1024, 2)
 	_parser_kernel(
-		typename __NewM3<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer* readOnlyBuffer,
+		typename CreateMetaMemoryManager<ParserConfigurationT, BaseActionT>::ReadOnlyBuffer* readOnlyBuffer,
 		const char* input,
 		const InputIndex* indices,
 		ParsingError* err,

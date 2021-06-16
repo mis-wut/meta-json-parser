@@ -14,6 +14,7 @@
 #include <meta_json_parser/action/jdict.cuh>
 #include <meta_json_parser/action/jstring.cuh>
 #include <meta_json_parser/mp_string.h>
+#include <meta_json_parser/kernel_launch_configuration.cuh>
 #include <algorithm>
 
 using namespace boost::mp11;
@@ -33,7 +34,7 @@ struct MockNumbersReadOnlyAction {
 	struct NumberFiller {
 		using Buffer = StaticBuffer_c<Size>;
 
-		static void __host__ Fill(Buffer& buffer)
+		static void __host__ Fill(Buffer& buffer, KernelLaunchConfiguration* _)
 		{
 			mp_for_each<mp_iota_c<Size>>([&](auto i) {
 				constexpr int I = decltype(i)::value;
@@ -44,7 +45,7 @@ struct MockNumbersReadOnlyAction {
 
 		static void __host__ FillPtr(char* ptr)
 		{
-			Fill(*reinterpret_cast<Buffer*>(ptr));
+			Fill(*reinterpret_cast<Buffer*>(ptr), nullptr);
 		}
 	};
 
@@ -123,7 +124,7 @@ void templated_NumberReadOnly()
 	using M3 = typename PK::M3;
 	using BUF = typename M3::ReadOnlyBuffer;
 	thrust::host_vector<BUF> h_buff(1);
-	M3::FillReadOnlyBuffer(h_buff[0]);
+	M3::FillReadOnlyBuffer(h_buff[0], nullptr);
 	const size_t INPUT_T = ReadOnlyBufferTest::TEST_SIZE;
 	TestContextNumberReadOnly<NumbersT> context(INPUT_T, GROUP_SIZE);
 	const unsigned int BLOCKS_COUNT = (INPUT_T + GROUP_COUNT - 1) / GROUP_COUNT;

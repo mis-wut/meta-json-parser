@@ -23,7 +23,7 @@ void DictCheck(char (&correct)[DictT::KeyWriter::StorageSize::value + 1])
 {
 	using KW = typename DictT::KeyWriter;
 	typename KW::Buffer b;
-	KW::Fill(b);
+	KW::Fill(b, nullptr);
 	auto& a = b.template Alias<char[sizeof(b)]>();
 	std::vector<char> fixed(sizeof(b));
 	std::transform(&correct[0], &correct[sizeof(b)], fixed.begin(),

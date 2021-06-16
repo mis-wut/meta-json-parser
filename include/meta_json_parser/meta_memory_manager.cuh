@@ -10,6 +10,7 @@
 #include <meta_json_parser/parser_configuration.h>
 #include <meta_json_parser/static_buffer.h>
 #include <meta_json_parser/byte_algorithms.h>
+#include <meta_json_parser/kernel_launch_configuration.cuh>
 #include <utility>
 
 template<class MetaMemoryManagerT, class MemoryUsageT>
@@ -105,7 +106,7 @@ struct MetaMemoryManager
 		__syncthreads();
 	}
 
-	__host__ static void FillReadOnlyBuffer(ReadOnlyBuffer& readOnlyBuffer)
+	__host__ static void FillReadOnlyBuffer(ReadOnlyBuffer& readOnlyBuffer, KernelLaunchConfiguration* launch_configuration)
 	{
 		using ROL = typename _MemoryConfiguration::ReadOnlyList;
 		boost::mp11::mp_for_each<boost::mp11::mp_iota<boost::mp11::mp_size<ROL>>>([&](auto i) {
@@ -113,7 +114,7 @@ struct MetaMemoryManager
 			constexpr int OFFSET = SumRequests<boost::mp11::mp_take_c<ROL, I>>::value;
 			using RQ = boost::mp11::mp_at_c<ROL, I>;
 			using B = typename RQ::Buffer;
-			RQ::FillFn::Fill(*reinterpret_cast<B*>(&readOnlyBuffer.data[OFFSET]));
+			RQ::FillFn::Fill(*reinterpret_cast<B*>(&readOnlyBuffer.data[OFFSET]), launch_configuration);
 		});
 	}
 

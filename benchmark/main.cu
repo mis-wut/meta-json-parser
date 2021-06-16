@@ -237,10 +237,6 @@ benchmark_device_buffers initialize_buffers(benchmark_input& input)
 		output_buffers[i] = result.parser_output_buffers.m_d_outputs[i].data().get();
 	}
 
-	BUF readonly_buffer;
-	M3::FillReadOnlyBuffer(readonly_buffer);
-
-	cudaMemcpyAsync(result.readonly_buffers, &readonly_buffer, sizeof(BUF), cudaMemcpyHostToDevice, stream);
 	cudaMemcpyAsync(result.input_buffer, input.data.data(), input.data.size(), cudaMemcpyHostToDevice, stream);
 	cudaMemcpyAsync(result.output_buffers, output_buffers.data(), sizeof(void*) * 20, cudaMemcpyHostToDevice, stream);
 
@@ -256,17 +252,16 @@ void launch_kernel(benchmark_device_buffers& device_buffers)
   	constexpr int GROUP_SIZE = GroupSizeT;
   	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
   	using GroupCount = mp_int<GROUP_COUNT>;
+
   	using MC = EmptyMemoryConfiguration;
   	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
   	using PC = ParserConfiguration<RT, MC>;
   	using PK = ParserKernel<PC, BaseAction>;
-  	using M3 = typename PK::M3;
-  	using BUF = typename M3::ReadOnlyBuffer;
-	const unsigned int BLOCKS_COUNT = (device_buffers.count + GROUP_COUNT - 1) / GROUP_COUNT;
 
 	cudaEventRecord(gpu_parsing_checkpoint, stream);
-	typename PK::Launcher(&_parser_kernel<PC, BaseAction>)(BLOCKS_COUNT, stream)(
-		reinterpret_cast<BUF*>(device_buffers.readonly_buffers),
+	PK pk(nullptr, stream);
+
+	pk.Run(
 		device_buffers.input_buffer,
 		device_buffers.indices_buffer,
 		device_buffers.err_buffer,

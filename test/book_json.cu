@@ -132,7 +132,7 @@ void templated_ParseBookJson()
 	using M3 = typename PK::M3;
 	using BUF = typename M3::ReadOnlyBuffer;
 	thrust::host_vector<BUF> h_buff(1);
-	M3::FillReadOnlyBuffer(h_buff[0]);
+	M3::FillReadOnlyBuffer(h_buff[0], nullptr);
 	const unsigned int BLOCKS_COUNT = (INPUT_T + GROUP_COUNT - 1) / GROUP_COUNT;
 	//correct values
 	thrust::host_vector<char> h_c_isbn       (INPUT_T * B_isbn,        '\0');

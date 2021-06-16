@@ -14,6 +14,7 @@
 template<class EntriesList>
 struct JArray
 {
+	using Children = EntriesList;
 	using Indices = boost::mp11::mp_transform<
 		boost::mp11::mp_first,
 		EntriesList
@@ -179,3 +180,19 @@ struct JArray
 		return ParsingError::None;
 	}
 };
+
+template<class ...ActionListT>
+using JArraySimple = JArray<
+	boost::mp11::mp_transform_q<
+		boost::mp11::mp_bind<
+			boost::mp11::mp_list,
+			boost::mp11::_1,
+			boost::mp11::mp_bind<
+				boost::mp11::mp_at,
+				boost::mp11::mp_list<ActionListT...>,
+				boost::mp11::_1
+			>
+		>,
+		boost::mp11::mp_iota_c<sizeof...(ActionListT)>
+	>
+>;

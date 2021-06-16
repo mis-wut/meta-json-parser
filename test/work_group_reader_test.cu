@@ -7,9 +7,11 @@
 #include <meta_json_parser/work_group_reader.cuh>
 #include <meta_json_parser/runtime_configuration.cuh>
 #include <meta_json_parser/parser_configuration.h>
+#include <meta_json_parser/parser_kernel.cuh>
 #include <meta_json_parser/meta_memory_manager.cuh>
 #include <meta_json_parser/kernel_context.cuh>
 #include <meta_json_parser/kernel_launcher.cuh>
+#include <meta_json_parser/action/void_action.cuh>
 //#include <meta_json_parser/config.h>
 //#include <meta_json_parser/intelisense_silencer.h>
 
@@ -30,7 +32,8 @@ __global__ void __launch_bounds__(1024, 2)
 	using WGR = WorkerGroupT<GroupSizeT>;
 	using RT = RuntimeConfiguration<GroupSizeT, GroupCountT>;
 	using PC = ParserConfiguration<RT>;
-	using KC = KernelContext<PC, OutputConfiguration<boost::mp11::mp_list<>>>;
+	using PK = ParserKernel<PC, VoidAction>;
+	using KC = typename PK::KC;
 	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
 	KC context(nullptr, sharedBuffers, input, indices, nullptr);
 	if (RT::InputId() >= count)

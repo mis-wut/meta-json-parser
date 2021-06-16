@@ -9,6 +9,7 @@
 template<class ParserConfigurationT, class OutputConfigurationT>
 struct KernelContext
 {
+	using OC = OutputConfigurationT;
 	using M3 = MetaMemoryManager<ParserConfigurationT>;
 	using OM = OutputManager<OutputConfigurationT>;
 	using WGR = WorkGroupReader<typename ParserConfigurationT::RuntimeConfiguration::WorkGroupSize>;
@@ -31,7 +32,12 @@ struct KernelContext
 			input + indices[RT::InputId()],
 			input + indices[RT::InputId() + 1]
 		),
-		om(output)
+		om(
+			output,
+			reinterpret_cast<uint32_t*>(
+				&m3.template Receive<typename OC::DynamicSizesMemoryRequest>()
+			)
+		)
 	{
 	}
 };

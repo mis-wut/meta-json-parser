@@ -21,15 +21,24 @@ struct ParserOutputHost
 	using OM = OutputManager<OC>;
 
 	size_t m_size;
+	const KernelLaunchConfiguration* m_launch_config;
 	thrust::host_vector<uint8_t> m_h_outputs[boost::mp11::mp_size<typename OC::RequestList>::value];
 
 	ParserOutputHost() : m_size(0) {}
 
-	ParserOutputHost(size_t size) : m_size(size)
+	ParserOutputHost(const KernelLaunchConfiguration* launch_config, size_t size)
+		: m_size(size), m_launch_config(launch_config)
 	{
-		boost::mp11::mp_for_each<typename OC::RequestList>([&, idx=0](auto i) mutable {
+		boost::mp11::mp_for_each<typename OC::RequestList>([&, idx=0, dynamic_idx=0](auto i) mutable {
 			using Request = decltype(i);
-			m_h_outputs[idx++] = thrust::host_vector<uint8_t>(m_size * sizeof(typename Request::OutputType));
+			if (IsTemplate<DynamicOutputRequest>::template fn<Request>::value)
+			{
+				m_h_outputs[idx++] = thrust::host_vector<uint8_t>(m_size * m_launch_config->dynamic_sizes[dynamic_idx++]);
+			}
+			else
+			{
+				m_h_outputs[idx++] = thrust::host_vector<uint8_t>(m_size * sizeof(typename Request::OutputType));
+			}
 		});
 	}
 
