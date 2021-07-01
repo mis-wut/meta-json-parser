@@ -337,8 +337,8 @@ int main(int argc, char** argv)
 
 #if defined(HAVE_LIBCUDF)
     // NOTE: must be second
-    cout << "\nLIBCUDF\n";
-    main_libcudf();
+    cout << "\nLIBCUDF (skipped)\n";
+    //main_libcudf();
 #else
     cout << "LIBCUDF not available, or not configured\n";
 #endif /* HAVE_LIBCUDF */
