@@ -15,6 +15,13 @@
 #include <cstdint>
 #include <type_traits>
 
+// TODO: make configurable with CMake
+#define HAVE_LIBCUDF
+#if defined(HAVE_LIBCUDF)
+#include <cudf/table/table.hpp>
+#endif /* HAVE_LIBCUDF */
+
+
 template<class BaseActionT>
 struct ParserOutputDevice
 {
@@ -45,4 +52,34 @@ struct ParserOutputDevice
 		});
 		return result;
 	}
+
+#if defined(HAVE_LIBCUDF)
+    /**
+     * This is a DUMMY method to convert parser output to cuDF format.
+     *
+     * It will try to avoid new memory allocations and data copying
+     * (device to device) if possible.
+     *
+     * @param stream This is CUDA stream in which operations take place
+     * @return cudf::table which is the data in cuDF format
+     */
+    cudf::table ToCudf(cudaStream_t stream = 0) const
+    {
+        cudf::size_type n_columns = boost::mp11::mp_size<typename OC::RequestList>::value;
+        std::vector<std::unique_ptr<cudf::column>> columns(n_columns);
+
+        boost::mp11::mp_for_each<typename OC::RequestList>([&, idx=0](auto k) mutable {
+            using Request = decltype(k);
+            using Tag = typename Request::OutputTag;
+            using T = typename Request::OutputType;
+            const uint8_t* ptr = m_d_outputs[idx].data().get();
+            const T* cast_ptr = reinterpret_cast<const T*>(ptr);
+
+            // TODO: ...
+		});
+
+        
+        return cudf::table();
+    }
+#endif /*!defined(HAVE_LIBCUDF) */
 };

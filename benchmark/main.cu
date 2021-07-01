@@ -126,6 +126,9 @@ cudaEvent_t gpu_preprocessing_checkpoint;
 cudaEvent_t gpu_parsing_checkpoint;
 cudaEvent_t gpu_output_checkpoint;
 cudaEvent_t gpu_error_checkpoint;
+#if defined(HAVE_LIBCUDF)
+cudaEvent_t gpu_convert_checkpoint;
+#endif // defined(HAVE_LIBCUDF)
 cudaEvent_t gpu_stop;
 cudaStream_t stream;
 
@@ -136,6 +139,9 @@ benchmark_device_buffers initialize_buffers_dynamic(benchmark_input& input);
 void launch_kernel_dynamic(benchmark_device_buffers& device_buffers, workgroup_size wg_size);
 void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count);
 ParserOutputHost<BaseAction> copy_output(benchmark_device_buffers& device_buffers);
+#if defined(HAVE_LIBCUDF)
+cudf::table output_to_cudf(benchmark_device_buffers& device_buffers);
+#endif // defined(HAVE_LIBCUDF)
 void print_results();
 void to_csv(ParserOutputHost<BaseAction>& output_hosts);
 
@@ -293,6 +299,9 @@ void main_metajson()
 	benchmark_device_buffers device_buffers = initialize_buffers_dynamic(input);
 	launch_kernel_dynamic(device_buffers, input.wg_size);
 	auto host_output = copy_output(device_buffers);
+#if defined(HAVE_LIBCUDF)
+	auto cudf_table  = output_to_cudf(device_buffers);
+#endif // defined(HAVE_LIBCUDF)
 	cudaEventRecord(gpu_stop, stream);
 	cudaEventSynchronize(gpu_stop);
 	cpu_stop = chrono::high_resolution_clock::now();
@@ -450,6 +459,9 @@ void init_gpu()
 	cudaEventCreate(&gpu_parsing_checkpoint);
 	cudaEventCreate(&gpu_output_checkpoint);
 	cudaEventCreate(&gpu_error_checkpoint);
+#if defined(HAVE_LIBCUDF)
+	cudaEventCreate(&gpu_convert_checkpoint);
+#endif // defined(HAVE_LIBCUDF)
 	cudaEventCreate(&gpu_stop);
 	cudaStreamCreate(&stream);
 }
@@ -551,6 +563,18 @@ ParserOutputHost<BaseAction> copy_output(benchmark_device_buffers& device_buffer
 	return output;
 }
 
+#if defined(HAVE_LIBCUDF)
+/**
+ * This function converts benchmark results on GPU to cuDF format.
+ * @param device_buffers represents benchmark results on GPU
+ * @return cudf::table
+ */
+cudf::table output_to_cudf(benchmark_device_buffers& device_buffers) {
+    cudaEventRecord(gpu_convert_checkpoint, stream);
+    return device_buffers.parser_output_buffers.ToCudf(stream);
+}
+#endif // defined(HAVE_LIBCUDF)
+
 benchmark_device_buffers initialize_buffers_dynamic(benchmark_input& input)
 {
 	switch (input.wg_size)
@@ -633,13 +657,25 @@ void print_results()
 	cudaEventElapsedTime(&ms, gpu_parsing_checkpoint, gpu_output_checkpoint);
 	int64_t gpu_parsing = static_cast<int64_t>(ms * 1'000'000.0);
 	if (!g_args.error_check)
+#if defined(HAVE_LIBCUDF)
+        cudaEventElapsedTime(&ms, gpu_output_checkpoint, gpu_convert_checkpoint);
+#else  // !defined(HAVE_LIBCUDF)
 		cudaEventElapsedTime(&ms, gpu_output_checkpoint, gpu_stop);
+#endif // !defined(HAVE_LIBCUDF)
 	else
 		cudaEventElapsedTime(&ms, gpu_output_checkpoint, gpu_error_checkpoint);
 	int64_t gpu_output = static_cast<int64_t>(ms * 1'000'000.0);
 	if (g_args.error_check)
+#if defined(HAVE_LIBCUDF)
+        cudaEventElapsedTime(&ms, gpu_error_checkpoint, gpu_convert_checkpoint);
+#else  // !defined(HAVE_LIBCUDF)
 		cudaEventElapsedTime(&ms, gpu_error_checkpoint, gpu_stop);
+#endif // !defined(HAVE_LIBCUDF)
 	int64_t gpu_error = static_cast<int64_t>(ms * 1'000'000.0);
+#if defined(HAVE_LIBCUDF)
+	cudaEventElapsedTime(&ms, gpu_convert_checkpoint, gpu_stop);
+	int64_t gpu_convert = static_cast<int64_t>(ms * 1'000'000.0);
+#endif // defined(HAVE_LIBCUDF)
 
 	const int c1 = 40;
 	const int c2 = 10;
@@ -661,6 +697,11 @@ void print_results()
 	cout
 		<< setw(c1) << left  << "+ Checking parsing errors: "
 		<< setw(c2) << right << gpu_error << " ns\n";
+#if defined(HAVE_LIBCUDF)
+	cout
+	    << setw(c1) << left  << "+ Converting to cuDF format: "
+        << setw(c2) << right << gpu_convert << " ns\n";
+#endif // defined(HAVE_LIBCUDF)
 	cout
 		<< setw(c1 + c2 + 4) << setfill('-') << "\n" << setfill(' ')
 		<< setw(c1) << left  << "Total time measured by GPU: "
