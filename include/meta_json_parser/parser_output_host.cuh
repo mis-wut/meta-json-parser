@@ -17,7 +17,7 @@
 template<class BaseActionT>
 struct ParserOutputHost
 {
-	using OC = OutputConfiguration<typename BaseActionT::OutputRequests>;
+	using OC = OutputConfiguration<BaseActionT>;
 	using OM = OutputManager<OC>;
 
 	size_t m_size;

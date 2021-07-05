@@ -137,15 +137,11 @@ struct OutputConfiguration
 	using MemoryRequests = boost::mp11::mp_list<DynamicSizesMemoryRequest>;
 };
 
-template<class OutputConfigurationT, class RequestT>
-using AppendOutputRequest = OutputConfiguration<boost::mp11::mp_push_back<typename OutputConfigurationT::RequestList, RequestT>>;
-
-template<class OutputConfigurationT, class RequestsT>
-using AppendOutputRequests = OutputConfiguration<boost::mp11::mp_append<typename OutputConfigurationT::RequestList, RequestsT>>;
-
 template<class OutputConfigurationT>
 struct OutputManager
 {
+	using OC = OutputConfigurationT;
+	using BaseAction = typename OutputConfigurationT::BaseAction;
 	using RequestList = typename OutputConfigurationT::RequestList;
 	using DynamicOnlyRequestList = typename OutputConfigurationT::DynamicOnlyRequestList;
 
@@ -281,16 +277,16 @@ struct OutputManager
 		using Index = TagIndex<TagT>;
 		using Request = boost::mp11::mp_at<RequestList, Index>;
 		using DynamicIndex = boost::mp11::mp_find<DynamicOnlyRequestList, Request>;
-		const size_t to_alloc = size;
+		size_t to_alloc = size;
 		//to_alloc += ElementsBefore<TagT>();
 		//to_alloc += ElementsAfter<TagT>();
 		if (IsTemplate<DynamicOutputRequest>::template fn<Request>::value)
 		{
-			to_alloc * launch_config->dynamic_sizes[DynamicIndex::value];
+			to_alloc *= launch_config->dynamic_sizes[DynamicIndex::value];
 		}
 		else
 		{
-			to_alloc * sizeof(typename Request::OutputType);
+			to_alloc *= sizeof(typename Request::OutputType);
 		}
 		return to_alloc;
 	}

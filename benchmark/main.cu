@@ -224,7 +224,7 @@ benchmark_device_buffers initialize_buffers(benchmark_input& input)
 	cudaEventRecord(gpu_memory_checkpoint, stream);
 	benchmark_device_buffers result;
 	result.count = input.count;
-	result.parser_output_buffers = ParserOutputDevice<BaseAction>(result.count);
+	result.parser_output_buffers = ParserOutputDevice<BaseAction>(nullptr, result.count);
 	cudaMalloc(&result.readonly_buffers, sizeof(BUF));
 	cudaMalloc(&result.input_buffer, input.data.size());
 	cudaMalloc(&result.indices_buffer, sizeof(InputIndex) * (input.count + 1));
@@ -266,7 +266,8 @@ void launch_kernel(benchmark_device_buffers& device_buffers)
 		device_buffers.indices_buffer,
 		device_buffers.err_buffer,
 		device_buffers.output_buffers,
-		device_buffers.count
+		device_buffers.count,
+		nullptr
 	);
 }
 
