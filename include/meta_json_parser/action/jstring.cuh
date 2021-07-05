@@ -8,7 +8,6 @@
 //Only parsing/validation
 struct JString
 {
-	using OutputRequests = boost::mp11::mp_list<>;
 	using MemoryRequests = JsonParse::StringRequests;
 
 	template<class KernelContextT>

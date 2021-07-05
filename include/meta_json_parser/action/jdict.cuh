@@ -16,7 +16,10 @@
 template<class EntriesList>
 struct JDict
 {
-	using Children = EntriesList;
+	using Children = boost::mp11::mp_transform<
+		boost::mp11::mp_second,
+		EntriesList
+	>;
 	using Keys = boost::mp11::mp_transform<
 		boost::mp11::mp_first,
 		EntriesList
@@ -78,15 +81,7 @@ struct JDict
 	using KeyRequest = FilledMemoryRequest<typename KeyWriter::StorageSize, KeyWriter, MemoryUsage::ReadOnly, MemoryType::Shared>;
 
 	template<class T>
-	using GetOutputRequests = typename boost::mp11::mp_second<T>::OutputRequests;
-
-	template<class T>
 	using GetMemoryRequests = typename boost::mp11::mp_second<T>::MemoryRequests;
-
-	using OutputRequests = boost::mp11::mp_flatten<boost::mp11::mp_transform<
-		GetOutputRequests,
-		EntriesList
-	>>;
 
 	using MemoryRequests = boost::mp11::mp_push_front<
 		boost::mp11::mp_flatten<boost::mp11::mp_transform<

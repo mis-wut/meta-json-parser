@@ -8,7 +8,6 @@
 
 struct VoidAction
 {
-	using OutputRequests = boost::mp11::mp_list<>;
 	using MemoryRequests = boost::mp11::mp_list<>;
 
 	template<class KernelContextT>

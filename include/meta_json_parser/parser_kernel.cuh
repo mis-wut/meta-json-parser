@@ -15,7 +15,7 @@
 #include <type_traits>
 
 template<class BaseActionT>
-using CreateOutputConfig = OutputConfiguration<typename BaseActionT::OutputRequests>;
+using CreateOutputConfig = OutputConfiguration<BaseActionT>;
 
 template<class ParserConfigurationT, class BaseActionT>
 using CreateMemoryConfig = ExtendRequests<

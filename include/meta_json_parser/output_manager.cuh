@@ -8,6 +8,7 @@
 #include <meta_json_parser/meta_math.h>
 #include <meta_json_parser/meta_utils.h>
 #include <meta_json_parser/memory_request.h>
+#include <meta_json_parser/action_iterator.h>
 #include <meta_json_parser/kernel_launch_configuration.cuh>
 
 template<class BeforeT>
@@ -40,6 +41,25 @@ struct OutputRequest
 	using OutputType = OutputTypeT;
 	using Options = OptionsT;
 };
+
+template<class T, typename = int>
+struct HaveOutputRequests : std::false_type {};
+
+template<class T>
+struct HaveOutputRequests<T, decltype(std::declval<typename T::OutputRequests>(), 0)> : std::true_type {};
+
+template<class T>
+using GetOutputRequests = typename T::OutputRequests;
+
+template<class T>
+using TryGetOutputRequests = boost::mp11::mp_eval_if_not<
+	HaveOutputRequests<T>,
+	boost::mp11::mp_list<>,
+	GetOutputRequests,
+	T
+>;
+
+using GetOutputRequests_q = boost::mp11::mp_quote<GetOutputRequests>;
 
 /// <summary>
 /// Output request that have dynamic size. E.g. strings in concatenated form.
@@ -85,10 +105,17 @@ struct DynamicSizesFiller
 	}
 };
 
-template<class RequestListT>
+template<class BaseActionT>
 struct OutputConfiguration
 {
-	using RequestList = RequestListT;
+	using BaseAction = BaseActionT;
+	using RequestList = boost::mp11::mp_flatten<
+		boost::mp11::mp_transform<
+			TryGetOutputRequests,
+			ActionIterator<BaseAction>
+		>
+	>;
+
 	static_assert(boost::mp11::mp_is_map<RequestList>::value, "Requests need to have unique tags");
 
 	using DynamicOnlyRequestList = boost::mp11::mp_copy_if_q<
@@ -102,7 +129,7 @@ struct OutputConfiguration
 
 	using DynamicSizesMemoryRequest = FilledMemoryRequest<
 		RequestSize,
-		DynamicSizesFiller<RequestListT>,
+		DynamicSizesFiller<RequestList>,
 		MemoryUsage::ReadOnly,
 		MemoryType::Shared
 	>;

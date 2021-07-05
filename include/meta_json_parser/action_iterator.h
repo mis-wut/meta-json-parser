@@ -5,13 +5,15 @@
 #include <type_traits>
 
 template<class T, typename = int>
-struct HasChildren : std::false_type {};
+struct HaveChildren : std::false_type {};
 
 template<class T>
-struct HasChildren<T, decltype(std::declval<typename T::Children>(), 0)> : std::true_type {};
+struct HaveChildren<T, decltype(std::declval<typename T::Children>(), 0)> : std::true_type {};
 
 template<class BaseAction>
 using GetChildren = typename BaseAction::Children;
+
+using GetChildren_q = boost::mp11::mp_quote<GetChildren>;
 
 template<class BaseAction, class = void>
 struct ActionIterator_impl
@@ -23,7 +25,7 @@ template<class BaseAction>
 struct ActionIterator_impl<
 	BaseAction,
 	std::enable_if<
-		HasChildren<BaseAction>::value
+		HaveChildren<BaseAction>::value
 	>::type
 >
 {
