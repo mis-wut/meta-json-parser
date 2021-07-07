@@ -15,10 +15,40 @@
 #include <cstdint>
 #include <type_traits>
 
+// DEBUG
+#include <boost/core/demangle.hpp>
+#include <iostream>
+
 // TODO: make configurable with CMake
 #define HAVE_LIBCUDF
 #if defined(HAVE_LIBCUDF)
 #include <cudf/table/table.hpp>
+#include <cudf/column/column_factories.hpp>
+
+template<class RequestT, typename T>
+//cudf::column
+void to_column(T* cast_ptr, size_t size) {
+    std::cout << "generic to_column<"
+              << typeid(RequestT).name() << ","
+              << typeid(T).name() << ">(..., " << size << ")\n";
+    std::cout << "- " << boost::core::demangle(typeid(T).name()) << "\n";
+              //<< "- " << boost::core::demangle(typeid(T).name()) << "\n";
+    //return cudf::column(cudf::data_type{cudf::type_to_id<T>()},
+    //                    size, cast_ptr);
+}
+
+template<class RequestT>
+void to_column<RequestT, uint8_t>(uint8_t* cast_ptr, size_t size) {
+    std::cout << "bool??? to_column\n";
+    std::cout << "= " << boost::core::demangle(typeid(RequestT).name()) << "\n";
+}
+
+template<>
+void to_column<uint8_t, uint8_t>(uint8_t* cast_ptr, size_t size) {
+    std::cout << "bool??? to_column\n";
+    std::cout << "# " << boost::core::demangle(typeid(RequestT).name()) << "\n";
+}
+
 #endif /* HAVE_LIBCUDF */
 
 
@@ -27,6 +57,12 @@ struct ParserOutputDevice
 {
 	using OC = OutputConfiguration<typename BaseActionT::OutputRequests>;
 	using OM = OutputManager<OC>;
+
+    template<class OutputTagT>
+    using GetOutType = typename boost::mp11::mp_map_find<
+            typename OC::RequestList,
+            OutputTagT
+    >::OutputType;
 
 	size_t m_size;
 	thrust::device_vector<uint8_t> m_d_outputs[boost::mp11::mp_size<typename OC::RequestList>::value];
@@ -73,9 +109,12 @@ struct ParserOutputDevice
             using Tag = typename Request::OutputTag;
             using T = typename Request::OutputType;
             const uint8_t* ptr = m_d_outputs[idx].data().get();
+            const size_t size  = m_d_outputs[idx].size();
             const T* cast_ptr = reinterpret_cast<const T*>(ptr);
 
             // TODO: ...
+            to_column<GetOutType<Tag>>(cast_ptr, m_size);
+            //to_column<Request>(cast_ptr, size);
 		});
 
         
