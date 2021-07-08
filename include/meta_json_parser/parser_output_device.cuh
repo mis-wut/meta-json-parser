@@ -29,6 +29,8 @@ struct ParserOutputDevice
 	using OC = OutputConfiguration<BaseActionT>;
 	using OM = OutputManager<OC>;
 
+	static constexpr size_t output_buffers_count = boost::mp11::mp_size<typename OC::RequestList>::value;
+
 	size_t m_size;
 	const KernelLaunchConfiguration* m_launch_config;
 	thrust::device_vector<uint8_t> m_d_outputs[output_buffers_count];
