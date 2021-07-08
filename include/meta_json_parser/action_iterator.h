@@ -24,7 +24,7 @@ struct ActionIterator_impl
 template<class BaseAction>
 struct ActionIterator_impl<
 	BaseAction,
-	std::enable_if<
+	typename std::enable_if<
 		HaveChildren<BaseAction>::value
 	>::type
 >
