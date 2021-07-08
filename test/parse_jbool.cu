@@ -86,7 +86,7 @@ void templated_ParseBool(ParseJBoolTest &test)
 	using M3 = typename PK::M3;
 	using BUF = typename M3::ReadOnlyBuffer;
 	thrust::host_vector<BUF> h_buff(1);
-	M3::FillReadOnlyBuffer(h_buff[0]);
+	M3::FillReadOnlyBuffer(h_buff[0], nullptr);
 	const size_t INPUT_T = ParseJBoolTest::TEST_SIZE;
 	BoolTestContext<OutTypeT> context(INPUT_T, GROUP_SIZE);
 	const unsigned int BLOCKS_COUNT = (INPUT_T + GROUP_COUNT - 1) / GROUP_COUNT;

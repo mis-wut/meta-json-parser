@@ -1,12 +1,13 @@
 #pragma once
+#include <utility>
 #include <meta_json_parser/json_parse.cuh>
 #include <meta_json_parser/static_buffer.h>
 #include <meta_json_parser/output_manager.cuh>
+#include <cub/cub.cuh>
 
 //Only parsing/validation
 struct JString
 {
-	using OutputRequests = boost::mp11::mp_list<>;
 	using MemoryRequests = JsonParse::StringRequests;
 
 	template<class KernelContextT>
@@ -46,6 +47,131 @@ struct JStringStaticCopy
 		{
 			uint32_t worker_offset = offset + RT::WorkerId();
 			if (worker_offset < BytesT::value)
+				result[worker_offset] = '\0';
+			offset += RT::GroupSize();
+		}
+		return ParsingError::None;
+	}
+};
+
+struct IsNotNullByte {
+	__device__ bool operator()(char& val)
+	{
+		return val != '\0';
+	}
+};
+
+template<class TagT>
+struct JStringDynamicCopy
+{
+	using LengthRequestTag = std::pair<TagT, boost::mp11::mp_int<0>>;
+	using LengthRequest = OutputRequest<
+		LengthRequestTag,
+		uint32_t,
+		boost::mp11::mp_list<
+			OutputOptElementsBefore_c<1>
+		>
+	>;
+	using DynamicStringRequestTag = std::pair<TagT, boost::mp11::mp_int<1>>;
+	using DynamicStringRequest = DynamicOutputRequest<DynamicStringRequestTag, char>;
+	using OutputRequests = boost::mp11::mp_list<LengthRequest, DynamicStringRequest>;
+	using MemoryRequests = JsonParse::StringRequests;
+
+	//excpect ParserKernel
+	template<class PK>
+	static void PostKernelHook(PK& pk, const uint32_t count, void** outputs)
+	{
+		using OM = OutputManager<typename PK::OC>;
+
+		uint32_t* lengths = reinterpret_cast<uint32_t*>(
+			outputs[OM::template TagIndex<LengthRequestTag>::value]
+		);
+		char* content = reinterpret_cast<char*>(
+			outputs[OM::template TagIndex<DynamicStringRequestTag>::value]
+		);
+		
+		auto dynamic_size = pk.m_launch_config->dynamic_sizes[OM::template DynamicTagIndex<DynamicStringRequestTag>::value];
+
+
+		size_t* d_num_selected_out = nullptr;
+		uint8_t* d_temp_storage = nullptr;
+		size_t temp_storage_bytes = 0;
+
+		cudaMalloc(&d_num_selected_out, sizeof(size_t));
+
+		cub::DeviceSelect::If(
+			nullptr,
+			temp_storage_bytes,
+			content,
+			content,
+			d_num_selected_out,
+			count * dynamic_size,
+			IsNotNullByte()
+		);
+
+		cudaMalloc(&d_temp_storage, temp_storage_bytes);
+
+		cub::DeviceSelect::If(
+			d_temp_storage,
+			temp_storage_bytes,
+			content,
+			content,
+			d_num_selected_out,
+			count * dynamic_size,
+			IsNotNullByte()
+		);
+
+		size_t old_storage_bytes = temp_storage_bytes;
+
+		cub::DeviceScan::ExclusiveSum(
+			nullptr,
+			temp_storage_bytes,
+			lengths,
+			lengths,
+			count
+		);
+
+		if (temp_storage_bytes > old_storage_bytes)
+		{
+			cudaFree(d_temp_storage);
+			cudaMalloc(&d_temp_storage, temp_storage_bytes);
+		}
+
+		cub::DeviceScan::ExclusiveSum(
+			d_temp_storage,
+			temp_storage_bytes,
+			lengths,
+			lengths,
+			count
+		);
+
+		cudaFree(d_temp_storage);
+		cudaFree(d_num_selected_out);
+	}
+
+	template<class KernelContextT>
+	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
+	{
+        using KC = KernelContextT;
+		using RT = typename KC::RT;
+		char* result = kc.om.template Pointer<KernelContextT, DynamicStringRequestTag>();
+		const uint32_t max_offset = kc.om.template DynamicSize<KernelContextT, DynamicStringRequestTag>();
+		uint32_t offset = 0;
+		ParsingError err = JsonParse::String<KC>(kc)([&](bool& isEscaped, int& activeThreads) {
+			uint32_t worker_offset = offset + RT::WorkerId();
+			char c = RT::WorkerId() < activeThreads ? kc.wgr.CurrentChar() : '\0';
+			if (worker_offset < max_offset)
+				result[worker_offset] = c;
+			offset += activeThreads;
+			return ParsingError::None;
+		});
+		if (err != ParsingError::None)
+			return err;
+		kc.om.template Get<KernelContextT, LengthRequestTag>() = offset;
+		while (offset < max_offset)
+		{
+			uint32_t worker_offset = offset + RT::WorkerId();
+			if (worker_offset < max_offset)
 				result[worker_offset] = '\0';
 			offset += RT::GroupSize();
 		}

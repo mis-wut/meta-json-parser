@@ -9,6 +9,7 @@
 #include <meta_json_parser/memory_request.h>
 #include <meta_json_parser/parse.cuh>
 #include <meta_json_parser/cub_wrapper.cuh>
+#include <meta_json_parser/kernel_launch_configuration.cuh>
 
 namespace JsonParse
 {
@@ -70,7 +71,7 @@ namespace JsonParse
 		//0x8 | f a l s e . . .
 		using Buffer = StaticBuffer_c<sizeof(Words)>;
 
-		static void __host__ Fill(Buffer& buffer)
+		static void __host__ Fill(Buffer& buffer, KernelLaunchConfiguration* _)
 		{
 			auto buf = "nulltruefalse\0\0\0";
 			std::copy_n(buf, sizeof(Words), buffer.data);

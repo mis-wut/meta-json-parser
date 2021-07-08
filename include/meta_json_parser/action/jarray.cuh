@@ -14,6 +14,10 @@
 template<class EntriesList>
 struct JArray
 {
+	using Children = boost::mp11::mp_transform<
+		boost::mp11::mp_second,
+		EntriesList
+	>;
 	using Indices = boost::mp11::mp_transform<
 		boost::mp11::mp_first,
 		EntriesList
@@ -39,15 +43,7 @@ struct JArray
 	using MaxIndex = boost::mp11::mp_back<SortedIndices>;
 
 	template<class T>
-	using GetOutputRequests = typename boost::mp11::mp_second<T>::OutputRequests;
-
-	template<class T>
 	using GetMemoryRequests = typename boost::mp11::mp_second<T>::MemoryRequests;
-
-	using OutputRequests = boost::mp11::mp_flatten<boost::mp11::mp_transform<
-		GetOutputRequests,
-		EntriesList
-	>>;
 
 	using MemoryRequests = boost::mp11::mp_flatten<boost::mp11::mp_transform<
 		GetMemoryRequests,
@@ -179,3 +175,19 @@ struct JArray
 		return ParsingError::None;
 	}
 };
+
+template<class ...ActionListT>
+using JArraySimple = JArray<
+	boost::mp11::mp_transform_q<
+		boost::mp11::mp_bind<
+			boost::mp11::mp_list,
+			boost::mp11::_1,
+			boost::mp11::mp_bind<
+				boost::mp11::mp_at,
+				boost::mp11::mp_list<ActionListT...>,
+				boost::mp11::_1
+			>
+		>,
+		boost::mp11::mp_iota_c<sizeof...(ActionListT)>
+	>
+>;

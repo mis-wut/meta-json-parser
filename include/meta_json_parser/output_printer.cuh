@@ -46,7 +46,7 @@ struct BoolPrinter
 template<class BaseActionT, class PrinterMapT>
 struct OutputPrinter
 {
-	using OC = OutputConfiguration<typename BaseActionT::OutputRequests>;
+	using OC = OutputConfiguration<BaseActionT>;
 	using OM = OutputManager<OC>;
 
 	template<class OutputTagT>
