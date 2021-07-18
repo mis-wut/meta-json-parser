@@ -174,13 +174,12 @@ void templated_ParseStringValidation(ParseJStringTest &test)
 	constexpr int GROUP_SIZE = GroupSizeT;
 	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
 	using GroupCount = boost::mp11::mp_int<GROUP_COUNT>;
-	using MC = EmptyMemoryConfiguration;
 	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-	using PC = ParserConfiguration<RT, MC>;
 	using _Zero = boost::mp11::mp_int<0>;
 	using _One = boost::mp11::mp_int<1>;
 	using BA = JString;
-	using PK = ParserKernel<PC, BA>;
+	using PC = ParserConfiguration<RT, BA>;
+	using PK = ParserKernel<PC>;
 	const size_t INPUT_T = ParseJStringTest::TEST_SIZE;
 	TestContext context(INPUT_T, GROUP_SIZE);
 	const unsigned int BLOCKS_COUNT = (INPUT_T + GROUP_COUNT - 1) / GROUP_COUNT;
@@ -189,7 +188,7 @@ void templated_ParseStringValidation(ParseJStringTest &test)
 	thrust::device_vector<void*> d_outputs(h_outputs);
 	thrust::fill(d_err.begin(), d_err.end(), ParsingError::Other);
 	ASSERT_TRUE(cudaDeviceSynchronize() == cudaError::cudaSuccess);
-	typename PK::Launcher(&_parser_kernel<PC, BA>)(BLOCKS_COUNT)(
+	typename PK::Launcher(&_parser_kernel<PC>)(BLOCKS_COUNT)(
 		nullptr,
 		context.d_input.data().get(),
 		context.d_indices.data().get(),
@@ -210,13 +209,12 @@ void templated_ParseStringStaticCopy(ParseJStringTest &test)
 	constexpr int GROUP_SIZE = GroupSizeT;
 	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
 	using GroupCount = boost::mp11::mp_int<GROUP_COUNT>;
-	using MC = EmptyMemoryConfiguration;
 	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-	using PC = ParserConfiguration<RT, MC>;
 	using _Zero = boost::mp11::mp_int<0>;
 	using _One = boost::mp11::mp_int<1>;
 	using BA = JStringStaticCopy<boost::mp11::mp_int<CopyBytes>, char>;
-	using PK = ParserKernel<PC, BA>;
+	using PC = ParserConfiguration<RT, BA>;
+	using PK = ParserKernel<PC>;
 	const size_t INPUT_T = ParseJStringTest::TEST_SIZE;
 	TestContextStringStaticCopy<CopyBytes> context(INPUT_T, GROUP_SIZE);
 	const unsigned int BLOCKS_COUNT = (INPUT_T + GROUP_COUNT - 1) / GROUP_COUNT;
@@ -227,7 +225,7 @@ void templated_ParseStringStaticCopy(ParseJStringTest &test)
 	thrust::device_vector<void*> d_outputs(h_outputs);
 	thrust::fill(d_err.begin(), d_err.end(), ParsingError::Other);
 	ASSERT_TRUE(cudaDeviceSynchronize() == cudaError::cudaSuccess);
-	typename PK::Launcher(&_parser_kernel<PC, BA>)(BLOCKS_COUNT)(
+	typename PK::Launcher(&_parser_kernel<PC>)(BLOCKS_COUNT)(
 		nullptr,
 		context.d_input.data().get(),
 		context.d_indices.data().get(),

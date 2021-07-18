@@ -103,15 +103,13 @@ void templated_DynamicStringCopy()
 	constexpr int GROUP_SIZE = GroupSizeT;
 	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
 	using GroupCount = boost::mp11::mp_int<GROUP_COUNT>;
-	using MC = EmptyMemoryConfiguration;
 	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-	using PC = ParserConfiguration<RT, MC>;
 	using BA = JStringDynamicCopy<int>;
-	using PK = ParserKernel<PC, BA>;
+	using PC = ParserConfiguration<RT, BA>;
+	using PK = ParserKernel<PC>;
 	const size_t INPUT_T = DISABLED_DynamicOutputTest::TEST_SIZE;
 	const size_t MAX_LEN = 6;
 	TestContextDynamicStringCopy context(INPUT_T, GROUP_SIZE, MAX_LEN);
-	const unsigned int BLOCKS_COUNT = (INPUT_T + GROUP_COUNT - 1) / GROUP_COUNT;
 	thrust::device_vector<ParsingError> d_err(INPUT_T);
 	thrust::fill(d_err.begin(), d_err.end(), ParsingError::Other);
 	ASSERT_TRUE(cudaDeviceSynchronize() == cudaError::cudaSuccess);

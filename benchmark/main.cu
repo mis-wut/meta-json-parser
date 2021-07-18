@@ -212,10 +212,9 @@ benchmark_device_buffers initialize_buffers(benchmark_input& input)
   	constexpr int GROUP_SIZE = GroupSizeT;
   	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
   	using GroupCount = mp_int<GROUP_COUNT>;
-  	using MC = EmptyMemoryConfiguration;
   	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-  	using PC = ParserConfiguration<RT, MC>;
-  	using PK = ParserKernel<PC, BaseAction>;
+  	using PC = ParserConfiguration<RT, BaseAction>;
+  	using PK = ParserKernel<PC>;
   	using M3 = typename PK::M3;
   	using BUF = typename M3::ReadOnlyBuffer;
 	using KC = typename PK::KC;
@@ -253,10 +252,9 @@ void launch_kernel(benchmark_device_buffers& device_buffers)
   	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
   	using GroupCount = mp_int<GROUP_COUNT>;
 
-  	using MC = EmptyMemoryConfiguration;
   	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-  	using PC = ParserConfiguration<RT, MC>;
-  	using PK = ParserKernel<PC, BaseAction>;
+  	using PC = ParserConfiguration<RT, BaseAction>;
+  	using PK = ParserKernel<PC>;
 
 	cudaEventRecord(gpu_parsing_checkpoint, stream);
 	PK pk(nullptr, stream);

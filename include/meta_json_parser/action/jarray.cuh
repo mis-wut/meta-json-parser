@@ -42,14 +42,6 @@ struct JArray
 	>;
 	using MaxIndex = boost::mp11::mp_back<SortedIndices>;
 
-	template<class T>
-	using GetMemoryRequests = typename boost::mp11::mp_second<T>::MemoryRequests;
-
-	using MemoryRequests = boost::mp11::mp_flatten<boost::mp11::mp_transform<
-		GetMemoryRequests,
-		EntriesList
-	>>;
-
 	template<class Idx, class KernelContextT>
 	static __device__ INLINE_METHOD typename std::enable_if<
 		std::is_same_v<

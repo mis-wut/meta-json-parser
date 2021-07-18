@@ -80,14 +80,7 @@ struct JDict
 
 	using KeyRequest = FilledMemoryRequest<typename KeyWriter::StorageSize, KeyWriter, MemoryUsage::ReadOnly, MemoryType::Shared>;
 
-	template<class T>
-	using GetMemoryRequests = typename boost::mp11::mp_second<T>::MemoryRequests;
-
-	using MemoryRequests = boost::mp11::mp_push_front<
-		boost::mp11::mp_flatten<boost::mp11::mp_transform<
-			GetMemoryRequests,
-			EntriesList
-		>>,
+	using MemoryRequests = boost::mp11::mp_list<
 		KeyRequest,
 		ScanRequest<uint32_t>,
 		ReduceRequest<uint32_t>

@@ -31,8 +31,8 @@ __global__ void __launch_bounds__(1024, 2)
 {
 	using WGR = WorkerGroupT<GroupSizeT>;
 	using RT = RuntimeConfiguration<GroupSizeT, GroupCountT>;
-	using PC = ParserConfiguration<RT>;
-	using PK = ParserKernel<PC, VoidAction>;
+	using PC = ParserConfiguration<RT, VoidAction>;
+	using PK = ParserKernel<PC>;
 	using KC = typename PK::KC;
 	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
 	KC context(nullptr, sharedBuffers, input, indices, nullptr);

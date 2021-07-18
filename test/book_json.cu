@@ -36,9 +36,7 @@ void templated_ParseBookJson()
 	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
 	using GroupCount = mp_int<GROUP_COUNT>;
 	using WGR = WorkGroupReader<GroupSize>;
-	using MC = MemoryConfiguration<mp_list<>, mp_list<>, mp_list<>>;
 	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-	using PC = ParserConfiguration<RT, MC>;
 	//Keys
 	using K_books = mp_string<'b', 'o', 'o', 'k', 's'>;
 	using K_isbn = mp_string<'i', 's', 'b', 'n'>;
@@ -80,7 +78,8 @@ void templated_ParseBookJson()
 	using BA = JDict<mp_list<
 		mp_list<K_books, A_book_array>
 	>>;
-	using PK = ParserKernel<PC, BA>;
+	using PC = ParserConfiguration<RT, BA>;
+	using PK = ParserKernel<PC>;
 	const char* json_format =
 		"{\n"
 		"\"books\": [\n"
@@ -183,7 +182,7 @@ void templated_ParseBookJson()
 	thrust::device_vector<void*> d_outputs(h_outputs);
 	thrust::fill(d_err.begin(), d_err.end(), ParsingError::None);
 	ASSERT_TRUE(cudaDeviceSynchronize() == cudaError::cudaSuccess);
-	typename PK::Launcher(&_parser_kernel<PC, BA>)(BLOCKS_COUNT)(
+	typename PK::Launcher(&_parser_kernel<PC>)(BLOCKS_COUNT)(
 		d_buff.data().get(),
 		d_input.data().get(),
 		d_indices.data().get(),

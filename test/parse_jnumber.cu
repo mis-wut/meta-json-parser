@@ -27,12 +27,10 @@ void templated_ParseUnsignedInterger(ParseJNumberTest &test)
 	constexpr int GROUP_SIZE = GroupSizeT;
 	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
 	using GroupCount = boost::mp11::mp_int<GROUP_COUNT>;
-	using WGR = WorkGroupReader<GroupSize>;
-	using MC = MemoryConfiguration<boost::mp11::mp_list<>, boost::mp11::mp_list<>, boost::mp11::mp_list<>>;
 	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-	using PC = ParserConfiguration<RT, MC>;
 	using BA = JNumber<OutTypeT, void>;
-	using PK = ParserKernel<PC, BA>;
+	using PC = ParserConfiguration<RT, BA>;
+	using PK = ParserKernel<PC>;
 	const size_t INPUT_T = ParseJNumberTest::TEST_SIZE;
 	TestContext<OutTypeT> context(INPUT_T, GROUP_SIZE);
 	const unsigned int BLOCKS_COUNT = (INPUT_T + GROUP_COUNT - 1) / GROUP_COUNT;
@@ -43,7 +41,7 @@ void templated_ParseUnsignedInterger(ParseJNumberTest &test)
 	thrust::device_vector<void*> d_outputs(h_outputs);
 	thrust::fill(d_err.begin(), d_err.end(), ParsingError::None);
 	ASSERT_TRUE(cudaDeviceSynchronize() == cudaError::cudaSuccess);
-	typename PK::Launcher(&_parser_kernel<PC, BA>)(BLOCKS_COUNT)(
+	typename PK::Launcher(&_parser_kernel<PC>)(BLOCKS_COUNT)(
 		nullptr,
 		context.d_input.data().get(),
 		context.d_indices.data().get(),

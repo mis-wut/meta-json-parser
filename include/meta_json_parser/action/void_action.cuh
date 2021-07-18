@@ -8,8 +8,6 @@
 
 struct VoidAction
 {
-	using MemoryRequests = boost::mp11::mp_list<>;
-
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
