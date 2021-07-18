@@ -74,6 +74,3 @@ struct MemoryConfiguration
 		>
 	>;
 };
-
-using EmptyMemoryConfiguration = MemoryConfiguration<VoidAction>;
-
