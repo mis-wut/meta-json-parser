@@ -24,10 +24,38 @@
 #define HAVE_LIBCUDF
 #if defined(HAVE_LIBCUDF)
 #include <cudf/table/table.hpp>
+#include <rmm/device_buffer.hpp>
+
+struct rmm_device_buffer_data {
+	// NOTE: Horrible, horrible hack needed because of design decisions of rmm::device_buffer
+	// borrowed from https://stackoverflow.com/a/19209874/46058
+
+	// NOTE: the types and order of fields copied from <rmm/device_buffer.hpp>, must be the same!
+	void* _data{nullptr};
+	std::size_t _size{};
+	std::size_t _capacity{};
+	rmm::cuda_stream_view _stream{};
+	rmm::mr::device_memory_resource* _mr{rmm::mr::get_current_device_resource()};
+
+	void move_into(void * device_ptr, std::size_t size_bytes)
+	{
+		_data = device_ptr;
+		_size = _capacity = size_bytes;
+	}
+};
+
+union rmm_device_buffer_union {
+	rmm::device_buffer rmm;
+	rmm_device_buffer_data data;
+
+	rmm_device_buffer_union() : rmm() {}
+	~rmm_device_buffer_union() {}
+};
 
 template<typename OutputType>
 struct CudfNumericColumn {
-	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i)
+	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 void *data_ptr, size_t data_size)
 	{
 		std::cout << "skipping column " << i << " (numeric: "
 				  << boost::core::demangle(typeid(OutputType).name())
@@ -36,15 +64,26 @@ struct CudfNumericColumn {
 };
 
 struct CudfBoolColumn {
-	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i)
+	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 void *data_ptr, size_t data_size)
 	{
-		std::cout << "skipping column " << i << " (bool)\n";
+		std::cout << "converting column " << i << " (bool)\n";
+
+		rmm_device_buffer_union u;
+		rmm_device_buffer_data buffer = u.data;
+		buffer.move_into(data_ptr, data_size);
+		auto column = cudf::column(
+			cudf::data_type{cudf::type_id::BOOL8}, //< The element type: boolean using one byte per value, 0 == false, else true.
+			static_cast<cudf::size_type>(data_size / 1), //< The number of elements in the column
+			u.rmm //< The column's data, as rmm::device_buffer or something convertible
+		);
 	}
 };
 
 template<int maxCharacters>
 struct CudfStringColumnFromStaticMemory {
-	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i)
+	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 void *data_ptr, size_t data_size)
 	{
 		std::cout << "skipping column " << i << " (string, static memory, max length=" << maxCharacters << ")\n";
 	}
@@ -57,15 +96,17 @@ struct CudfStringColumnFromStaticMemory {
 
 // generic, requires CudfConverter type to have static `call` method
 template<typename CudfConverter>
-void add_column(std::vector<std::unique_ptr<cudf::column>> &columns, int i)
+void add_column(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+				void *data_ptr, size_t data_size)
 {
-	CudfConverter::call(columns, i);
+	CudfConverter::call(columns, i, data_ptr, data_size);
 }
 
 
 // specialization, for when we don't know how to convert to cudf::column
 template<>
-void add_column<std::false_type>(std::vector<std::unique_ptr<cudf::column>> &columns, int i)
+void add_column<std::false_type>(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+				void *data_ptr, size_t data_size)
 {
 	std::cout << "skipping column " << i << " (don't know how to convert to cudf::column)\n";
 }
@@ -198,7 +239,7 @@ struct ParserOutputDevice
 			const size_t size = m_size * elem_size;
 
 			// TODO: ...
-			add_column<CudfConverter>(columns, idx-1);
+			add_column<CudfConverter>(columns, idx-1, (void *)ptr, size);
 			#if 0
 			std::cout << "- k is " << boost::core::demangle(typeid(k).name()) << "\n";
 			std::cout << "- T is " << boost::core::demangle(typeid(typename Request::OutputType).name()) << "\n";
