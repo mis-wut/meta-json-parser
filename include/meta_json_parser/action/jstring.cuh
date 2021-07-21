@@ -26,6 +26,10 @@ struct JStringStaticCopy
 	using OutputRequests = boost::mp11::mp_list<OutputRequest<TagT, StaticBuffer_c<BytesT::value>>>;
 	using MemoryRequests = JsonParse::StringRequests;
 
+#if defined(HAVE_LIBCUDF)
+	using CudfConverter = CudfStringColumnFromStaticMemory<BytesT::value>;
+#endif
+
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{

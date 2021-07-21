@@ -6,11 +6,25 @@
 #include <meta_json_parser/config.h>
 #include <meta_json_parser/parsing_error.h>
 
+#if defined(HAVE_LIBCUDF)
+#include <boost/mp11/utility.hpp>
+#endif
+
 template<class OutT, class TagT>
 struct JBool
 {
 	using OutputRequests = boost::mp11::mp_list<OutputRequest<TagT, OutT>>;
 	using MemoryRequests = JsonParse::BooleanRequests;
+
+#if defined(HAVE_LIBCUDF)
+	// check during compile time if the TagT is equivalent to 'bool' type
+	// and can be reinterpret_cast-ed.
+	using CudfConverter = boost::mp11::mp_if_c<
+		sizeof(TagT) == sizeof(bool),
+		CudfBoolColumn,
+		std::false_type
+	>;
+#endif
 
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)

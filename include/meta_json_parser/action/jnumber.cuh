@@ -14,6 +14,10 @@ struct JNumber
 	static_assert(std::is_integral_v<OutT>, "OutT must be integral.");
 	static_assert(std::is_unsigned_v<OutT>, "OutT must be unsigned.");
 
+#if defined(HAVE_LIBCUDF)
+	using CudfConverter = CudfNumericColumn<OutT>;
+#endif
+
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
