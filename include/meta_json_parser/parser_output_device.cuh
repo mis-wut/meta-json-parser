@@ -72,11 +72,13 @@ struct CudfBoolColumn {
 		rmm_device_buffer_union u;
 		rmm_device_buffer_data buffer = u.data;
 		buffer.move_into(data_ptr, elem_size * n_elements); //< data pointer and size in bytes
-		auto column = cudf::column(
+		auto column = std::make_unique<cudf::column>(
 			cudf::data_type{cudf::type_id::BOOL8}, //< The element type: boolean using one byte per value, 0 == false, else true.
 			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
 			u.rmm //< The column's data, as rmm::device_buffer or something convertible
 		);
+
+		columns.emplace_back(column.release());
 	}
 };
 
