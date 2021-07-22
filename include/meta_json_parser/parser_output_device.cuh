@@ -2,6 +2,9 @@
 #include <cuda_runtime_api.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
+#include <thrust/device_ptr.h>
+#include <thrust/functional.h>
+#include <thrust/transform.h>
 #include <boost/mp11/list.hpp>
 #include <fstream>
 #include <meta_json_parser/config.h>
@@ -13,8 +16,10 @@
 #include <meta_json_parser/parser_configuration.h>
 #include <meta_json_parser/kernel_launcher.cuh>
 #include <meta_json_parser/kernel_launch_configuration.cuh>
+#include <meta_json_parser/strided_range.cuh>
 #include <cstdint>
 #include <type_traits>
+
 
 // TODO: DEBUG !!!
 #include <boost/core/demangle.hpp>
@@ -24,12 +29,13 @@
 #define HAVE_LIBCUDF
 #if defined(HAVE_LIBCUDF)
 #include <cudf/utilities/type_dispatcher.hpp> //< type_to_id<Type>()
+#include <cudf/column/column_factories.hpp>
 #include <cudf/table/table.hpp>
 #include <rmm/device_buffer.hpp>
 
 struct rmm_device_buffer_data {
 	// NOTE: Horrible, horrible hack needed because of design decisions of rmm::device_buffer
-	// borrowed from https://stackoverflow.com/a/19209874/46058
+	// idea of the hack borrowed from https://stackoverflow.com/a/19209874/46058
 
 	// NOTE: the types and order of fields copied from <rmm/device_buffer.hpp>, must be the same!
 	void* _data{nullptr};
@@ -99,12 +105,62 @@ struct CudfBoolColumn {
 	}
 };
 
+// https://github.com/jbenner-radham/libsafec-strnlen_s/blob/master/strnlen_s.h
+__host__ __device__
+size_t my_strnlen_s(const char *s, size_t maxsize)
+{
+	if (s == NULL)
+		return 0;
+
+	size_t count = 0;
+	while (*s++ && maxsize--) {
+		count++;
+	}
+
+	return count;
+}
+
+template<int maxCharacters>
+struct to_str_pair : public thrust::unary_function<
+	const char,
+	thrust::pair<const char*, cudf::size_type>
+>
+{
+	using str_pair_t = thrust::pair<const char*, cudf::size_type>;
+	using c_str_t = const char*;
+
+	__host__ __device__ str_pair_t operator()(const char & x) const
+	{
+		const char *str = &x;
+		const cudf::size_type str_length = my_strnlen_s(str, maxCharacters);
+		return std::make_pair(str, str_length);
+	}
+};
+
 template<int maxCharacters>
 struct CudfStringColumnFromStaticMemory {
+	using str_pair_t = thrust::pair<const char*, cudf::size_type>;
+	using c_str_t = const char*;
+
 	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 void *data_ptr, size_t n_elements, size_t elem_size)
 	{
-		std::cout << "skipping column " << i << " (string, static memory, max length=" << maxCharacters << ")\n";
+		std::cout << "converting column " << i << " (string, static memory,"
+				  << " max length=" << maxCharacters << ","
+				  << " elem_size=" << elem_size
+				  << ")\n";
+
+		thrust::device_vector<str_pair_t> strings_info(n_elements);
+		thrust::device_ptr<const char> char_ptr = thrust::device_pointer_cast(data_ptr);
+		auto char_iterator = strided_range(char_ptr, char_ptr + n_elements*maxCharacters, maxCharacters);
+
+		thrust::transform(char_iterator.begin(), char_iterator.end(),
+						  strings_info.begin(),
+						  to_str_pair<maxCharacters>());
+
+		auto column = cudf::make_strings_column(strings_info);
+
+		columns.emplace_back(column.release());
 	}
 };
 
