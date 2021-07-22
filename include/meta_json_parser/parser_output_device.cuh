@@ -23,6 +23,7 @@
 // TODO: make configurable with CMake
 #define HAVE_LIBCUDF
 #if defined(HAVE_LIBCUDF)
+#include <cudf/utilities/type_dispatcher.hpp> //< type_to_id<Type>()
 #include <cudf/table/table.hpp>
 #include <rmm/device_buffer.hpp>
 
@@ -57,9 +58,23 @@ struct CudfNumericColumn {
 	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 void *data_ptr, size_t n_elements, size_t elem_size)
 	{
-		std::cout << "skipping column " << i << " (numeric: "
-				  << boost::core::demangle(typeid(OutputType).name())
+		std::cout << "converting column " << i << " (numeric: "
+				  << boost::core::demangle(typeid(OutputType).name()) << ", "
+				  << elem_size << " bytes, "
+				  << 8*elem_size << " bits"
 				  << ")\n";
+
+		rmm_device_buffer_union u;
+		rmm_device_buffer_data buffer = u.data;
+		buffer.move_into(data_ptr, elem_size * n_elements); //< data pointer and size in bytes
+
+		auto column = std::make_unique<cudf::column>(
+			cudf::data_type{cudf::type_to_id<OutputType>()}, //< The element type
+			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
+			u.rmm //< The column's data, as rmm::device_buffer or something convertible
+		);
+
+		columns.emplace_back(column.release());
 	}
 };
 
@@ -69,9 +84,11 @@ struct CudfBoolColumn {
 	{
 		std::cout << "converting column " << i << " (bool)\n";
 
+		// TODO: fix code repetition
 		rmm_device_buffer_union u;
 		rmm_device_buffer_data buffer = u.data;
 		buffer.move_into(data_ptr, elem_size * n_elements); //< data pointer and size in bytes
+
 		auto column = std::make_unique<cudf::column>(
 			cudf::data_type{cudf::type_id::BOOL8}, //< The element type: boolean using one byte per value, 0 == false, else true.
 			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
@@ -252,7 +269,8 @@ struct ParserOutputDevice
 		// create a table (which will be turned into DataFrame equivalent)
 		std::cout << "created table...\n";
 		cudf::table table{std::move(columns)}; // std::move or std::forward
-		std::cout << "...with " << table.num_columns() << " columns and " << table.num_rows() << " rows\n";
+		std::cout << "...with " << table.num_columns() << " / " << n_columns
+				  << " columns and " << table.num_rows() << " rows\n";
 
 		return table;
 	}
