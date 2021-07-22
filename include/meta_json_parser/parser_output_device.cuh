@@ -55,7 +55,7 @@ union rmm_device_buffer_union {
 template<typename OutputType>
 struct CudfNumericColumn {
 	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-					 void *data_ptr, size_t data_size)
+					 void *data_ptr, size_t n_elements, size_t elem_size)
 	{
 		std::cout << "skipping column " << i << " (numeric: "
 				  << boost::core::demangle(typeid(OutputType).name())
@@ -65,16 +65,16 @@ struct CudfNumericColumn {
 
 struct CudfBoolColumn {
 	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-					 void *data_ptr, size_t data_size)
+					 void *data_ptr, size_t n_elements, size_t elem_size)
 	{
 		std::cout << "converting column " << i << " (bool)\n";
 
 		rmm_device_buffer_union u;
 		rmm_device_buffer_data buffer = u.data;
-		buffer.move_into(data_ptr, data_size);
+		buffer.move_into(data_ptr, elem_size * n_elements); //< data pointer and size in bytes
 		auto column = cudf::column(
 			cudf::data_type{cudf::type_id::BOOL8}, //< The element type: boolean using one byte per value, 0 == false, else true.
-			static_cast<cudf::size_type>(data_size / 1), //< The number of elements in the column
+			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
 			u.rmm //< The column's data, as rmm::device_buffer or something convertible
 		);
 	}
@@ -83,7 +83,7 @@ struct CudfBoolColumn {
 template<int maxCharacters>
 struct CudfStringColumnFromStaticMemory {
 	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-					 void *data_ptr, size_t data_size)
+					 void *data_ptr, size_t n_elements, size_t elem_size)
 	{
 		std::cout << "skipping column " << i << " (string, static memory, max length=" << maxCharacters << ")\n";
 	}
@@ -97,16 +97,16 @@ struct CudfStringColumnFromStaticMemory {
 // generic, requires CudfConverter type to have static `call` method
 template<typename CudfConverter>
 void add_column(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-				void *data_ptr, size_t data_size)
+				void *data_ptr, size_t n_elements, size_t elem_size)
 {
-	CudfConverter::call(columns, i, data_ptr, data_size);
+	CudfConverter::call(columns, i, data_ptr, n_elements, elem_size);
 }
 
 
 // specialization, for when we don't know how to convert to cudf::column
 template<>
 void add_column<std::false_type>(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-				void *data_ptr, size_t data_size)
+								 void *data_ptr, size_t n_elements, size_t elem_size)
 {
 	std::cout << "skipping column " << i << " (don't know how to convert to cudf::column)\n";
 }
@@ -238,8 +238,8 @@ struct ParserOutputDevice
 			);
 			const size_t size = m_size * elem_size;
 
-			// TODO: ...
-			add_column<CudfConverter>(columns, idx-1, (void *)ptr, size);
+			// DOING: ...
+			add_column<CudfConverter>(columns, idx-1, (void *)ptr, m_size, elem_size);
 			#if 0
 			std::cout << "- k is " << boost::core::demangle(typeid(k).name()) << "\n";
 			std::cout << "- T is " << boost::core::demangle(typeid(typename Request::OutputType).name()) << "\n";
