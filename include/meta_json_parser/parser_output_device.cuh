@@ -221,7 +221,8 @@ struct ParserOutputDevice
 	cudf::table ToCudf(cudaStream_t stream = 0) const
 	{
 		cudf::size_type n_columns = boost::mp11::mp_size<typename OC::RequestList>::value;
-		std::vector<std::unique_ptr<cudf::column>> columns(n_columns);
+		std::vector<std::unique_ptr<cudf::column>> columns;
+		columns.reserve(n_columns);
 
 		boost::mp11::mp_for_each<typename ParserOutputDevice::CudfColumnsConverterList>([&, idx=0, dynamic_idx=0](auto k) mutable {
 			using CudfConverter = typename decltype(k)::first_type;
@@ -248,8 +249,12 @@ struct ParserOutputDevice
 			#endif
 		});
 
+		// create a table (which will be turned into DataFrame equivalent)
+		std::cout << "created table...\n";
+		cudf::table table{std::move(columns)}; // std::move or std::forward
+		std::cout << "...with " << table.num_columns() << " columns and " << table.num_rows() << " rows\n";
 
-		return cudf::table();
+		return table;
 	}
 #endif /* defined(HAVE_LIBCUDF) */
 };
