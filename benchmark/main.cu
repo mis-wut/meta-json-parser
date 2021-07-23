@@ -28,7 +28,7 @@
 #include <cudf/table/table.hpp>
 #include <cudf/io/types.hpp>
 #include <cudf/io/json.hpp>
-//#include <cudf/io/csv.hpp>
+#include <cudf/io/csv.hpp>
 #endif /* HAVE_LIBCUDF */
 
 
@@ -144,6 +144,10 @@ cudf::table output_to_cudf(benchmark_device_buffers& device_buffers);
 #endif // defined(HAVE_LIBCUDF)
 void print_results();
 void to_csv(ParserOutputHost<BaseAction>& output_hosts);
+#if defined(HAVE_LIBCUDF)
+void to_csv_libcudf(std::string& filename, cudf::table& cudf_table);
+#endif // defined(HAVE_LIBCUDF)
+
 
 class OutputIndicesIterator
 {
@@ -290,7 +294,7 @@ void launch_kernel(benchmark_device_buffers& device_buffers)
 void main_metajson()
 {
 	init_gpu();
-    benchmark_input input = get_input();
+	benchmark_input input = get_input();
 	cudaEventRecord(gpu_start, stream);
 	benchmark_device_buffers device_buffers = initialize_buffers_dynamic(input);
 	launch_kernel_dynamic(device_buffers, input.wg_size);
@@ -302,8 +306,12 @@ void main_metajson()
 	cudaEventSynchronize(gpu_stop);
 	cpu_stop = chrono::high_resolution_clock::now();
 	print_results();
-	if (!g_args.output_csv.empty())
+	if (!g_args.output_csv.empty()) {
 		to_csv(host_output);
+#if defined(HAVE_LIBCUDF)
+		to_csv_libcudf(g_args.output_csv, cudf_table);
+#endif // defined(HAVE_LIBCUDF)
+	}
 }
 
 #if defined(HAVE_LIBCUDF)
@@ -607,11 +615,31 @@ void to_csv(ParserOutputHost<BaseAction>& output_hosts)
 {
 	if (g_args.output_csv.empty())
 		return;
-	cout << "Saving results to " << g_args.output_csv << ".";
+	cout << "Saving results to " << g_args.output_csv << "\n";
 	OutputPrinter<BaseAction, PrinterMap> printer;
 	std::ofstream csv(g_args.output_csv);
 	printer.ToCsv(csv, output_hosts);
 }
+
+#if defined(HAVE_LIBCUDF)
+void to_csv_libcudf(std::string& filename, cudf::table& cudf_table)
+{
+	if (filename.empty())
+		return;
+
+	cout << "Saving results to " << filename << " (via libcudf)";
+	cout.flush();
+
+	cudf::io::csv_writer_options csv_out_opts =
+		cudf::io::csv_writer_options::builder(cudf::io::sink_info{filename},
+											  cudf_table.view())
+			.inter_column_delimiter(',')
+			.include_header(false);
+	cudf::io::write_csv(csv_out_opts);
+
+	cout << "\n";
+}
+#endif /* HAVE_LIBCUDF */
 
 void launch_kernel_dynamic(benchmark_device_buffers& device_buffers, workgroup_size wg_size)
 {
