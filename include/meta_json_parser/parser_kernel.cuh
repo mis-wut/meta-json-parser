@@ -46,7 +46,7 @@ struct ParserKernel
 	using RT = typename PC::RuntimeConfiguration;
 	using M3 = MetaMemoryManager<PC>;
   	using ROB = typename M3::ReadOnlyBuffer;
-	using KC = KernelContext<PC, OC>;
+	using KC = KernelContext<PC>;
 	using Launcher = KernelLauncherFixedResources<
 		typename RT::BlockDimX,
 		typename RT::BlockDimY,

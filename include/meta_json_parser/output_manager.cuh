@@ -137,13 +137,13 @@ struct OutputConfiguration
 	using MemoryRequests = boost::mp11::mp_list<DynamicSizesMemoryRequest>;
 };
 
-template<class OutputConfigurationT>
+template<class BaseActionT>
 struct OutputManager
 {
-	using OC = OutputConfigurationT;
-	using BaseAction = typename OutputConfigurationT::BaseAction;
-	using RequestList = typename OutputConfigurationT::RequestList;
-	using DynamicOnlyRequestList = typename OutputConfigurationT::DynamicOnlyRequestList;
+	using BaseAction = BaseActionT;
+	using OC = OutputConfiguration<BaseAction>;
+	using RequestList = typename OC::RequestList;
+	using DynamicOnlyRequestList = typename OC::DynamicOnlyRequestList;
 
 	void** mOutputs;
 	uint32_t* mDynamicSizes;
