@@ -197,6 +197,12 @@ struct OutputManager
 	}
 
 	template<class KC, class TagT>
+	__device__ __forceinline__ const auto GetElementId()
+	{
+		return KC::RT::InputId() + ElementsBefore<TagT>();
+	}
+
+	template<class KC, class TagT>
 	__device__ __forceinline__
 	typename std::enable_if<
 		!IsTemplate<DynamicOutputRequest>::template fn<Request<TagT>>::value,
@@ -205,7 +211,7 @@ struct OutputManager
 	{
 		using Index = TagIndex<TagT>;
 		static_assert(Index::value < boost::mp11::mp_size<RequestList>::value, "Requested tag is not present in OutputRequests");
-		return reinterpret_cast<OutType<TagT>*>(mOutputs[Index::value]) + KC::RT::InputId();
+		return reinterpret_cast<OutType<TagT>*>(mOutputs[Index::value]) + GetElementId<KC, TagT>();
 	}
 
 	template<class KC, class TagT>
@@ -217,7 +223,7 @@ struct OutputManager
 	{
 		using Index = TagIndex<TagT>;
 		static_assert(Index::value < boost::mp11::mp_size<RequestList>::value, "Requested tag is not present in OutputRequests");
-		return reinterpret_cast<OutType<TagT>*>(mOutputs[Index::value]) + KC::RT::InputId() * DynamicSize<KC, TagT>();
+		return reinterpret_cast<OutType<TagT>*>(mOutputs[Index::value]) + GetElementId<KC, TagT>() * DynamicSize<KC, TagT>();
 	}
 
 	template<class KC, class TagT>
@@ -244,8 +250,11 @@ struct OutputManager
 			>,
 			boost::mp11::mp_int<0>,
 			boost::mp11::mp_compose_q<
-				boost::mp11::mp_bind<
-					boost::mp11::mp_at,
+				// mp_at must be quoted as it throws errors when used as
+				// a template in mp_bind. It requires investigation and
+				// probably would result in reporting an issue to MP11.
+				boost::mp11::mp_bind_q<
+					boost::mp11::mp_quote<boost::mp11::mp_at>,
 					Options,
 					boost::mp11::_1
 				>,
@@ -278,8 +287,8 @@ struct OutputManager
 		using Request = boost::mp11::mp_at<RequestList, Index>;
 		using DynamicIndex = boost::mp11::mp_find<DynamicOnlyRequestList, Request>;
 		size_t to_alloc = size;
-		//to_alloc += ElementsBefore<TagT>();
-		//to_alloc += ElementsAfter<TagT>();
+		to_alloc += ElementsBefore<TagT>();
+		to_alloc += ElementsAfter<TagT>();
 		if (IsTemplate<DynamicOutputRequest>::template fn<Request>::value)
 		{
 			to_alloc *= launch_config->dynamic_sizes[DynamicIndex::value];

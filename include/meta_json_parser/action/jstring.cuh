@@ -81,7 +81,7 @@ struct JStringDynamicCopy
 	template<class PK>
 	static void PostKernelHook(PK& pk, const uint32_t count, void** outputs)
 	{
-		using OM = OutputManager<typename PK::OC>;
+		using OM = OutputManager<typename PK::BaseAction>;
 
 		uint32_t* lengths = reinterpret_cast<uint32_t*>(
 			outputs[OM::template TagIndex<LengthRequestTag>::value]
@@ -91,7 +91,6 @@ struct JStringDynamicCopy
 		);
 		
 		auto dynamic_size = pk.m_launch_config->dynamic_sizes[OM::template DynamicTagIndex<DynamicStringRequestTag>::value];
-
 
 		size_t* d_num_selected_out = nullptr;
 		uint8_t* d_temp_storage = nullptr;
@@ -123,12 +122,12 @@ struct JStringDynamicCopy
 
 		size_t old_storage_bytes = temp_storage_bytes;
 
-		cub::DeviceScan::ExclusiveSum(
+		cub::DeviceScan::InclusiveSum(
 			nullptr,
 			temp_storage_bytes,
 			lengths,
 			lengths,
-			count
+			count + 1
 		);
 
 		if (temp_storage_bytes > old_storage_bytes)
@@ -137,12 +136,12 @@ struct JStringDynamicCopy
 			cudaMalloc(&d_temp_storage, temp_storage_bytes);
 		}
 
-		cub::DeviceScan::ExclusiveSum(
+		cub::DeviceScan::InclusiveSum(
 			d_temp_storage,
 			temp_storage_bytes,
 			lengths,
 			lengths,
-			count
+			count + 1
 		);
 
 		cudaFree(d_temp_storage);
