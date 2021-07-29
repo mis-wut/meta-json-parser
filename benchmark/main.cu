@@ -81,12 +81,14 @@ using PrinterMap = mp_list<
 constexpr int CHARS_PER_JSTRING = 32;
 
 enum workgroup_size { W32, W16, W8 };
+enum end_of_line { unknown, unix, win };
 
 struct benchmark_input
 {
 	vector<char> data;
 	int count;
 	workgroup_size wg_size;
+	end_of_line eol;
 };
 
 struct benchmark_device_buffers
@@ -123,18 +125,73 @@ void init_gpu();
 void parse_args(int argc, char** argv);
 benchmark_input get_input();
 benchmark_device_buffers initialize_buffers_dynamic(benchmark_input& input);
+end_of_line detect_eol(benchmark_input& input);
 void launch_kernel_dynamic(benchmark_device_buffers& device_buffers, workgroup_size wg_size);
-void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count);
 ParserOutputHost<BaseAction> copy_output(benchmark_device_buffers& device_buffers);
 void print_results();
 void to_csv(ParserOutputHost<BaseAction>& output_hosts);
 
+namespace EndOfLine
+{
+	struct Unix {};
+	struct Win {};
+}
+
+template<class EndOfLineT>
+struct LineEndingHelper
+{
+private:
+	__device__ __forceinline__ static void error() { assert("Unknown end of line."); }
+public:
+	__device__ __forceinline__ static uint32_t get_mask(const uint32_t& val) { error(); return 0; }
+	__device__ __forceinline__ static bool is_newline(const uint32_t& val) { error(); return false; }
+	__device__ __forceinline__ static uint32_t eol_length() { error(); return 0; }
+};
+
+template<>
+struct LineEndingHelper<EndOfLine::Unix>
+{
+	__device__ __forceinline__ static uint32_t get_mask(const uint32_t& val)
+	{
+		return __vcmpeq4(val, '\n\n\n\n');
+	}
+	__device__ __forceinline__ static bool is_newline(const uint32_t& val)
+	{
+		return get_mask(val);
+	}
+	__device__ __forceinline__ static constexpr uint32_t eol_length()
+	{
+		return 1;
+	}
+};
+
+/// <summary>
+/// Implemented with assumption that \r can only be found right before \n
+/// </summary>
+template<>
+struct LineEndingHelper<EndOfLine::Win>
+{
+	__device__ __forceinline__ static uint32_t get_mask(const uint32_t& val)
+	{
+		return __vcmpeq4(val, '\r\r\r\r');
+	}
+	__device__ __forceinline__ static bool is_newline(const uint32_t& val)
+	{
+		return get_mask(val);
+	}
+	__device__ __forceinline__ static constexpr uint32_t eol_length()
+	{
+		return 2;
+	}
+};
+
+template<class EndOfLineT>
 class OutputIndicesIterator
 {
 public:
 
     // Required iterator traits
-    typedef OutputIndicesIterator                        self_type;              ///< My own type
+    typedef OutputIndicesIterator<EndOfLineT>            self_type;              ///< My own type 
     typedef ptrdiff_t                                    difference_type;        ///< Type to express the result of subtracting one iterator from another
     typedef cub::KeyValuePair<difference_type, uint32_t> value_type;             ///< The type of the element the iterator can point to
     typedef value_type*                                  pointer;                ///< The type of a pointer to an element the iterator can point to
@@ -164,23 +221,22 @@ public:
 	/// Assignment operator
 	__device__ __forceinline__ self_type& operator=(const value_type &val)
 	{
-		int inner_offset = 1;
+		int inner_offset = LineEndingHelper<EndOfLineT>::eol_length();
 		//undefined behavior for 2 byte jsons. e.g. \n[]\n or \n{}\n
-		//Windows endline format with \n\r is not supported and will result in udefined behavior
-		uint32_t mask = __vcmpeq4(val.value, '\n\n\n\n') | __vcmpeq4(val.value, '\r\r\r\r');
+		uint32_t mask = LineEndingHelper<EndOfLineT>::get_mask(val.value);
 		switch (mask)
 		{
 		case 0xFF'00'00'00u:
-			inner_offset = 4;
+			inner_offset += 3;
 			break;
 		case 0x00'FF'00'00u:
-			inner_offset = 3;
+			inner_offset += 2;
 			break;
 		case 0x00'00'FF'00u:
-			inner_offset = 2;
+			inner_offset += 1;
 			break;
 		case 0x00'00'00'FFu:
-			inner_offset = 1;
+			//inner_offset += 0;
 			break;
 		default:
 			break;
@@ -198,12 +254,66 @@ public:
     }
 };
 
+template<class EndOfLineT>
 struct IsNewLine
 {
 	__device__ __forceinline__ bool operator()(const cub::KeyValuePair<ptrdiff_t, uint32_t> c) const {
-		return __vcmpeq4(c.value, '\n\n\n\n') | __vcmpeq4(c.value, '\r\r\r\r');
+		return LineEndingHelper<EndOfLineT>::is_newline(c.value);
 	}
 };
+
+template<class EndOfLineT>
+void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count)
+{
+	cudaEventRecord(gpu_preprocessing_checkpoint, stream);
+	InputIndex just_zero = 0;
+	cudaMemcpyAsync(d_indices, &just_zero, sizeof(InputIndex), cudaMemcpyHostToDevice, stream);
+	
+	cub::ArgIndexInputIterator<uint32_t*> arg_iter(reinterpret_cast<uint32_t*>(d_input));
+	OutputIndicesIterator<EndOfLineT> out_iter(d_indices + 1); // +1, we need to add 0 at index 0
+	
+	int* d_temp_storage = nullptr;
+	size_t temp_storage_bytes = 0;
+	int* d_num_selected;
+	cudaMalloc(&d_num_selected, sizeof(int));
+
+	cub::DeviceSelect::If(
+		d_temp_storage,
+		temp_storage_bytes,
+		arg_iter,
+		out_iter,
+		d_num_selected,
+		(input_size + 3) / 4,
+		IsNewLine<EndOfLineT>(),
+		stream
+	);
+
+	cudaMalloc(&d_temp_storage, temp_storage_bytes);
+
+	cub::DeviceSelect::If(
+		d_temp_storage,
+		temp_storage_bytes,
+		arg_iter,
+		out_iter,
+		d_num_selected,
+		(input_size + 3) / 4,
+		IsNewLine<EndOfLineT>(),
+		stream
+	);
+
+	// Following lines could be commented out as it is only validation step
+	cudaStreamSynchronize(stream);
+	int h_num_selected = -1;
+	cudaMemcpy(&h_num_selected, d_num_selected, sizeof(int), cudaMemcpyDeviceToHost);
+	if (h_num_selected != count)
+	{
+		cout << "Found " << h_num_selected << " new lines instead of declared " << count << ".\n";
+		usage();
+	}
+
+	cudaFree(d_temp_storage);
+	cudaFree(d_num_selected);
+}
 
 template <int GroupSizeT>
 benchmark_device_buffers initialize_buffers(benchmark_input& input)
@@ -239,7 +349,26 @@ benchmark_device_buffers initialize_buffers(benchmark_input& input)
 	cudaMemcpyAsync(result.input_buffer, input.data.data(), input.data.size(), cudaMemcpyHostToDevice, stream);
 	cudaMemcpyAsync(result.output_buffers, output_buffers.data(), sizeof(void*) * 20, cudaMemcpyHostToDevice, stream);
 
-	find_newlines(result.input_buffer, input.data.size(), result.indices_buffer, input.count);
+	//End of line might be passed as an option to the program
+	if (input.eol == end_of_line::unknown)
+		input.eol = detect_eol(input);
+
+	switch (input.eol)
+	{
+	case end_of_line::unix:
+		find_newlines<EndOfLine::Unix>
+			(result.input_buffer, input.data.size(), result.indices_buffer, input.count);
+		break;
+	case end_of_line::win:
+		find_newlines<EndOfLine::Win>
+			(result.input_buffer, input.data.size(), result.indices_buffer, input.count);
+		break;
+	case end_of_line::unknown:
+	default:
+		std::cerr << "Unknown end of line character!";
+		usage();
+		break;
+	}
 
 	return result;
 }
@@ -380,7 +509,8 @@ benchmark_input get_input()
 	{
 		std::move(data),
 		g_args.count,
-		g_args.wg_size
+		g_args.wg_size,
+		end_of_line::unknown
 	};
 }
 
@@ -396,56 +526,19 @@ void init_gpu()
 	cudaStreamCreate(&stream);
 }
 
-void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count)
+end_of_line detect_eol(benchmark_input& input)
 {
-	cudaEventRecord(gpu_preprocessing_checkpoint, stream);
-	InputIndex just_zero = 0;
-	cudaMemcpyAsync(d_indices, &just_zero, sizeof(InputIndex), cudaMemcpyHostToDevice, stream);
-	
-	cub::ArgIndexInputIterator<uint32_t*> arg_iter(reinterpret_cast<uint32_t*>(d_input));
-	OutputIndicesIterator out_iter(d_indices + 1); // +1, we need to add 0 at index 0
-	
-	int* d_temp_storage = nullptr;
-	size_t temp_storage_bytes = 0;
-	int* d_num_selected;
-	cudaMalloc(&d_num_selected, sizeof(int));
-
-	cub::DeviceSelect::If(
-		d_temp_storage,
-		temp_storage_bytes,
-		arg_iter,
-		out_iter,
-		d_num_selected,
-		(input_size + 3) / 4,
-		IsNewLine(),
-		stream
-	);
-
-	cudaMalloc(&d_temp_storage, temp_storage_bytes);
-
-	cub::DeviceSelect::If(
-		d_temp_storage,
-		temp_storage_bytes,
-		arg_iter,
-		out_iter,
-		d_num_selected,
-		(input_size + 3) / 4,
-		IsNewLine(),
-		stream
-	);
-
-	// Following lines could be commented out as it is only validation step
-	cudaStreamSynchronize(stream);
-	int h_num_selected = -1;
-	cudaMemcpy(&h_num_selected, d_num_selected, sizeof(int), cudaMemcpyDeviceToHost);
-	if (h_num_selected != count)
-	{
-		cout << "Found " << h_num_selected << " new lines instead of declared " << count << ".\n";
-		usage();
-	}
-
-	cudaFree(d_temp_storage);
-	cudaFree(d_num_selected);
+	auto found = std::find_if(input.data.begin(), input.data.end(), [](char& c) {
+		return c == '\r' || c == '\n';
+	});
+	if (found == input.data.end())
+		return end_of_line::unknown;
+	if (*found == '\n')
+		return end_of_line::unix;
+	// *found == '\r'
+	if ((found + 1) == input.data.end() || *(found + 1) != '\n')
+		return end_of_line::unknown;
+	return end_of_line::win;
 }
 
 struct NoError

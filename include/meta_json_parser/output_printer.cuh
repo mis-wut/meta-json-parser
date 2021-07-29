@@ -47,7 +47,7 @@ template<class BaseActionT, class PrinterMapT>
 struct OutputPrinter
 {
 	using OC = OutputConfiguration<BaseActionT>;
-	using OM = OutputManager<OC>;
+	using OM = OutputManager<BaseActionT>;
 
 	template<class OutputTagT>
 	using GetOutType = typename boost::mp11::mp_map_find<
@@ -91,7 +91,7 @@ struct OutputPrinter
 				if (idx != 0)
 					stream << ',';
 				const uint8_t* ptr = host_output.m_h_outputs[idx++].data();
-				const T* cast_ptr = reinterpret_cast<const T*>(ptr);
+				const T* cast_ptr = reinterpret_cast<const T*>(ptr) + i;
 				GetPrinter<Tag> printer;
 				printer(stream, cast_ptr);
 			});
