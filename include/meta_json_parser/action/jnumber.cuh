@@ -9,6 +9,7 @@
 template<class OutT, class TagT>
 struct JNumber
 {
+	using Tag = TagT;
 	using OutputRequests = boost::mp11::mp_list<OutputRequest<TagT, OutT>>;
 	using MemoryRequests = JsonParse::UnsignedIntegerRequests<OutT>;
 	static_assert(std::is_integral_v<OutT>, "OutT must be integral.");

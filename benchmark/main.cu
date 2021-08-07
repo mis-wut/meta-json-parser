@@ -71,13 +71,6 @@ using BaseAction = JDict < mp_list <
 	mp_list<K_L1_3_name, JStringStaticCopy<mp_int<32>, K_L1_3_name>>
 >> ;
 
-using PrinterMap = mp_list<
-	mp_list<K_L1_is_checked, mp_quote<BoolPrinter>>,
-	mp_list<K_L1_1_is_checked, mp_quote<BoolPrinter>>,
-	mp_list<K_L1_2_is_checked, mp_quote<BoolPrinter>>,
-	mp_list<K_L1_3_is_checked, mp_quote<BoolPrinter>>
->;
-
 constexpr int CHARS_PER_JSTRING = 32;
 
 enum workgroup_size { W32, W16, W8 };
@@ -593,9 +586,7 @@ void to_csv(ParserOutputHost<BaseAction>& output_hosts)
 	if (g_args.output_csv.empty())
 		return;
 	cout << "Saving results to " << g_args.output_csv << ".";
-	OutputPrinter<BaseAction, PrinterMap> printer;
-	std::ofstream csv(g_args.output_csv);
-	printer.ToCsv(csv, output_hosts);
+	output_hosts.DropToCsv(g_args.output_csv.c_str());;
 }
 
 void launch_kernel_dynamic(benchmark_device_buffers& device_buffers, workgroup_size wg_size)

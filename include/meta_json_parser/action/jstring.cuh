@@ -3,6 +3,7 @@
 #include <meta_json_parser/json_parse.cuh>
 #include <meta_json_parser/static_buffer.h>
 #include <meta_json_parser/output_manager.cuh>
+#include <meta_json_parser/output_printer.cuh>
 #include <cub/cub.cuh>
 
 //Only parsing/validation
@@ -23,6 +24,9 @@ struct JStringStaticCopy
 {
 	static_assert(BytesT::value > 0, "BytesT must be at greater than 0");
 
+	using type = JStringStaticCopy<BytesT, TagT>;
+	using Tag = TagT;
+	using Printer = AsCharsPrinter<type>;
 	using OutputRequests = boost::mp11::mp_list<OutputRequest<TagT, StaticBuffer_c<BytesT::value>>>;
 	using MemoryRequests = JsonParse::StringRequests;
 
@@ -64,6 +68,7 @@ struct IsNotNullByte {
 template<class TagT>
 struct JStringDynamicCopy
 {
+	using Tag = TagT;
 	using LengthRequestTag = std::pair<TagT, boost::mp11::mp_int<0>>;
 	using LengthRequest = OutputRequest<
 		LengthRequestTag,

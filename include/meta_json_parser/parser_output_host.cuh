@@ -11,6 +11,7 @@
 #include <meta_json_parser/meta_memory_manager.cuh>
 #include <meta_json_parser/parser_configuration.h>
 #include <meta_json_parser/kernel_launcher.cuh>
+#include <meta_json_parser/output_printer.cuh>
 #include <cstdint>
 #include <type_traits>
 
@@ -41,10 +42,16 @@ struct ParserOutputHost
 		});
 	}
 
-	template<class OutputTag>
-	void*& Pointer()
+	template<class OutputTagT>
+	void* Pointer()
 	{
-		return m_h_outputs[OM::template TagIndex<OutputTag>::value].data();
+		return m_h_outputs[OM::template TagIndex<OutputTagT>::value].data();
+	}
+
+	template<class OutputTagT>
+	void const* Pointer() const
+	{
+		return m_h_outputs[OM::template TagIndex<OutputTagT>::value].data();
 	}
 
 	void DropToCsv(const char* filename) const
@@ -52,14 +59,17 @@ struct ParserOutputHost
 		std::ofstream csv(filename);
 		for (auto i = 0ull; i < m_size; ++i)
 		{
-			boost::mp11::mp_for_each<typename OC::RequestList>([&, idx=0](auto k) mutable {
-				using Request = decltype(k);
-				using T = typename Request::OutputType;
+			using PrintableActions = boost::mp11::mp_copy_if<
+				ActionIterator<BaseAction>,
+				HaveOutputRequests
+			>;
+			boost::mp11::mp_for_each<PrintableActions> ([&, idx=0](auto a) mutable {
+				using Action = decltype(a);
+				using Printer = GetPrinter<Action>;
 				if (idx != 0)
 					csv << ',';
-				const uint8_t* ptr = m_h_outputs[idx++].data();
-				const T* cast_ptr = reinterpret_cast<const T*>(ptr);
-				csv << cast_ptr[i];
+				Printer::Print(*this, i, csv);
+				++idx;
 			});
 			csv << '\n';
 		}
