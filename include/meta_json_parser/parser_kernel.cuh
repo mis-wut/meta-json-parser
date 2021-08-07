@@ -29,7 +29,7 @@ struct HavePostKernelHook<
 template<class ParserConfigurationT>
 __global__ void __launch_bounds__(1024, 2)
 _parser_kernel(
-	MetaMemoryManager<ParserConfigurationT>::ReadOnlyBuffer* readOnlyBuffer,
+	typename MetaMemoryManager<ParserConfigurationT>::ReadOnlyBuffer* readOnlyBuffer,
 	const char* input,
 	const InputIndex* indices,
 	ParsingError* err,

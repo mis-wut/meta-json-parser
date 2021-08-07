@@ -130,6 +130,7 @@ void launch_kernel_dynamic(benchmark_device_buffers& device_buffers, workgroup_s
 ParserOutputHost<BaseAction> copy_output(benchmark_device_buffers& device_buffers);
 void print_results();
 void to_csv(ParserOutputHost<BaseAction>& output_hosts);
+void usage();
 
 namespace EndOfLine
 {

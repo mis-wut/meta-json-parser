@@ -13,7 +13,7 @@ struct ParserConfiguration
 		boost::mp11::mp_append<
 			boost::mp11::mp_push_front<
 				typename OutputConfiguration::MemoryRequests,
-				RuntimeConfiguration::MemoryRequest
+				typename RuntimeConfiguration::MemoryRequest
 			>,
 			AdditionalMemoryRequestsT
 		>
