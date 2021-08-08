@@ -46,7 +46,7 @@ struct JDict
 		using StorageSize = boost::mp11::mp_int<RowCount::value * ColCount::value>;
 		using Buffer = StaticBuffer_c<StorageSize::value>;
 
-		static void __host__ Fill(Buffer& buffer, KernelLaunchConfiguration* _)
+		static void __host__ Fill(Buffer& buffer, const KernelLaunchConfiguration* _)
 		{
 			boost::mp11::mp_for_each<boost::mp11::mp_iota<RowCount>>([&](auto row) {
 				boost::mp11::mp_for_each<boost::mp11::mp_iota<ColCount>>([&](auto col) {

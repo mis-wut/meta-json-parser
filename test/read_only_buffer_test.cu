@@ -34,7 +34,7 @@ struct MockNumbersReadOnlyAction {
 	struct NumberFiller {
 		using Buffer = StaticBuffer_c<Size>;
 
-		static void __host__ Fill(Buffer& buffer, KernelLaunchConfiguration* _)
+		static void __host__ Fill(Buffer& buffer, const KernelLaunchConfiguration* _)
 		{
 			mp_for_each<mp_iota_c<Size>>([&](auto i) {
 				constexpr int I = decltype(i)::value;

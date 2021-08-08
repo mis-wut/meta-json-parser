@@ -65,9 +65,28 @@ struct IsNotNullByte {
 	}
 };
 
+
+template<class ActionT>
+struct DynamicStringPrinter
+{
+	using Tag = typename ActionT::Tag;
+	using LengthRequestTag = typename ActionT::LengthRequestTag;
+	using DynamicStringRequestTag = typename ActionT::DynamicStringRequestTag;
+
+	template<class ParserOutputHostT>
+	void static Print(const ParserOutputHostT& output, size_t idx, std::ostream& stream)
+	{
+		const uint32_t begin = reinterpret_cast<const uint32_t*>(output.template Pointer<LengthRequestTag>())[idx];
+		const uint32_t end   = reinterpret_cast<const uint32_t*>(output.template Pointer<LengthRequestTag>())[idx + 1];
+		const char* ptr = reinterpret_cast<const char*>(output.template Pointer<DynamicStringRequestTag>());
+		stream.write(ptr + begin, end - begin);
+	}
+};
+
 template<class TagT>
 struct JStringDynamicCopy
 {
+	using type = JStringDynamicCopy<TagT>;
 	using Tag = TagT;
 	using LengthRequestTag = std::pair<TagT, boost::mp11::mp_int<0>>;
 	using LengthRequest = OutputRequest<
@@ -79,6 +98,7 @@ struct JStringDynamicCopy
 	>;
 	using DynamicStringRequestTag = std::pair<TagT, boost::mp11::mp_int<1>>;
 	using DynamicStringRequest = DynamicOutputRequest<DynamicStringRequestTag, char>;
+	using Printer = DynamicStringPrinter<type>;
 	using OutputRequests = boost::mp11::mp_list<LengthRequest, DynamicStringRequest>;
 	using MemoryRequests = JsonParse::StringRequests;
 
@@ -171,7 +191,7 @@ struct JStringDynamicCopy
 		});
 		if (err != ParsingError::None)
 			return err;
-		kc.om.template Get<KernelContextT, LengthRequestTag>() = offset;
+		kc.om.template Get<KernelContextT, LengthRequestTag>() = offset < max_offset ? offset : max_offset;
 		while (offset < max_offset)
 		{
 			uint32_t worker_offset = offset + RT::WorkerId();
@@ -182,3 +202,4 @@ struct JStringDynamicCopy
 		return ParsingError::None;
 	}
 };
+

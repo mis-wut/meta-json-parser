@@ -89,7 +89,7 @@ struct DynamicSizesFiller
 
 	using RequestSize = boost::mp11::mp_int<sizeof(uint32_t) * DynamicRequestsCount::value>;
 
-	void static Fill(StaticBuffer<RequestSize>& buff, KernelLaunchConfiguration* launch_config)
+	void static Fill(StaticBuffer<RequestSize>& buff, const KernelLaunchConfiguration* launch_config)
 	{
 		if (DynamicRequestsCount::value == 0)
 			return;

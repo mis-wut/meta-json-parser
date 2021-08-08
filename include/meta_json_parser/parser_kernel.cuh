@@ -61,10 +61,10 @@ struct ParserKernel
 	>;
 
 	ROB* m_d_rob;
-	KernelLaunchConfiguration* m_launch_config;
+	const KernelLaunchConfiguration* m_launch_config;
 	cudaStream_t m_stream;
 
-	ParserKernel(KernelLaunchConfiguration* launch_config, cudaStream_t stream = 0)
+	ParserKernel(const KernelLaunchConfiguration* launch_config, cudaStream_t stream = 0)
 		: m_launch_config(launch_config), m_stream(stream)
 	{
 		cudaMalloc(&m_d_rob, sizeof(ROB));
@@ -79,7 +79,9 @@ struct ParserKernel
 		ParsingError* errors,
 		void** d_outputs, // Device array of pointers to device outputs
 		const uint32_t count,
-		void** h_outputs // Host array of pointers to device outputs
+		void** h_outputs, // Host array of pointers to device outputs
+		cudaEvent_t kernel_event = 0,
+		cudaEvent_t post_hooks_event = 0
 	)
 	{
 		constexpr int GROUP_SIZE = RT::WorkGroupSize::value;
@@ -87,6 +89,10 @@ struct ParserKernel
 		const unsigned int BLOCKS_COUNT = (count + GROUP_COUNT - 1) / GROUP_COUNT;
 		constexpr auto kernel_ptr = &_parser_kernel<PC>;
 		Launcher l(kernel_ptr);
+
+		if (kernel_event)
+			cudaEventRecord(kernel_event, m_stream);
+
 		l(BLOCKS_COUNT, m_stream)(
 			m_d_rob,
 			input,
@@ -102,6 +108,9 @@ struct ParserKernel
 			HavePostKernelHook,
 			Actions
 		>;
+
+		if (post_hooks_event)
+			cudaEventRecord(post_hooks_event, m_stream);
 
 		boost::mp11::mp_for_each<PostKernelHooks>([&](auto action) {
 			decltype(action)::PostKernelHook(*this, count, h_outputs);

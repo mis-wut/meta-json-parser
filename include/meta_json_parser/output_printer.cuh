@@ -28,7 +28,7 @@ namespace impl_printer {
 template<class ActionT>
 struct DefaultPrinter
 {
-	using Tag = ActionT::Tag;
+	using Tag = typename ActionT::Tag;
 	using OutputT = impl_printer::FirstOutputType<ActionT>;
 
 	template<class ParserOutputHostT, class = typename std::enable_if<support_ostream<impl_printer::FirstOutputType<ActionT>>::value>::type>
@@ -41,7 +41,7 @@ struct DefaultPrinter
 template<class ActionT>
 struct AsCharsPrinter
 {
-	using Tag = ActionT::Tag;
+	using Tag = typename ActionT::Tag;
 	using OutputType = impl_printer::FirstOutputType<ActionT>;
 
 	template<class ParserOutputHostT>
@@ -60,7 +60,7 @@ struct AsCharsPrinter
 template<class ActionT>
 struct BoolPrinter
 {
-	using Tag = ActionT::Tag;
+	using Tag = typename ActionT::Tag;
 	using OutputType = impl_printer::FirstOutputType<ActionT>;
 
 	template<class ParserOutputHostT>

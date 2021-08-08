@@ -71,7 +71,7 @@ namespace JsonParse
 		//0x8 | f a l s e . . .
 		using Buffer = StaticBuffer_c<sizeof(Words)>;
 
-		static void __host__ Fill(Buffer& buffer, KernelLaunchConfiguration* _)
+		static void __host__ Fill(Buffer& buffer, const KernelLaunchConfiguration* _)
 		{
 			auto buf = "nulltruefalse\0\0\0";
 			std::copy_n(buf, sizeof(Words), buffer.data);

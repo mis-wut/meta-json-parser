@@ -106,7 +106,7 @@ struct MetaMemoryManager
 		__syncthreads();
 	}
 
-	__host__ static void FillReadOnlyBuffer(ReadOnlyBuffer& readOnlyBuffer, KernelLaunchConfiguration* launch_configuration)
+	__host__ static void FillReadOnlyBuffer(ReadOnlyBuffer& readOnlyBuffer, const KernelLaunchConfiguration* launch_configuration)
 	{
 		using ROL = typename MC::ReadOnlyList;
 		boost::mp11::mp_for_each<boost::mp11::mp_iota<boost::mp11::mp_size<ROL>>>([&](auto i) {
