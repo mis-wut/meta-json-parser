@@ -262,6 +262,14 @@ struct IsNewLine
 	}
 };
 
+struct NoError
+{
+	__device__ __host__ bool operator()(ParsingError e)
+	{
+		return ParsingError::None == e;
+	}
+};
+
 template<class EndOfLineT>
 void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count)
 {
@@ -663,14 +671,6 @@ end_of_line detect_eol(benchmark_input& input)
 		return end_of_line::unknown;
 	return end_of_line::win;
 }
-
-struct NoError
-{
-	__device__ __host__ bool operator()(ParsingError e)
-	{
-		return ParsingError::None == e;
-	}
-};
 
 void print_results()
 {
