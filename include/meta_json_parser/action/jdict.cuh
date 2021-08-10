@@ -125,7 +125,7 @@ struct JDict
 					? 0xFF'FF'FF'FFu ^ ((0x1u << (32 - KeyWriter::KeyCount::value)) - 1)
 					: 0x0u;
 				int stringReadIdx = 0;
-				err = JsonParse::String<KC>(kc)([&](bool& isEscaped, int& activeThreads) {
+				err = JsonParse::String(kc, [&](bool& isEscaped, int& activeThreads) {
 					//Each row contains 4 combined keys.
 					constexpr int ROW_COUNT = KeyWriter::RowCount::value;
 					char c = kc.wgr.CurrentChar();

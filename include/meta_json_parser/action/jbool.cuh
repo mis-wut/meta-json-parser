@@ -19,7 +19,8 @@ struct JBool
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
-		using RT = typename KernelContextT::RT;
-		return JsonParse::Boolean<typename RT::WorkGroupSize>(kc, kc.om.template Get<KernelContextT, TagT>());
+		return JsonParse::Boolean(kc, [&](auto&& result) {
+			kc.om.template Get<KernelContextT, TagT>() = result;
+		});
 	}
 };

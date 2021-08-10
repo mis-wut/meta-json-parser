@@ -15,7 +15,7 @@ struct JString
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
         using KC = KernelContextT;
-		return JsonParse::String<KC>(kc)([](bool&, int&){ return ParsingError::None; });
+		return JsonParse::String(kc, [](bool&, int&){ return ParsingError::None; });
 	}
 };
 
@@ -37,7 +37,7 @@ struct JStringStaticCopy
 		using RT = typename KC::RT;
 		char (&result)[BytesT::value] = kc.om.template Get<KernelContextT, TagT>().template Alias<char[BytesT::value]>();
 		uint32_t offset = 0;
-		ParsingError err = JsonParse::String<KC>(kc)([&](bool& isEscaped, int& activeThreads) {
+		ParsingError err = JsonParse::String(kc, [&](bool& isEscaped, int& activeThreads) {
 			uint32_t worker_offset = offset + RT::WorkerId();
 			char c = RT::WorkerId() < activeThreads ? kc.wgr.CurrentChar() : '\0';
 			if (worker_offset < BytesT::value)
@@ -181,7 +181,7 @@ struct JStringDynamicCopy
 		char* result = kc.om.template Pointer<KernelContextT, DynamicStringRequestTag>();
 		const uint32_t max_offset = kc.om.template DynamicSize<KernelContextT, DynamicStringRequestTag>();
 		uint32_t offset = 0;
-		ParsingError err = JsonParse::String<KC>(kc)([&](bool& isEscaped, int& activeThreads) {
+		ParsingError err = JsonParse::String(kc, [&](bool& isEscaped, int& activeThreads) {
 			uint32_t worker_offset = offset + RT::WorkerId();
 			char c = RT::WorkerId() < activeThreads ? kc.wgr.CurrentChar() : '\0';
 			if (worker_offset < max_offset)

@@ -46,7 +46,9 @@ __global__ void __launch_bounds__(1024, 2)
 	}
 	OutTypeT out;
 	ParsingError err;
-	err = JsonParse::UnsignedInteger<OutTypeT, GroupSizeT>::KC(context)(out);
+	err = JsonParse::UnsignedInteger<OutTypeT>(context, [&out](auto&& result) {
+		out = result;
+	});
 	if (context.wgr.PeekChar(0) != '\0')
 		err = ParsingError::Other;
 	if (RT::WorkerId() == 0)

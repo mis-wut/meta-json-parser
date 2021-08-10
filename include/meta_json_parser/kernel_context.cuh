@@ -9,6 +9,8 @@
 template<class ParserConfigurationT>
 struct KernelContext
 {
+	using ParserConfiguration = ParserConfigurationT;
+	using PC = ParserConfiguration;
 	using BaseAction = typename ParserConfigurationT::BaseAction;
 	using OC = OutputConfiguration<BaseAction>;
 	using M3 = MetaMemoryManager<ParserConfigurationT>;
