@@ -6,6 +6,8 @@
 #include <iomanip>
 #include <chrono>
 #include <functional>
+#include <map>
+#include <cstdlib>
 #include <cuda_runtime_api.h>
 #include <thrust/logical.h>
 #include <meta_json_parser/parser_output_device.cuh>
@@ -21,6 +23,7 @@
 #include <meta_json_parser/action/jnumber.cuh>
 #include <meta_json_parser/action/jbool.cuh>
 #include <cub/cub.cuh>
+#include <CLI/CLI.hpp>
 
 using namespace boost::mp11;
 using namespace std;
@@ -533,91 +536,64 @@ int main(int argc, char** argv)
 	return 0;
 }
 
+static CLI::App app{"meta-json-parser-benchmark -- benchmark JSON meta-parser, running on GPU"};
+
 void usage()
 {
-	cout << "usage: benchmark JSONLINES_FILE JSON_COUNT\n"
-         << "  --ws=32|16|8      Workgroup size. Default = 32\n"
-         << "  -o=CSV_FILENAME   Name for an parsed output CSV file.\n"
-         << "                    If ommited no output is saved.\n"
-         << "  -b                Enable error check. If there was a\n"
-         << "                    parsing error, message will be printed.\n"
-         << "  -s=BYTES          Bytes allocated per dynamic string.\n"
-         << "                    String that are too long will be truncated.\n"
-         << "                    If not provided, then strings with static\n"
-         << "                    length will be used.\n"
-		;
+	// check that it is called after parse_args(),
+	// and we have all options and the help message configured
+	if (app.parsed())
+		exit(app.exit(CLI::CallForHelp()));
+
 	exit(1);
 }
 
 void parse_args(int argc, char** argv)
 {
-	int pos_arg = 1;
-	int wg_size = 32;
+	// helpers
+	std::map<std::string, workgroup_size> wg_sizes_map{
+		{"32", workgroup_size::W32},
+        {"16", workgroup_size::W16},
+        { "8", workgroup_size::W8}
+	};
+
+	// defaults
 	g_args.error_check = false;
-	try
-	{
-		for (int i = 1; i < argc; ++i)
-		{
-			std::string opt(argv[i]);
-			if (opt[0] == '-')
-			{
-				if (opt.rfind("--ws=", 0) == 0)
-					wg_size = std::stoi(opt.substr(5));
-				else if (opt.rfind("-o=", 0) == 0)
-					g_args.output_csv = opt.substr(3);
-				else if (opt.rfind("-s=", 0) == 0)
-					g_args.bytes_per_string = std::stoi(opt.substr(3));
-				else if (opt == "-b")
-					g_args.error_check = true;
-				else
-				{
-					cout << "Unknown option.\n";
-					usage();
-				}
-			}
-			else
-			{
-				switch (pos_arg)
-				{
-				case 1:
-					g_args.filename = opt;
-					break;
-				case 2:
-					g_args.count = std::stoi(opt);
-					break;
-				default:
-					cout << "Exactly 2 positional arguments are supported.";
-					usage();
-					break;
-				}
-				++pos_arg;
-			}
-		}
-	}
-	catch (...)
-	{
-		cout << "Error in parsing arguments\n";
-		usage();
-	}
-	if (pos_arg < 3)
-	{
-		cout << "Not enough positional arguments.\n";
-		usage();
-	}
-	switch (wg_size)
-	{
-	case 32:
-		g_args.wg_size = workgroup_size::W32;
-		break;
-	case 16:
-		g_args.wg_size = workgroup_size::W16;
-		break;
-	case 8:
-		g_args.wg_size = workgroup_size::W8;
-		break;
-	default:
-		cout << "Only allowed workgroup sizes are: 32, 16 and 8.\n";
-		usage();
+	g_args.wg_size = workgroup_size::W32;
+
+	app.add_option("JSONLINES_FILE", g_args.filename,
+	               "NDJSON / JSONL input file to parse.")
+		->required()
+		->check(CLI::ExistingFile);
+	app.add_option("JSON_COUNT", g_args.count,
+	               "Number of lines/objects in the input file.")
+		->required()
+		->check(CLI::NonNegativeNumber);
+	app.add_option("--ws,--workspace-size", g_args.wg_size,
+	               "Workgroup size. Default = 32.")
+		->transform(CLI::CheckedTransformer(wg_sizes_map))
+		->option_text("32|16|8")
+		->default_str("32");
+	app.add_option("-o,--output", g_args.output_csv,
+	               "Name for an parsed output CSV file.\n"
+                   "If omitted no output is saved.")
+		->option_text("CSV_FILENAME");
+	app.add_flag("-b,--error-checking", g_args.error_check,
+	             "Enable error check. If there was a parsing error,\n"
+	             "a message will be printed.");
+	app.add_option("-s,--max-string-size", g_args.bytes_per_string,
+	               "Bytes allocated per dynamic string.\n"
+	               "Strings that are too long will be truncated.\n"
+                   "If not provided, then strings with static length will be used.")
+		->option_text("BYTES")
+		->check(CLI::PositiveNumber);
+
+	app.get_formatter()->column_width(40);
+
+	try {
+		app.parse(argc, argv);
+	} catch (const CLI::ParseError &e) {
+		exit(app.exit(e));
 	}
 }
 
