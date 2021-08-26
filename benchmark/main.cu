@@ -513,7 +513,7 @@ void to_csv(ParserOutputHost<BaseActionT>& output_hosts)
 {
 	if (g_args.output_csv.empty())
 		return;
-	cout << "Saving results to " << g_args.output_csv << ".";
+	cout << "Saving results to '" << g_args.output_csv << "'.\n";
 	output_hosts.DropToCsv(g_args.output_csv.c_str());;
 }
 
