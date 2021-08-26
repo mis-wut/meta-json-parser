@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
 #include <boost/mp11/integral.hpp>
 #include <random>
+#include <string>
 #include <unordered_set>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 #include <thrust/logical.h>
+#include <thrust/execution_policy.h>
 #include <meta_json_parser/config.h>
 #include <meta_json_parser/parsing_error.h>
 #include <meta_json_parser/memory_configuration.h>
@@ -15,7 +17,7 @@
 #include <meta_json_parser/action/jstring.cuh>
 #include <meta_json_parser/action/void_action.cuh>
 
-class DISABLED_DynamicOutputTest : public ::testing::Test {
+class DynamicOutputTest : public ::testing::TestWithParam<size_t> {
 public:
 #if _DEBUG
 	static constexpr size_t TEST_SIZE = 0x11;
@@ -97,31 +99,29 @@ struct no_error {
 };
 
 template<int GroupSizeT>
-void templated_DynamicStringCopy()
+void templated_DynamicStringCopy(size_t max_str_len)
 {
 	using GroupSize = boost::mp11::mp_int<GroupSizeT>;
 	constexpr int GROUP_SIZE = GroupSizeT;
 	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
 	using GroupCount = boost::mp11::mp_int<GROUP_COUNT>;
-	using MC = EmptyMemoryConfiguration;
 	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-	using PC = ParserConfiguration<RT, MC>;
 	using BA = JStringDynamicCopy<int>;
-	using PK = ParserKernel<PC, BA>;
-	const size_t INPUT_T = DISABLED_DynamicOutputTest::TEST_SIZE;
-	const size_t MAX_LEN = 6;
-	TestContextDynamicStringCopy context(INPUT_T, GROUP_SIZE, MAX_LEN);
-	const unsigned int BLOCKS_COUNT = (INPUT_T + GROUP_COUNT - 1) / GROUP_COUNT;
+	using PC = ParserConfiguration<RT, BA>;
+	using PK = ParserKernel<PC>;
+	using OM = OutputManager<BA>;
+	const size_t INPUT_T = DynamicOutputTest::TEST_SIZE;
+	TestContextDynamicStringCopy context(INPUT_T, GROUP_SIZE, max_str_len);
 	thrust::device_vector<ParsingError> d_err(INPUT_T);
 	thrust::fill(d_err.begin(), d_err.end(), ParsingError::Other);
 	ASSERT_TRUE(cudaDeviceSynchronize() == cudaError::cudaSuccess);
 
 	KernelLaunchConfiguration klc;
-	klc.dynamic_sizes.push_back(MAX_LEN);
+	klc.dynamic_sizes.push_back(max_str_len);
 	ParserOutputDevice<BA> output(&klc, INPUT_T);
 
 	thrust::host_vector<void*> h_outputs(output.output_buffers_count);
-	auto d_output_it = output.m_d_outputs;
+	auto d_output_it = output.m_d_outputs.begin();
 	for (auto& h_output : h_outputs)
 		h_output = d_output_it++->data().get();
 	thrust::device_vector<void*> d_outputs(h_outputs);
@@ -137,14 +137,39 @@ void templated_DynamicStringCopy()
 	);
 	ASSERT_TRUE(cudaGetLastError() == cudaError::cudaSuccess);
 	ASSERT_TRUE(cudaDeviceSynchronize() == cudaError::cudaSuccess);
-	thrust::host_vector<ParsingError> h_err(d_err);
 	auto h_output = output.CopyToHost();
-	//ASSERT_TRUE(thrust::equal(context.d_correct.begin(), context.d_correct.end(), d_result.begin()));
+
+	//If doesn't work on release try set 0 to unused length values
+	ASSERT_TRUE(thrust::equal(
+		thrust::device,
+		context.d_correct_offsets.begin(),
+		context.d_correct_offsets.end(),
+		reinterpret_cast<int*>(h_outputs[OM::template TagIndex<BA::LengthRequestTag>::value])
+	));
+	ASSERT_TRUE(thrust::equal(
+		thrust::device,
+		context.d_correct_content.begin(),
+		context.d_correct_content.end(),
+		reinterpret_cast<char*>(h_outputs[OM::template TagIndex<BA::DynamicStringRequestTag>::value])
+	));
 	ASSERT_TRUE(thrust::all_of(d_err.begin(), d_err.end(), no_error()));
 }
 
-
-TEST_F(DISABLED_DynamicOutputTest, dynamic_output_copy_string_w32) {
-	templated_DynamicStringCopy<32>();
+TEST_P(DynamicOutputTest, dynamic_output_copy_string_w32) {
+	templated_DynamicStringCopy<32>(GetParam());
 }
+
+TEST_P(DynamicOutputTest, dynamic_output_copy_string_w16) {
+	templated_DynamicStringCopy<16>(GetParam());
+}
+
+TEST_P(DynamicOutputTest, dynamic_output_copy_string_w8) {
+	templated_DynamicStringCopy<8>(GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(DynamicString, DynamicOutputTest, testing::Values(6, 18, 42), 
+	[](const testing::TestParamInfo<DynamicOutputTest::ParamType>& info) {
+		return std::to_string(info.param);
+	}
+);
 

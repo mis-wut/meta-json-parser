@@ -43,3 +43,47 @@ template<class BaseAction>
 using ActionIterator = typename ActionIterator_impl<BaseAction>::type;
 
 using ActionIterator_q = boost::mp11::mp_quote_trait<ActionIterator_impl>;
+
+namespace impl_tagged_action {
+	template<class T, typename = int>
+	struct HaveTag : std::false_type {};
+
+	template<class T>
+	struct HaveTag<T, decltype(std::declval<typename T::Tag>(), 0)> : std::true_type {};
+
+	template<class T>
+	using GetTag = typename T::Tag;
+}
+
+//find(action_list, (action) -> {
+//	if HaveTag(action)
+//		return false
+//	return same(TagT, GetTag(action))
+//})
+template<class BaseActionT, class TagT>
+using GetTaggedAction = boost::mp11::mp_at<
+	ActionIterator<BaseActionT>,
+	boost::mp11::mp_find_if_q<
+		ActionIterator<BaseActionT>,
+		boost::mp11::mp_bind<
+			boost::mp11::mp_eval_if_not_q,
+			boost::mp11::mp_bind<
+				impl_tagged_action::HaveTag,
+				boost::mp11::_1
+			>,
+			boost::mp11::mp_false,
+			boost::mp11::mp_compose_q<
+				boost::mp11::mp_quote<impl_tagged_action::GetTag>,
+				boost::mp11::mp_bind<
+					boost::mp11::mp_same,
+					boost::mp11::_1,
+					TagT
+				>
+			>,
+			boost::mp11::_1
+		>
+	>
+>;
+				
+		
+

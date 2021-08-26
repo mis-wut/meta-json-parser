@@ -15,6 +15,9 @@ namespace MemoryUsage
 	struct ActionUsage {};
 }
 
+template<class T>
+using GetRequestMemoryUsage = typename T::MemoryUsage;
+
 template<class RequestT>
 using GetRequestSizeV = typename RequestT::Size;
 

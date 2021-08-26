@@ -6,12 +6,15 @@
 #include <meta_json_parser/output_manager.cuh>
 #include <meta_json_parser/config.h>
 
-template<class ParserConfigurationT, class OutputConfigurationT>
+template<class ParserConfigurationT>
 struct KernelContext
 {
-	using OC = OutputConfigurationT;
+	using ParserConfiguration = ParserConfigurationT;
+	using PC = ParserConfiguration;
+	using BaseAction = typename ParserConfigurationT::BaseAction;
+	using OC = OutputConfiguration<BaseAction>;
 	using M3 = MetaMemoryManager<ParserConfigurationT>;
-	using OM = OutputManager<OutputConfigurationT>;
+	using OM = OutputManager<BaseAction>;
 	using WGR = WorkGroupReader<typename ParserConfigurationT::RuntimeConfiguration::WorkGroupSize>;
 	using RT = typename ParserConfigurationT::RuntimeConfiguration;
 

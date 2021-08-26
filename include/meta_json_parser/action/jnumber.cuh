@@ -9,6 +9,7 @@
 template<class OutT, class TagT>
 struct JNumber
 {
+	using Tag = TagT;
 	using OutputRequests = boost::mp11::mp_list<OutputRequest<TagT, OutT>>;
 	using MemoryRequests = JsonParse::UnsignedIntegerRequests<OutT>;
 	static_assert(std::is_integral_v<OutT>, "OutT must be integral.");
@@ -21,7 +22,8 @@ struct JNumber
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
-		using RT = typename KernelContextT::RT;
-		return JsonParse::UnsignedInteger<OutT, typename RT::WorkGroupSize>::KC(kc)(kc.om.template Get<KernelContextT, TagT>());
+		return JsonParse::UnsignedInteger<OutT>(kc, [&](auto&& result) {
+			kc.om.template Get<KernelContextT, TagT>() = result;
+		});
 	}
 };

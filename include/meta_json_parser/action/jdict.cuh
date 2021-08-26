@@ -46,7 +46,7 @@ struct JDict
 		using StorageSize = boost::mp11::mp_int<RowCount::value * ColCount::value>;
 		using Buffer = StaticBuffer_c<StorageSize::value>;
 
-		static void __host__ Fill(Buffer& buffer, KernelLaunchConfiguration* _)
+		static void __host__ Fill(Buffer& buffer, const KernelLaunchConfiguration* _)
 		{
 			boost::mp11::mp_for_each<boost::mp11::mp_iota<RowCount>>([&](auto row) {
 				boost::mp11::mp_for_each<boost::mp11::mp_iota<ColCount>>([&](auto col) {
@@ -80,14 +80,7 @@ struct JDict
 
 	using KeyRequest = FilledMemoryRequest<typename KeyWriter::StorageSize, KeyWriter, MemoryUsage::ReadOnly, MemoryType::Shared>;
 
-	template<class T>
-	using GetMemoryRequests = typename boost::mp11::mp_second<T>::MemoryRequests;
-
-	using MemoryRequests = boost::mp11::mp_push_front<
-		boost::mp11::mp_flatten<boost::mp11::mp_transform<
-			GetMemoryRequests,
-			EntriesList
-		>>,
+	using MemoryRequests = boost::mp11::mp_list<
 		KeyRequest,
 		ScanRequest<uint32_t>,
 		ReduceRequest<uint32_t>
@@ -132,7 +125,7 @@ struct JDict
 					? 0xFF'FF'FF'FFu ^ ((0x1u << (32 - KeyWriter::KeyCount::value)) - 1)
 					: 0x0u;
 				int stringReadIdx = 0;
-				err = JsonParse::String<KC>(kc)([&](bool& isEscaped, int& activeThreads) {
+				err = JsonParse::String(kc, [&](bool& isEscaped, int& activeThreads) {
 					//Each row contains 4 combined keys.
 					constexpr int ROW_COUNT = KeyWriter::RowCount::value;
 					char c = kc.wgr.CurrentChar();

@@ -121,17 +121,15 @@ void templated_ParseDict2UInt(ParseJDictTest &test)
 	constexpr int GROUP_SIZE = GroupSizeT;
 	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
 	using GroupCount = boost::mp11::mp_int<GROUP_COUNT>;
-	using WGR = WorkGroupReader<GroupSize>;
-	using MC = MemoryConfiguration<boost::mp11::mp_list<>, boost::mp11::mp_list<>, boost::mp11::mp_list<>>;
 	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-	using PC = ParserConfiguration<RT, MC>;
 	using Key1 = boost::mp11::mp_string<'K', 'e', 'y', ' ', 'n', 'u', 'm', ' ', 'o', 'n', 'e'>;
 	using Key2 = boost::mp11::mp_string<'S', 'e', 'c', 'o', 'n', 'd', ' ', 'k', 'e', 'y'>;
 	using BA = JDict<boost::mp11::mp_list<
 		boost::mp11::mp_list<Key1, JNumber<OutType1T, Key1>>,
 		boost::mp11::mp_list<Key2, JNumber<OutType2T, Key2>>
 	>>;
-	using PK = ParserKernel<PC, BA>;
+	using PC = ParserConfiguration<RT, BA>;
+	using PK = ParserKernel<PC>;
 	using M3 = typename PK::M3;
 	using BUF = typename M3::ReadOnlyBuffer;
 	thrust::host_vector<BUF> h_buff(1);
@@ -149,7 +147,7 @@ void templated_ParseDict2UInt(ParseJDictTest &test)
 	thrust::device_vector<void*> d_outputs(h_outputs);
 	thrust::fill(d_err.begin(), d_err.end(), ParsingError::None);
 	ASSERT_TRUE(cudaDeviceSynchronize() == cudaError::cudaSuccess);
-	typename PK::Launcher(&_parser_kernel<PC, BA>)(BLOCKS_COUNT)(
+	typename PK::Launcher(&_parser_kernel<PC>)(BLOCKS_COUNT)(
 		d_buff.data().get(),
 		context.d_input.data().get(),
 		context.d_indices.data().get(),

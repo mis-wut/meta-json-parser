@@ -33,11 +33,10 @@ __global__ void __launch_bounds__(1024, 2)
 		const size_t count
 	)
 {
-	using WGR = WorkGroupReader<GroupSizeT>;
-	using MC = ExtendRequests<EmptyMemoryConfiguration, JsonParse::UnsignedIntegerRequests<OutTypeT>>;
+	using BaseAction = VoidAction;
 	using RT = RuntimeConfiguration<GroupSizeT, GroupCountT>;
-	using PC = ParserConfiguration<RT, MC>;
-	using PK = ParserKernel<PC, VoidAction>;
+	using PC = ParserConfiguration<RT, BaseAction, JsonParse::UnsignedIntegerRequests<OutTypeT>>;
+	using PK = ParserKernel<PC>;
 	using KC = typename PK::KC;
 	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
 	KC context(nullptr, sharedBuffers, input, indices, nullptr);
@@ -47,7 +46,9 @@ __global__ void __launch_bounds__(1024, 2)
 	}
 	OutTypeT out;
 	ParsingError err;
-	err = JsonParse::UnsignedInteger<OutTypeT, GroupSizeT>::KC(context)(out);
+	err = JsonParse::UnsignedInteger<OutTypeT>(context, [&out](auto&& result) {
+		out = result;
+	});
 	if (context.wgr.PeekChar(0) != '\0')
 		err = ParsingError::Other;
 	if (RT::WorkerId() == 0)

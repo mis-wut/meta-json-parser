@@ -50,8 +50,9 @@ template<class ParserConfigurationT>
 struct MetaMemoryManager
 {
     using type = MetaMemoryManager<ParserConfigurationT>;
-	using _ParserConfiguration = ParserConfigurationT;
-	using RT = typename _ParserConfiguration::RuntimeConfiguration;
+	using PC = ParserConfigurationT;
+	using MC = typename PC::MemoryConfiguration;
+	using RT = typename PC::RuntimeConfiguration;
 
 	struct IntPlusMemoryRequest
 	{
@@ -59,7 +60,6 @@ struct MetaMemoryManager
 		using fn = boost::mp11::mp_int<Accumulator::value + GetRequestSize<Request, RT>::value>;
 	};
 
-	using _MemoryConfiguration = typename _ParserConfiguration::MemoryConfiguration;
 
 	template<class ListT>
 	using SumRequests = boost::mp11::mp_fold_q<
@@ -74,12 +74,12 @@ struct MetaMemoryManager
 	template<class ListT>
 	using OnePerGroupSize = boost::mp11::mp_mul<
 		SumRequests<ListT>,
-		typename _ParserConfiguration::RuntimeConfiguration::WorkGroupCount
+		typename RT::WorkGroupCount
 	>;
 
-	using ReadOnlyBuffer = StaticBuffer<OnePerBlockSize<typename _MemoryConfiguration::ReadOnlyList>>;
-	using ActionBuffer = StaticBuffer<OnePerGroupSize<typename _MemoryConfiguration::ActionList>>;
-	using AtomicBuffer = StaticBuffer<OnePerGroupSize<typename _MemoryConfiguration::AtomicList>>;
+	using ReadOnlyBuffer = StaticBuffer<OnePerBlockSize<typename MC::ReadOnlyList>>;
+	using ActionBuffer = StaticBuffer<OnePerGroupSize<typename MC::ActionList>>;
+	using AtomicBuffer = StaticBuffer<OnePerGroupSize<typename MC::AtomicList>>;
 
 	//TODO now only shared memory is supported, add support for global and constant
 	//TODO take alignment into account
@@ -106,9 +106,9 @@ struct MetaMemoryManager
 		__syncthreads();
 	}
 
-	__host__ static void FillReadOnlyBuffer(ReadOnlyBuffer& readOnlyBuffer, KernelLaunchConfiguration* launch_configuration)
+	__host__ static void FillReadOnlyBuffer(ReadOnlyBuffer& readOnlyBuffer, const KernelLaunchConfiguration* launch_configuration)
 	{
-		using ROL = typename _MemoryConfiguration::ReadOnlyList;
+		using ROL = typename MC::ReadOnlyList;
 		boost::mp11::mp_for_each<boost::mp11::mp_iota<boost::mp11::mp_size<ROL>>>([&](auto i) {
 			constexpr int I = decltype(i)::value;
 			constexpr int OFFSET = SumRequests<boost::mp11::mp_take_c<ROL, I>>::value;
@@ -130,9 +130,9 @@ struct MetaMemoryManager
 		using _MemoryUsage = typename MemoryRequestT::MemoryUsage;
 		using _List = boost::mp11::mp_second<boost::mp11::mp_map_find<
 			boost::mp11::mp_list<
-				boost::mp11::mp_list<MemoryUsage::ReadOnly, typename _MemoryConfiguration::ReadOnlyList>,
-				boost::mp11::mp_list<MemoryUsage::ActionUsage, typename _MemoryConfiguration::ActionList>,
-				boost::mp11::mp_list<MemoryUsage::AtomicUsage, typename _MemoryConfiguration::AtomicList>
+				boost::mp11::mp_list<MemoryUsage::ReadOnly, typename MC::ReadOnlyList>,
+				boost::mp11::mp_list<MemoryUsage::ActionUsage, typename MC::ActionList>,
+				boost::mp11::mp_list<MemoryUsage::AtomicUsage, typename MC::AtomicList>
 			>,
 			_MemoryUsage
 		>>;

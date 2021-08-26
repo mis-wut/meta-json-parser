@@ -224,45 +224,59 @@ using TryGetCudfConverterX = boost::mp11::mp_eval_if_not<
 >;
 #endif /* HAVE_LIBCUDF */
 
+struct OutputsPointers
+{
+	thrust::host_vector<void*> h_outputs;
+	thrust::device_vector<void*> d_outputs;
+};
+
 template<class BaseActionT>
 struct ParserOutputDevice
 {
-	using OC = OutputConfiguration<BaseActionT>;
-	using OM = OutputManager<OC>;
+	using BaseAction = BaseActionT;
+	using OC = OutputConfiguration<BaseAction>;
+	using OM = OutputManager<BaseAction>;
 
 #if defined(HAVE_LIBCUDF)
-	using BaseAction = BaseActionT;
 	using CudfColumnsConverterList = boost::mp11::mp_flatten<
 		boost::mp11::mp_transform<
 			TryGetCudfConverterX,
 			ActionIterator<BaseAction>
 		>
 	>;
-	/* TODO: does not work
-	using TypedRequestList = boost::mp11::mp_transform<
-		boost::mp11::mp_list,
-		CudfColumnsConverterList,
-		OC::RequestList
-	>;
-	 */
 #endif /* defined(HAVE_LIBCUDF) */
 
 	static constexpr size_t output_buffers_count = boost::mp11::mp_size<typename OC::RequestList>::value;
 
 	size_t m_size;
 	const KernelLaunchConfiguration* m_launch_config;
-	thrust::device_vector<uint8_t> m_d_outputs[output_buffers_count];
+	std::vector<thrust::device_vector<uint8_t>> m_d_outputs;
 
 	ParserOutputDevice() : m_size(0) {}
 
 	ParserOutputDevice(const KernelLaunchConfiguration* launch_config, size_t size)
-		: m_size(size), m_launch_config(launch_config)
+		: m_size(size), m_launch_config(launch_config), m_d_outputs(output_buffers_count)
 	{
 		boost::mp11::mp_for_each<typename OC::RequestList>([&, idx=0](auto i) mutable {
 			using Request = decltype(i);
 			using Tag = typename Request::OutputTag;
-			m_d_outputs[idx++] = thrust::device_vector<uint8_t>(OM::template ToAlloc<Tag>(m_launch_config, m_size));
+			m_d_outputs[idx++] = thrust::device_vector<uint8_t>(
+				OM::template ToAlloc<Tag>(m_launch_config, m_size)
+			);
 		});
+	}
+
+	OutputsPointers GetOutputs()
+	{
+		thrust::host_vector<void*> h_outputs(output_buffers_count);
+		auto d_output_it = m_d_outputs.begin();
+		for (auto& h_output : h_outputs)
+			h_output = d_output_it++->data().get();
+		thrust::device_vector<void*> d_outputs(h_outputs);
+		return OutputsPointers{
+			std::move(h_outputs),
+			std::move(d_outputs)
+		};
 	}
 
 	ParserOutputHost<BaseActionT> CopyToHost(cudaStream_t stream = 0) const
@@ -270,11 +284,8 @@ struct ParserOutputDevice
 		ParserOutputHost<BaseActionT> result(m_launch_config, m_size);
 		boost::mp11::mp_for_each<typename OC::RequestList>([&, idx=0, dynamic_idx=0](auto k) mutable {
 			using Request = decltype(k);
-			const size_t size = m_size * (
-				IsTemplate<DynamicOutputRequest>::template fn<Request>::value
-				? m_launch_config->dynamic_sizes[dynamic_idx++]
-				: sizeof(typename Request::OutputType)
-				);
+			using Tag = typename Request::OutputTag;
+			const size_t size = OM::template ToAlloc<Tag>(m_launch_config, m_size);
 			cudaMemcpyAsync(result.m_h_outputs[idx].data(), m_d_outputs[idx].data().get(), size, cudaMemcpyDeviceToHost, stream);
 			++idx;
 		});
