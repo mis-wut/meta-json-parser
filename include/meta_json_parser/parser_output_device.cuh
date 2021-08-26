@@ -164,6 +164,7 @@ struct CudfStringColumnFromStaticMemory {
 	}
 };
 
+// to be used when we don't know how to convert to cudf::column
 struct CudfUnknownColumnType {
 	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 	                 void *data_ptr, size_t n_elements, size_t elem_size)
@@ -172,10 +173,8 @@ struct CudfUnknownColumnType {
 	}
 };
 
-// TODO: enhance, specialize
+// TODO: might be not needed, we might want to call CudfConverter::call directly
 // NOTE: there is no partial specialization for functions
-// https://stackoverflow.com/questions/8061456/c-function-template-partial-specialization
-// using the "layer of indirection" solution, which is a good idea anyway
 
 // generic, requires CudfConverter type to have static `call` method
 template<typename CudfConverter>
@@ -184,16 +183,6 @@ void add_column(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 {
 	CudfConverter::call(columns, i, data_ptr, n_elements, elem_size);
 }
-
-
-// specialization, for when we don't know how to convert to cudf::column
-template<>
-void add_column<std::false_type>(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-								 void *data_ptr, size_t n_elements, size_t elem_size)
-{
-	std::cout << "skipping column " << i << " (via std::false_type)\n";
-}
-
 
 
 
