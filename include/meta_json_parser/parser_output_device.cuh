@@ -164,6 +164,14 @@ struct CudfStringColumnFromStaticMemory {
 	}
 };
 
+struct CudfUnknownColumnType {
+	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+	                 void *data_ptr, size_t n_elements, size_t elem_size)
+	{
+		std::cout << "skipping column " << i << " (don't know how to convert to cudf::column)\n";
+	}
+};
+
 // TODO: enhance, specialize
 // NOTE: there is no partial specialization for functions
 // https://stackoverflow.com/questions/8061456/c-function-template-partial-specialization
@@ -183,7 +191,7 @@ template<>
 void add_column<std::false_type>(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 								 void *data_ptr, size_t n_elements, size_t elem_size)
 {
-	std::cout << "skipping column " << i << " (don't know how to convert to cudf::column)\n";
+	std::cout << "skipping column " << i << " (via std::false_type)\n";
 }
 
 
@@ -201,7 +209,7 @@ using GetCudfConverter = typename T::CudfConverter;
 template<class T>
 using TryGetCudfConverter = boost::mp11::mp_eval_if_not<
 	HaveCudfConverter<T>,
-	std::false_type,
+	CudfUnknownColumnType,
 	GetCudfConverter,
 	T
 >;
