@@ -103,19 +103,16 @@ private:
 	}
 
 	template<bool KeepDistanceEnabled>
-	__device__ __forceinline__ uint32_t __impl_GroupDistance();
+	__device__ __forceinline__ uint32_t __impl_GroupDistance()
+	{
+		static_assert(KeepDistanceEnabled, "KeepDistance was not enabled in WorkGroupReader!");
+		return 0;
+	}
 
 	template<>
 	__device__ __forceinline__ uint32_t __impl_GroupDistance<true>()
 	{
 		return mDistance;
-	}
-
-	template<>
-	__device__ __forceinline__ uint32_t __impl_GroupDistance<false>()
-	{
-		assert(false);
-		return 0;
 	}
 
 public:
