@@ -14,3 +14,15 @@ struct VoidAction
 		return ParsingError::None;
 	}
 };
+
+template<typename ...RequirementsT>
+struct VoidActionRequirements
+{
+	using ParserRequirements = boost::mp11::mp_list<RequirementsT...>;
+
+	template<class KernelContextT>
+	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
+	{
+		return ParsingError::None;
+	}
+};

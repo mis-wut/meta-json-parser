@@ -20,7 +20,7 @@ constexpr int MAX_SENTENCE = 512;
 class WorkGroupReaderTest : public ::testing::Test {
 };
 
-template<template <class...> class WorkerGroupT, class GroupSizeT, class GroupCountT>
+template<template <class...> class WorkerGroupT, class GroupSizeT, class GroupCountT, class KeepDistanceT>
 __global__ void __launch_bounds__(1024, 2)
 	work_group_reader_test(
 		const char* input,
@@ -29,9 +29,13 @@ __global__ void __launch_bounds__(1024, 2)
 		const uint32_t count
 	)
 {
-	using WGR = WorkerGroupT<GroupSizeT>;
+	using BaseAction = boost::mp11::mp_if<
+		KeepDistanceT,
+		VoidActionRequirements<ParserRequirement::KeepDistance>,
+		VoidAction
+	>;
 	using RT = RuntimeConfiguration<GroupSizeT, GroupCountT>;
-	using PC = ParserConfiguration<RT, VoidAction>;
+	using PC = ParserConfiguration<RT, BaseAction>;
 	using PK = ParserKernel<PC>;
 	using KC = typename PK::KC;
 	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
@@ -52,7 +56,7 @@ __global__ void __launch_bounds__(1024, 2)
 	}
 }
 
-template<template <class ...> class WorkerGroupT, int GroupSizeT>
+template<template <class ...> class WorkerGroupT, int GroupSizeT, bool KeepDistance>
 void templated_ProperDataReading()
 {
 	constexpr int GROUP_SIZE = GroupSizeT;
@@ -118,32 +122,148 @@ void templated_ProperDataReading()
 	thrust::device_vector<char> d_correct(h_correct);
 	thrust::device_vector<InputIndex> d_indices(h_indices);
 	thrust::fill(d_result.begin(), d_result.end(), '%');
-	Launch(work_group_reader_test<WorkerGroupT, boost::mp11::mp_int<GROUP_SIZE>, boost::mp11::mp_int<GROUP_COUNT>>)
+	Launch(work_group_reader_test<WorkerGroupT, boost::mp11::mp_int<GROUP_SIZE>, boost::mp11::mp_int<GROUP_COUNT>, boost::mp11::mp_bool<KeepDistance>>)
+		({ BLOCKS_COUNT, 1, 1 }, { GROUP_SIZE, GROUP_COUNT, 1 })
+		(d_input.data().get(), d_indices.data().get(), d_result.data().get(), SENTENCE_COUNT);
+	ASSERT_TRUE(thrust::equal(d_correct.begin(), d_correct.end(), d_result.begin()));
+}
+
+template<template <class...> class WorkerGroupT, class GroupSizeT, class GroupCountT>
+__global__ void __launch_bounds__(1024, 2)
+	work_group_reader_keep_distance_test(
+		const char* input,
+		const InputIndex* indices,
+		uint8_t* output,
+		const uint32_t count
+	)
+{
+	using RT = RuntimeConfiguration<GroupSizeT, GroupCountT>;
+	using PC = ParserConfiguration<RT, VoidActionRequirements<ParserRequirement::KeepDistance>>;
+	using PK = ParserKernel<PC>;
+	using KC = typename PK::KC;
+	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
+	KC context(nullptr, sharedBuffers, input, indices, nullptr);
+	if (RT::InputId() >= count)
+	{
+		return;
+	}
+	auto wgr = context.wgr;
+	uint32_t distance = 0;
+	uint32_t step = (RT::InputId() % (GroupSizeT::value - 1)) + 1;
+	while (wgr.PeekChar(0) != '\0' && distance <= (MAX_SENTENCE - GroupSizeT::value))
+	{
+		distance += step;
+		wgr.AdvanceBy(step);
+		if (distance != wgr.GroupDistance())
+		{
+			output[RT::InputId()] = 0;
+			return;
+		}
+	}
+	output[RT::InputId()] = 1;
+}
+
+template<template <class ...> class WorkerGroupT, int GroupSizeT>
+void templated_ProperDistanceKeeping()
+{
+	constexpr int GROUP_SIZE = GroupSizeT;
+	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
+	constexpr int SENTENCE_COUNT = 33;
+	constexpr int BLOCKS_COUNT = (SENTENCE_COUNT + GROUP_SIZE - 1) / GROUP_SIZE;
+	char sentences[SENTENCE_COUNT][MAX_SENTENCE];
+	thrust::host_vector<char> h_input(sizeof(sentences));
+	thrust::host_vector<uint8_t> h_correct(SENTENCE_COUNT);
+	thrust::host_vector<InputIndex> h_indices(SENTENCE_COUNT + 1);
+	thrust::fill(h_input.begin(), h_input.end(), '_');
+	thrust::fill(h_correct.begin(), h_correct.end(), 1);
+	auto h_input_it = h_input.data();
+	auto h_indices_it = h_indices.data();
+	*h_indices_it = 0;
+	++h_indices_it;
+	for (int i_sentence = 0; i_sentence < SENTENCE_COUNT; ++i_sentence)
+	{
+		*h_indices_it = *(h_indices_it - 1) + MAX_SENTENCE;
+		++h_indices_it;
+	}
+	thrust::device_vector<char> d_input(h_input);
+	thrust::device_vector<uint8_t> d_correct(h_correct);
+	thrust::device_vector<uint8_t> d_result(h_correct.size());
+	thrust::device_vector<InputIndex> d_indices(h_indices);
+	thrust::fill(d_result.begin(), d_result.end(), 0);
+	Launch(work_group_reader_keep_distance_test<WorkerGroupT, boost::mp11::mp_int<GROUP_SIZE>, boost::mp11::mp_int<GROUP_COUNT>>)
 		({ BLOCKS_COUNT, 1, 1 }, { GROUP_SIZE, GROUP_COUNT, 1 })
 		(d_input.data().get(), d_indices.data().get(), d_result.data().get(), SENTENCE_COUNT);
 	ASSERT_TRUE(thrust::equal(d_correct.begin(), d_correct.end(), d_result.begin()));
 }
 
 TEST_F(WorkGroupReaderTest, ProperDataReading_W32) {
-	templated_ProperDataReading<WorkGroupReader, 32>();
+	templated_ProperDataReading<WorkGroupReader, 32, false>();
 }
 
 TEST_F(WorkGroupReaderTest, ProperDataReading_W16) {
-	templated_ProperDataReading<WorkGroupReader, 16>();
+	templated_ProperDataReading<WorkGroupReader, 16, false>();
 }
 
 TEST_F(WorkGroupReaderTest, ProperDataReading_W8) {
-	templated_ProperDataReading<WorkGroupReader, 8>();
+	templated_ProperDataReading<WorkGroupReader, 8,  false>();
 }
 
 TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_W32) {
-	templated_ProperDataReading<WorkGroupReaderPrefetch, 32>();
+	templated_ProperDataReading<WorkGroupReaderPrefetch, 32, false>();
 }
 
 TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_W16) {
-	templated_ProperDataReading<WorkGroupReaderPrefetch, 16>();
+	templated_ProperDataReading<WorkGroupReaderPrefetch, 16, false>();
 }
 
 TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_W8) {
-	templated_ProperDataReading<WorkGroupReaderPrefetch, 8>();
+	templated_ProperDataReading<WorkGroupReaderPrefetch, 8,  false>();
+}
+
+TEST_F(WorkGroupReaderTest, ProperDataReading_KD_W32) {
+	templated_ProperDataReading<WorkGroupReader, 32, true>();
+}
+
+TEST_F(WorkGroupReaderTest, ProperDataReading_KD_W16) {
+	templated_ProperDataReading<WorkGroupReader, 16, true>();
+}
+
+TEST_F(WorkGroupReaderTest, ProperDataReading_KD_W8) {
+	templated_ProperDataReading<WorkGroupReader, 8,  true>();
+}
+
+TEST_F(WorkGroupReaderTest, ProperDataReading_KD_Prefetch_W32) {
+	templated_ProperDataReading<WorkGroupReaderPrefetch, 32, true>();
+}
+
+TEST_F(WorkGroupReaderTest, ProperDataReading_KD_Prefetch_W16) {
+	templated_ProperDataReading<WorkGroupReaderPrefetch, 16, true>();
+}
+
+TEST_F(WorkGroupReaderTest, ProperDataReading_KD_Prefetch_W8) {
+	templated_ProperDataReading<WorkGroupReaderPrefetch, 8,  true>();
+}
+
+TEST_F(WorkGroupReaderTest, DistanceKeeping_W32) {
+	templated_ProperDistanceKeeping<WorkGroupReader, 32>();
+}
+
+TEST_F(WorkGroupReaderTest, DistanceKeeping_W16) {
+	templated_ProperDistanceKeeping<WorkGroupReader, 16>();
+}
+
+TEST_F(WorkGroupReaderTest, DistanceKeeping_W8) {
+	templated_ProperDistanceKeeping<WorkGroupReader, 8>();
+}
+
+TEST_F(WorkGroupReaderTest, DistanceKeeping_Prefetch_W32) {
+	templated_ProperDistanceKeeping<WorkGroupReaderPrefetch, 32>();
+}
+
+TEST_F(WorkGroupReaderTest, DistanceKeeping_Prefetch_W16) {
+	templated_ProperDistanceKeeping<WorkGroupReaderPrefetch, 16>();
+}
+
+TEST_F(WorkGroupReaderTest, DistanceKeeping_Prefetch_W8) {
+	templated_ProperDistanceKeeping<WorkGroupReaderPrefetch, 8>();
 }

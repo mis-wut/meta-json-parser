@@ -60,6 +60,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/parser_kernel.cuh
     include/meta_json_parser/parser_output_device.cuh
     include/meta_json_parser/parser_output_host.cuh
+    include/meta_json_parser/parser_requirements.cuh
     include/meta_json_parser/parsing_error.h
     include/meta_json_parser/runtime_configuration.cuh
     include/meta_json_parser/static_buffer.h

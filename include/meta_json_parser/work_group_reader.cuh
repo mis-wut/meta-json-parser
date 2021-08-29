@@ -9,8 +9,27 @@
 #include <meta_json_parser/meta_math.h>
 #include <meta_json_parser/memory_request.h>
 
+template<typename WorkingGroupSizeT, bool KeepDistance>
+struct WorkGroupReaderBaseData
+{
+protected:
+	const char* mSource;
+	const char* mEndSource;
+};
+
 template<typename WorkingGroupSizeT>
-struct WorkGroupReaderBase
+struct WorkGroupReaderBaseData<WorkingGroupSizeT, true>
+{
+protected:
+	const char* mSource;
+	const char* mEndSource;
+	uint32_t mDistance;
+
+	__device__ __forceinline__ WorkGroupReaderBaseData() : mDistance(0) { }
+};
+
+template<typename WorkingGroupSizeT, bool KeepDistance>
+struct WorkGroupReaderBase : WorkGroupReaderBaseData<WorkingGroupSizeT, KeepDistance>
 {
 	static constexpr int GROUP_SIZE = WorkingGroupSizeT::value;
 	static constexpr std::size_t MEMORY_ALIGNMENT = 16;
@@ -22,6 +41,18 @@ struct WorkGroupReaderBase
 	static constexpr std::size_t BUFFER_SIZE = sizeof(VectorType) * GROUP_SIZE;
 	static_assert(IsPower2_c<BUFFER_SIZE>::type::value, "BUFFER_SIZE must be power of 2.");
 	using MemoryRequest = MemoryRequest_c<BUFFER_COUNT * BUFFER_SIZE, MemoryUsage::ActionUsage, MemoryType::Shared>;
+
+protected:
+	__device__ __forceinline__ WorkGroupReaderBase(const char* pSource, const char* pEndSource)
+	{
+		mSource = pSource;
+		mEndSource = (pEndSource == nullptr ? reinterpret_cast<char*>(~0x0ull) : pEndSource);
+	}
+
+	__device__ __forceinline__ void IncreaseDistance(uint32_t offset)
+	{
+		__impl_IncreaseDistance<KeepDistance>(offset);
+	}
 
 private:
 #pragma nv_exec_check_disable
@@ -55,6 +86,38 @@ private:
 	//{
 	//	return __all_sync(0xFF'FF'FF'FFu, predicate);
 	//}
+
+	template<bool KeepDistanceEnabled>
+	__device__ __forceinline__ void __impl_IncreaseDistance(uint32_t offset);
+
+	template<>
+	__device__ __forceinline__ void __impl_IncreaseDistance<true>(uint32_t offset)
+	{
+		mDistance += offset;
+	}
+
+	template<>
+	__device__ __forceinline__ void __impl_IncreaseDistance<false>(uint32_t offset)
+	{
+		return;
+	}
+
+	template<bool KeepDistanceEnabled>
+	__device__ __forceinline__ uint32_t __impl_GroupDistance();
+
+	template<>
+	__device__ __forceinline__ uint32_t __impl_GroupDistance<true>()
+	{
+		return mDistance;
+	}
+
+	template<>
+	__device__ __forceinline__ uint32_t __impl_GroupDistance<false>()
+	{
+		assert(false);
+		return 0;
+	}
+
 public:
 #pragma nv_exec_check_disable
 	__device__ __forceinline__ uint32_t ballot_sync(int predicate)
@@ -67,12 +130,17 @@ public:
 	{
 		return __detail_all_sync<GROUP_SIZE>(predicate);
 	}
+
+	__device__ __forceinline__ uint32_t GroupDistance()
+	{
+		return __impl_GroupDistance<KeepDistance>();
+	}
 };
 
-template<typename WorkingGroupSizeT>
-struct WorkGroupReader : public WorkGroupReaderBase<WorkingGroupSizeT>
+template<typename WorkingGroupSizeT, typename KeepDistanceT = std::false_type>
+struct WorkGroupReader : public WorkGroupReaderBase<WorkingGroupSizeT, KeepDistanceT::value>
 {
-	using Base = WorkGroupReaderBase<WorkingGroupSizeT>;
+	using Base = WorkGroupReaderBase<WorkingGroupSizeT, KeepDistanceT::value>;
 	static constexpr int GROUP_SIZE = Base::GROUP_SIZE;
 	static constexpr std::size_t MEMORY_ALIGNMENT = Base::MEMORY_ALIGNMENT;
 	static constexpr std::size_t ALIGNMENT_MASK = Base::ALIGNMENT_MASK;
@@ -81,8 +149,6 @@ struct WorkGroupReader : public WorkGroupReaderBase<WorkingGroupSizeT>
 	static constexpr std::size_t BUFFER_SIZE = Base::BUFFER_SIZE;
 	using MemoryRequest = typename Base::MemoryRequest;
 protected:
-	const char* mSource;
-	const char* mEndSource;
 	char* mBufferPtr;
 	int mInBufferOffset;
 	uint8_t mWarpId;
@@ -163,6 +229,7 @@ public:
 
 	__device__ INLINE_METHOD void AdvanceBy(int advance)
 	{
+		IncreaseDistance(advance);
 #ifdef _DEBUG
 		assert(advance <= GROUP_SIZE);
 #endif
@@ -181,8 +248,7 @@ public:
 		typename MemoryRequest::Buffer& pBuffers,
 		const char* pSource,
 		const char* pEndSource = nullptr) :
-		mSource(pSource),
-		mEndSource(pEndSource == nullptr ? reinterpret_cast<char*>(~0x0ull) : pEndSource),
+		Base(pSource, pEndSource),
 		mWarpId(threadIdx.y),
 		mBufferPtr(reinterpret_cast<char*>(pBuffers.data)),
 		mInBufferOffset(0)
@@ -213,10 +279,10 @@ public:
 	}
 };
 
-template<typename WorkingGroupSizeT>
-struct WorkGroupReaderPrefetch : public WorkGroupReaderBase<WorkingGroupSizeT>
+template<typename WorkingGroupSizeT, typename KeepDistanceT = std::false_type>
+struct WorkGroupReaderPrefetch : public WorkGroupReaderBase<WorkingGroupSizeT, KeepDistanceT::value>
 {
-	using Base = WorkGroupReaderBase<WorkingGroupSizeT>;
+	using Base = WorkGroupReaderBase<WorkingGroupSizeT, KeepDistanceT::value>;
 	static constexpr int GROUP_SIZE = Base::GROUP_SIZE;
 	static constexpr std::size_t MEMORY_ALIGNMENT = Base::MEMORY_ALIGNMENT;
 	static constexpr std::size_t ALIGNMENT_MASK = Base::ALIGNMENT_MASK;
@@ -227,8 +293,6 @@ struct WorkGroupReaderPrefetch : public WorkGroupReaderBase<WorkingGroupSizeT>
 	//TODO current implementation is inefficient. VectorType should always be 4 bytes.
 	//Different strategies of loading need to be implemented for different group sizes
 protected:
-	const char* mSource;
-	const char* mEndSource;
 	char* mBufferPtr;
 	int mInBufferOffset;
 	uint8_t mWarpId;
@@ -302,6 +366,7 @@ public:
 
 	__device__ INLINE_METHOD void AdvanceBy(int advance)
 	{
+		IncreaseDistance(advance);
 #ifdef _DEBUG
 		assert(advance <= GROUP_SIZE);
 #endif
@@ -321,8 +386,7 @@ public:
 		typename MemoryRequest::Buffer& pBuffers,
 		const char* pSource,
 		const char* pEndSource = nullptr) :
-		mSource(pSource),
-		mEndSource(pEndSource == nullptr ? reinterpret_cast<char*>(~0x0ull) : pEndSource),
+		Base(pSource, pEndSource),
 		mWarpId(threadIdx.y),
 		mBufferPtr(reinterpret_cast<char*>(pBuffers.data)),
 		mInBufferOffset(0)
