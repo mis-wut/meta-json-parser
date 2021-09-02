@@ -65,11 +65,14 @@ struct ParserOutputDevice
 	ParserOutputHost<BaseActionT> CopyToHost(cudaStream_t stream = 0) const
 	{
 		ParserOutputHost<BaseActionT> result(m_launch_config, m_size);
-		boost::mp11::mp_for_each<typename OC::RequestList>([&, idx=0, dynamic_idx=0](auto k) mutable {
+
+		boost::mp11::mp_for_each<typename OC::RequestList>([&, idx=0](auto k) mutable {
 			using Request = decltype(k);
 			using Tag = typename Request::OutputTag;
 			const size_t size = OM::template ToAlloc<Tag>(m_launch_config, m_size);
-			cudaMemcpyAsync(result.m_h_outputs[idx].data(), m_d_outputs[idx].data().get(), size, cudaMemcpyDeviceToHost, stream);
+			if (!OM::template HaveOption<Tag, OutputOptHelpBuffer>())
+				cudaMemcpyAsync(result.m_h_outputs[idx].data(), m_d_outputs[idx].data().get(), size, cudaMemcpyDeviceToHost, stream);
+			//TODO make result.m_h_outputs depend on OutputOptHelpBuffer and adjust its size instead of skipping elements
 			++idx;
 		});
 		return result;

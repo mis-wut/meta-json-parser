@@ -98,7 +98,7 @@ struct no_error {
 	}
 };
 
-template<int GroupSizeT>
+template<template <class ...> class DynamicStringT, int GroupSizeT>
 void templated_DynamicStringCopy(size_t max_str_len)
 {
 	using GroupSize = boost::mp11::mp_int<GroupSizeT>;
@@ -106,7 +106,7 @@ void templated_DynamicStringCopy(size_t max_str_len)
 	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
 	using GroupCount = boost::mp11::mp_int<GROUP_COUNT>;
 	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-	using BA = JStringDynamicCopy<int>;
+	using BA = DynamicStringT<int>;
 	using PC = ParserConfiguration<RT, BA>;
 	using PK = ParserKernel<PC>;
 	using OM = OutputManager<BA>;
@@ -118,6 +118,10 @@ void templated_DynamicStringCopy(size_t max_str_len)
 
 	KernelLaunchConfiguration klc;
 	klc.dynamic_sizes.push_back(max_str_len);
+	if (boost::mp11::mp_similar<JStringDynamicCopyV3<int>, DynamicStringT<int>>::value)
+	{
+		klc.dynamic_sizes.push_back(max_str_len);
+	}
 	ParserOutputDevice<BA> output(&klc, INPUT_T);
 
 	thrust::host_vector<void*> h_outputs(output.output_buffers_count);
@@ -137,9 +141,9 @@ void templated_DynamicStringCopy(size_t max_str_len)
 	);
 	ASSERT_TRUE(cudaGetLastError() == cudaError::cudaSuccess);
 	ASSERT_TRUE(cudaDeviceSynchronize() == cudaError::cudaSuccess);
-	auto h_output = output.CopyToHost();
+	auto h_output = output.CopyToHost(pk.m_stream);
 
-	//If doesn't work on release try set 0 to unused length values
+	//If doesn't work on release try set 0 to unused length values, h_outputs[LenghtTag][0] might be uninitialized
 	ASSERT_TRUE(thrust::equal(
 		thrust::device,
 		context.d_correct_offsets.begin(),
@@ -156,15 +160,39 @@ void templated_DynamicStringCopy(size_t max_str_len)
 }
 
 TEST_P(DynamicOutputTest, dynamic_output_copy_string_w32) {
-	templated_DynamicStringCopy<32>(GetParam());
+	templated_DynamicStringCopy<JStringDynamicCopy, 32>(GetParam());
 }
 
 TEST_P(DynamicOutputTest, dynamic_output_copy_string_w16) {
-	templated_DynamicStringCopy<16>(GetParam());
+	templated_DynamicStringCopy<JStringDynamicCopy, 16>(GetParam());
 }
 
 TEST_P(DynamicOutputTest, dynamic_output_copy_string_w8) {
-	templated_DynamicStringCopy<8>(GetParam());
+	templated_DynamicStringCopy<JStringDynamicCopy, 8>(GetParam());
+}
+
+TEST_P(DynamicOutputTest, dynamic_output_copy_v2_string_w32) {
+	templated_DynamicStringCopy<JStringDynamicCopyV2, 32>(GetParam());
+}
+
+TEST_P(DynamicOutputTest, dynamic_output_copy_v2_string_w16) {
+	templated_DynamicStringCopy<JStringDynamicCopyV2, 16>(GetParam());
+}
+
+TEST_P(DynamicOutputTest, dynamic_output_copy_v2_string_w8) {
+	templated_DynamicStringCopy<JStringDynamicCopyV2, 8>(GetParam());
+}
+
+TEST_P(DynamicOutputTest, dynamic_output_copy_v3_string_w32) {
+	templated_DynamicStringCopy<JStringDynamicCopyV3, 32>(GetParam());
+}
+
+TEST_P(DynamicOutputTest, dynamic_output_copy_v3_string_w16) {
+	templated_DynamicStringCopy<JStringDynamicCopyV3, 16>(GetParam());
+}
+
+TEST_P(DynamicOutputTest, dynamic_output_copy_v3_string_w8) {
+	templated_DynamicStringCopy<JStringDynamicCopyV3, 8>(GetParam());
 }
 
 INSTANTIATE_TEST_SUITE_P(DynamicString, DynamicOutputTest, testing::Values(6, 18, 42), 

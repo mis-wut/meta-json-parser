@@ -21,7 +21,14 @@ template<class ActionT>
 struct HavePostKernelHook<
 	ActionT,
 	decltype(
-		ActionT::PostKernelHook(std::declval<int&>(), 0, nullptr),
+		ActionT::PostKernelHook(
+			std::declval<int&>(),
+			std::declval<const char*>(),
+			std::declval<const InputIndex*>(),
+			std::declval<ParsingError*>(),
+			std::declval<const uint32_t>(),
+			std::declval<void**>()
+		),
 		0
 	)
 > : std::true_type {};
@@ -60,7 +67,10 @@ struct ParserKernel
 		const uint32_t
 	>;
 
+	static const size_t CUB_BUFFER_SIZE = 0x10000;
+
 	ROB* m_d_rob;
+	uint8_t* m_cub_buffer;
 	const KernelLaunchConfiguration* m_launch_config;
 	cudaStream_t m_stream;
 
@@ -68,6 +78,7 @@ struct ParserKernel
 		: m_launch_config(launch_config), m_stream(stream)
 	{
 		cudaMalloc(&m_d_rob, sizeof(ROB));
+		cudaMalloc(&m_cub_buffer, CUB_BUFFER_SIZE);
 		ROB rob;
 		M3::FillReadOnlyBuffer(rob, m_launch_config);
 		cudaMemcpyAsync(m_d_rob, &rob, sizeof(ROB), cudaMemcpyHostToDevice, m_stream);
@@ -113,13 +124,14 @@ struct ParserKernel
 			cudaEventRecord(post_hooks_event, m_stream);
 
 		boost::mp11::mp_for_each<PostKernelHooks>([&](auto action) {
-			decltype(action)::PostKernelHook(*this, count, h_outputs);
+			decltype(action)::PostKernelHook(*this, input, indices, errors, count, h_outputs);
 		});
 	}
 
 	~ParserKernel()
 	{
 		cudaFree(m_d_rob);
+		cudaFree(m_cub_buffer);
 	}
 
 	static thrust::host_vector<uint64_t> OutputSizes()

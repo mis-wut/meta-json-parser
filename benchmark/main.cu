@@ -52,6 +52,8 @@ using K_L1_3_name = mp_string<'3', '_', 'n', 'a', 'm', 'e'>;
 
 #define STR_FUN_STA(KEY, SIZE) JStringStaticCopy<mp_int<SIZE>, KEY>
 #define STR_FUN_DYN(KEY, ...) JStringDynamicCopy<KEY>
+#define STR_FUN_DYN_V2(KEY, ...) JStringDynamicCopyV2<KEY>
+#define STR_FUN_DYN_V3(KEY, ...) JStringDynamicCopyV3<KEY>
 
 #define GET_ACTION(STR_FUN)\
 JDict < mp_list <\
@@ -79,9 +81,12 @@ JDict < mp_list <\
 
 using BaseActionStatic = GET_ACTION(STR_FUN_STA);
 using BaseActionDynamic = GET_ACTION(STR_FUN_DYN);
+using BaseActionDynamicV2 = GET_ACTION(STR_FUN_DYN_V2);
+using BaseActionDynamicV3 = GET_ACTION(STR_FUN_DYN_V3);
 
 enum workgroup_size { W32, W16, W8 };
 enum end_of_line { unknown, unix, win };
+enum dynamic_version { v1, v2, v3 };
 
 struct benchmark_input
 {
@@ -113,6 +118,7 @@ struct cmd_args {
 	std::string output_csv;
 	bool error_check;
 	int bytes_per_string;
+	dynamic_version version;
 } g_args;
 
 chrono::high_resolution_clock::time_point cpu_start;
@@ -453,13 +459,34 @@ KernelLaunchConfiguration prepare_dynamic_config(benchmark_input& input)
 		ActionIterator<BaseActionT>,
 		boost::mp11::mp_bind<
 			boost::mp11::mp_similar,
-			JStringDynamicCopy<void>,
+			boost::mp11::mp_if<
+				boost::mp11::mp_same<BaseActionT, BaseActionDynamic>,
+				JStringDynamicCopy<void>,
+				JStringDynamicCopyV2<void>
+			>,
+			boost::mp11::_1
+		>
+	>;
+
+	using DynamicStringActionsV3 = boost::mp11::mp_copy_if_q<
+		ActionIterator<BaseActionT>,
+		boost::mp11::mp_bind<
+			boost::mp11::mp_similar,
+			JStringDynamicCopyV3<void>,
 			boost::mp11::_1
 		>
 	>;
 
 	boost::mp11::mp_for_each<DynamicStringActions>([&conf, &input](auto a) {
 		using Action = decltype(a);
+		using Tag = typename Action::DynamicStringRequestTag;
+		conf.SetDynamicSize<BaseActionT, Tag>(input.bytes_per_string);
+	});
+
+	boost::mp11::mp_for_each<DynamicStringActionsV3>([&conf, &input](auto a) {
+		using Action = decltype(a);
+		using TagInternal = typename Action::DynamicStringInternalRequestTag;
+		conf.SetDynamicSize<BaseActionT, TagInternal>(input.bytes_per_string);
 		using Tag = typename Action::DynamicStringRequestTag;
 		conf.SetDynamicSize<BaseActionT, Tag>(input.bytes_per_string);
 	});
@@ -530,8 +557,24 @@ int main(int argc, char** argv)
 	}
 	else
 	{
-		cout << "Using DYNAMIC string copy.\n";
-		main_templated<BaseActionDynamic>(input);
+		switch (g_args.version)
+		{
+		case dynamic_version::v1:
+			cout << "Using DYNAMIC V1 string copy.\n";
+			main_templated<BaseActionDynamic>(input);
+			break;
+		case dynamic_version::v2:
+			cout << "Using DYNAMIC V2 string copy.\n";
+			main_templated<BaseActionDynamicV2>(input);
+			break;
+		case dynamic_version::v3:
+			cout << "Using DYNAMIC V3 string copy.\n";
+			main_templated<BaseActionDynamicV3>(input);
+			break;
+		default:
+			cerr << "Fatal. Unknown dynamic algorithm chosen.\n";
+			break;
+		}
 	}
 	return 0;
 }
@@ -557,6 +600,11 @@ void parse_args(int argc, char** argv)
         { "8", workgroup_size::W8}
 	};
 
+	std::map<std::string, dynamic_version> versions_map{
+		{"1", dynamic_version::v1},
+        {"2", dynamic_version::v2},
+        {"3", dynamic_version::v3}
+	};
 	// defaults
 	g_args.error_check = false;
 	g_args.wg_size = workgroup_size::W32;
@@ -581,9 +629,19 @@ void parse_args(int argc, char** argv)
 	app.add_flag("-b,--error-checking", g_args.error_check,
 	             "Enable error check. If there was a parsing error,\n"
 	             "a message will be printed.");
+	app.add_option("-V,--version", g_args.version,
+				   "Version of dynamic string parsing.\n"
+				   "1 -> old version with double copying. [default]\n"
+				   "2 -> new version with single copying."
+				   "3 -> new version with double copying and double buffer.")
+		->option_text("VERSION")
+		->transform(CLI::CheckedTransformer(versions_map))
+		->default_str("1");
 	app.add_option("-s,--max-string-size", g_args.bytes_per_string,
 	               "Bytes allocated per dynamic string.\n"
-	               "Strings that are too long will be truncated.\n"
+	               "For V1: Strings that are too long will be truncated.\n"
+	               "For V2/V3: If ammount of needed memory exceeds total\n"
+				   "memory allocated program will run into undefined behiavior.\n"
                    "If not provided, then strings with static length will be used.")
 		->option_text("BYTES")
 		->check(CLI::PositiveNumber);

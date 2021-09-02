@@ -31,6 +31,9 @@ struct OutputOptElementsAfter
 template<int AfterI>
 using OutputOptElementsAfter_c = OutputOptElementsAfter<boost::mp11::mp_int<AfterI>>;
 
+template<class ...>
+struct OutputOptHelpBuffer{};
+
 template<class T>
 using GetValue = typename T::Value;
 
@@ -262,7 +265,21 @@ struct OutputManager
 			>,
 			Found
 		>::value;
+	}
 
+	template<class TagT, template<class...> class OptionT>
+	__host__ __device__ __forceinline__
+	constexpr static bool HaveOption()
+	{
+		using Index = TagIndex<TagT>;
+		using Request = boost::mp11::mp_at<RequestList, Index>;
+		using Options = typename Request::Options;
+		using Found = boost::mp11::mp_find_if_q<
+			Options,
+			IsTemplate<OptionT>
+		>;
+
+		return Found::value != boost::mp11::mp_size<Options>::value;
 	}
 
 	template<class TagT>

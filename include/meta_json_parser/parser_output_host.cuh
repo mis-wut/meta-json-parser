@@ -36,9 +36,11 @@ struct ParserOutputHost
 		boost::mp11::mp_for_each<typename OC::RequestList>([&, idx=0](auto i) mutable {
 			using Request = decltype(i);
 			using Tag = typename Request::OutputTag;
-			m_h_outputs[idx++] = thrust::host_vector<uint8_t>(
-				OM::template ToAlloc<Tag>(m_launch_config, m_size)
-			);
+			if (!OM::template HaveOption<Tag, OutputOptHelpBuffer>())
+				m_h_outputs[idx] = thrust::host_vector<uint8_t>(
+					OM::template ToAlloc<Tag>(m_launch_config, m_size)
+				);
+			++idx;
 		});
 	}
 
