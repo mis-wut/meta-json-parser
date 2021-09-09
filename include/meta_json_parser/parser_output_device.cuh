@@ -188,13 +188,6 @@ struct CudfUnknownColumnType {
 	}
 };
 
-// TODO: might be not needed, we might want to call CudfConverter::call directly
-// NOTE: there is no partial specialization for functions
-
-// generic, requires CudfConverter type to have static `call` method
-// REMOVED 
-
-
 
 template<class T, typename = int>
 struct HaveCudfConverter : std::false_type {};
