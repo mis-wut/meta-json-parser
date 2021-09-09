@@ -61,9 +61,14 @@ union rmm_device_buffer_union {
 
 template<typename OutputType>
 struct CudfNumericColumn {
-	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-					 void *data_ptr, size_t n_elements, size_t elem_size)
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 size_t n_elements, size_t elem_size)
 	{
+		//const uint8_t* data_ptr = output.m_d_outputs[idx++].data().get();
+		void* data_ptr = (void *)(output.template Pointer<TagT>());
+
 		std::cout << "converting column " << i << " (numeric: "
 				  << boost::core::demangle(typeid(OutputType).name()) << ", "
 				  << elem_size << " bytes, "
@@ -85,9 +90,13 @@ struct CudfNumericColumn {
 };
 
 struct CudfBoolColumn {
-	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-					 void *data_ptr, size_t n_elements, size_t elem_size)
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 size_t n_elements, size_t elem_size)
 	{
+		void* data_ptr = (void *)(output.template Pointer<TagT>());
+
 		std::cout << "converting column " << i << " (bool)\n";
 
 		// TODO: fix code repetition
@@ -142,9 +151,13 @@ struct CudfStringColumnFromStaticMemory {
 	using str_pair_t = thrust::pair<const char*, cudf::size_type>;
 	using c_str_t = const char*;
 
-	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-					 void *data_ptr, size_t n_elements, size_t elem_size)
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 size_t n_elements, size_t elem_size)
 	{
+		void* data_ptr = (void *)(output.template Pointer<TagT>());
+
 		std::cout << "converting column " << i << " (string, static memory,"
 				  << " max length=" << maxCharacters << ","
 				  << " elem_size=" << elem_size
@@ -166,8 +179,10 @@ struct CudfStringColumnFromStaticMemory {
 
 // to be used when we don't know how to convert to cudf::column
 struct CudfUnknownColumnType {
-	static void call(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-	                 void *data_ptr, size_t n_elements, size_t elem_size)
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+	                 size_t n_elements, size_t elem_size)
 	{
 		std::cout << "skipping column " << i << " (don't know how to convert to cudf::column)\n";
 	}
