@@ -284,6 +284,20 @@ struct ParserOutputDevice
 		return result;
 	}
 
+	// TODO: remove code duplication wrt parser_output_host.cuh
+	// NOTE: using `uint8_t*` instead of `void*`.
+	template<class TagT>
+	void* Pointer()
+	{
+		return m_d_outputs[OM::template TagIndex<TagT>::value].data().get();
+	}
+
+	template<class TagT>
+	void const* Pointer() const
+	{
+		return m_d_outputs[OM::template TagIndex<TagT>::value].data().get();
+	}
+
 #if defined(HAVE_LIBCUDF)
 	/**
 	 * This is currently a DUMMY method to convert parser output to cuDF format.
