@@ -336,18 +336,18 @@ struct ParserOutputDevice
 			using Tag = typename Request::OutputTag;
 			using T = typename Request::OutputType;
 
-			const uint8_t* ptr = m_d_outputs[idx++].data().get();
-			const T* cast_ptr = reinterpret_cast<const T*>(ptr);
+			//const uint8_t* ptr = m_d_outputs[idx++].data().get();
+			//const T* cast_ptr = reinterpret_cast<const T*>(ptr);
 
 			const size_t elem_size = (
 					IsTemplate<DynamicOutputRequest>::template fn<Request>::value
 					? m_launch_config->dynamic_sizes[dynamic_idx++]
 					: sizeof(typename Request::OutputType)
 			);
-			const size_t size = m_size * elem_size;
+			//const size_t size = m_size * elem_size;
 
 			// DOING: ...
-			CudfConverter::call<Tag>(*this, columns, idx-1, m_size, elem_size);
+			CudfConverter::call<Tag>(*this, columns, idx++, m_size, elem_size);
 			#if 0
 			std::cout << "- k is " << boost::core::demangle(typeid(k).name()) << "\n";
 			std::cout << "- T is " << boost::core::demangle(typeid(typename Request::OutputType).name()) << "\n";
