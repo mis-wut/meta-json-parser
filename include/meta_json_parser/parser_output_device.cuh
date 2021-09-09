@@ -347,7 +347,7 @@ struct ParserOutputDevice
 			//const size_t size = m_size * elem_size;
 
 			// DOING: ...
-			CudfConverter::call<Tag>(*this, columns, idx++, m_size, elem_size);
+			CudfConverter::template call<Tag>(*this, columns, idx++, m_size, elem_size);
 			#if 0
 			std::cout << "- k is " << boost::core::demangle(typeid(k).name()) << "\n";
 			std::cout << "- T is " << boost::core::demangle(typeid(typename Request::OutputType).name()) << "\n";
