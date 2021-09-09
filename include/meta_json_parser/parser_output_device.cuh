@@ -177,12 +177,7 @@ struct CudfUnknownColumnType {
 // NOTE: there is no partial specialization for functions
 
 // generic, requires CudfConverter type to have static `call` method
-template<typename CudfConverter>
-void add_column(std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-				void *data_ptr, size_t n_elements, size_t elem_size)
-{
-	CudfConverter::call(columns, i, data_ptr, n_elements, elem_size);
-}
+// REMOVED 
 
 
 
@@ -323,7 +318,7 @@ struct ParserOutputDevice
 			const size_t size = m_size * elem_size;
 
 			// DOING: ...
-			add_column<CudfConverter>(columns, idx-1, (void *)ptr, m_size, elem_size);
+			CudfConverter::call<Tag>(*this, columns, idx-1, m_size, elem_size);
 			#if 0
 			std::cout << "- k is " << boost::core::demangle(typeid(k).name()) << "\n";
 			std::cout << "- T is " << boost::core::demangle(typeid(typename Request::OutputType).name()) << "\n";
