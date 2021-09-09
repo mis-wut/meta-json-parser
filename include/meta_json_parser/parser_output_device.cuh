@@ -177,6 +177,70 @@ struct CudfStringColumnFromStaticMemory {
 	}
 };
 
+template<typename LengthRequestTagT, typename DynamicStringRequestTagT>
+struct CudfStringColumnFromDynamicMemory {
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 size_t n_elements, size_t elem_size)
+	{
+		std::cout << "converting column " << i << " (dynamic string)\n";
+
+		using OM = typename ParserOutputDeviceT::OM;
+
+		uint32_t* offsets_data_ptr = reinterpret_cast<uint32_t*>(
+			output.m_d_outputs[OM::template TagIndex<LengthRequestTagT>::value].data();
+		);
+		char* chars_data_ptr = reinterpret_cast<char*>(
+			output.m_d_outputs[OM::template TagIndex<DynamicStringRequestTagT>::value].data().get();
+		);
+		
+		// NOTE: those two should be identical
+		auto dynamic_size =
+			output.m_launch_config->dynamic_sizes[OM::template DynamicTagIndex<DynamicStringRequestTagT>::value];
+		// rely on how offsets work: n_elements+1 offsets is length of chars
+		//auto dynamic_size = offsets_data_ptr[n_elements+1 - 1];
+
+
+		// TODO?: fix code repetition
+
+		// - creating column of offsets
+		// there are one more offsets than rows; there are n_elements rows, and n_elements+1 offsets
+		rmm_device_buffer_union u_offsets;
+		u_offsets.data.move_into((void *)offsets_data_ptr, sizeof(uint32_t) * (n_elements + 1));
+
+		auto offsets_column = std::make_unique<cudf::column>(
+			cudf::data_type{cudf::type_id::INT32}, //< The element type: offsets use uint32_t type
+			static_cast<cudf::size_type>(n_elements + 1), //< The number of elements in the column
+			u_offsets.rmm //< The column's data, as rmm::device_buffer or something convertible
+		);
+
+		// - creating column of chars
+		rmm_device_buffer_union u_chars;
+		u_chars.data.move_into((void *)chars_data_ptr, dynamic_size);
+
+		auto chars_column = std::make_unique<cudf::column>(
+			cudf::data_type{cudf::type_to_id<char>()}, //< The element type: a character, or INT8
+			static_cast<cudf::size_type>(dynamic_size), //< The number of elements in the column
+			u_chars.rmm //< The column's data, as rmm::device_buffer or something convertible
+		);
+		
+		// - compose string column
+		auto column = cudf::make_strings_column(
+			n_elements, //< The number of strings the column represents.
+			offsets_column, //< The column of offset values for this column.
+			chars_column, //< The column of char bytes for all the strings for this column.
+			0, //< The number of null string entries.
+			cudf::create_null_mask(n_elements, cudf::mask_state::UNALLOCATED) //< The bits specifying the null strings in device memory.
+			//< CUDA stream used for device memory operations and kernel launches.
+			//< Device memory resource used for allocation of the column's `null_mask` and children columns' device memory.
+		);
+
+		columns.emplace_back(column.release());
+	}
+};
+
+
 // to be used when we don't know how to convert to cudf::column
 struct CudfUnknownColumnType {
 	template<typename TagT, typename ParserOutputDeviceT>
