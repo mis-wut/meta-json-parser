@@ -20,6 +20,12 @@ struct KernelLauncher
 	}
 };
 
+template<class ...KernelArgsT>
+KernelLauncher<KernelArgsT...> makeKernelLauncher(void(*kernel)(KernelArgsT...))
+{
+    return KernelLauncher<KernelArgsT...>(kernel);
+}
+
 template<class BlockDimXT, class BlockDimYT, class BlockDimZT, class SharedMemoryT, class ...KernelArgsT>
 struct KernelLauncherFixedResources
 {

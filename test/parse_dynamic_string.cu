@@ -148,13 +148,13 @@ void templated_DynamicStringCopy(size_t max_str_len)
 		thrust::device,
 		context.d_correct_offsets.begin(),
 		context.d_correct_offsets.end(),
-		reinterpret_cast<int*>(h_outputs[OM::template TagIndex<BA::LengthRequestTag>::value])
+		reinterpret_cast<int*>(h_outputs[OM::template TagIndex<typename BA::LengthRequestTag>::value])
 	));
 	ASSERT_TRUE(thrust::equal(
 		thrust::device,
 		context.d_correct_content.begin(),
 		context.d_correct_content.end(),
-		reinterpret_cast<char*>(h_outputs[OM::template TagIndex<BA::DynamicStringRequestTag>::value])
+		reinterpret_cast<char*>(h_outputs[OM::template TagIndex<typename BA::DynamicStringRequestTag>::value])
 	));
 	ASSERT_TRUE(thrust::all_of(d_err.begin(), d_err.end(), no_error()));
 }

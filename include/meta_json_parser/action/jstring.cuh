@@ -439,7 +439,7 @@ struct JStringDynamicCopyV2
 		//  (reinterpret_cast<const uint8_t*>(input), offsets, lengths, reinterpret_cast<uint8_t*>(content), count);
 
 		const int group = 32;
-		KernelLauncher(&g_gather_strings_v2<typename PK::PC>)
+		makeKernelLauncher(&g_gather_strings_v2<typename PK::PC>)
 		  ((count * group + 1024) / 1024, { group, block / group, 1 }, 0, pk.m_stream)
 		  (reinterpret_cast<const uint8_t*>(input), offsets, lengths, reinterpret_cast<uint8_t*>(content), count);
 	}
@@ -569,7 +569,7 @@ struct JStringDynamicCopyV3
 		const int block = 1024;
 
 		const int group = 32;
-		KernelLauncher(&g_gather_strings_even_spaced<typename PK::PC>)
+		makeKernelLauncher(&g_gather_strings_even_spaced<typename PK::PC>)
 		  ((count * group + 1024) / 1024, { group, block / group, 1 }, 0, pk.m_stream)
 		  (reinterpret_cast<const uint8_t*>(content), dynamic_size, lengths, reinterpret_cast<uint8_t*>(out_content), count);
 	}

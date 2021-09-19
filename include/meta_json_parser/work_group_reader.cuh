@@ -28,9 +28,54 @@ protected:
 	__device__ __forceinline__ WorkGroupReaderBaseData() : mDistance(0) { }
 };
 
+template<bool KeepDistanceEnabled>
+struct __impl_IncreaseDistance {
+    template<class WorkGroupReaderT>
+	static __device__ __forceinline__ void IncreaseDistance(WorkGroupReaderT& reader, uint32_t offset);
+};
+
+
+template<>
+struct __impl_IncreaseDistance<true> {
+    template<class WorkGroupReaderT>
+	static __device__ __forceinline__ void IncreaseDistance(WorkGroupReaderT& reader, uint32_t offset)
+	{
+		reader.mDistance += offset;
+	}
+};
+
+template<>
+struct __impl_IncreaseDistance<false> {
+    template<class WorkGroupReaderT>
+	static __device__ __forceinline__ void IncreaseDistance(WorkGroupReaderT& reader, uint32_t offset)
+	{
+        return;
+	}
+};
+
+template<bool KeepDistanceEnabled>
+struct __impl_GroupDistance {
+    template<class WorkGroupReaderT>
+	static __device__ __forceinline__ uint32_t GroupDistance(WorkGroupReaderT& reader)
+	{
+		static_assert(KeepDistanceEnabled, "KeepDistance was not enabled in WorkGroupReader!");
+		return 0;
+	}
+};
+
+template<>
+struct __impl_GroupDistance<true> {
+	template<class WorkGroupReaderT>
+	static __device__ __forceinline__ uint32_t GroupDistance(WorkGroupReaderT& reader)
+	{
+		return reader.mDistance;
+	}
+};
+
 template<typename WorkingGroupSizeT, bool KeepDistance>
-struct WorkGroupReaderBase : WorkGroupReaderBaseData<WorkingGroupSizeT, KeepDistance>
+struct WorkGroupReaderBase : public WorkGroupReaderBaseData<WorkingGroupSizeT, KeepDistance>
 {
+    using type = WorkGroupReaderBase<WorkingGroupSizeT, KeepDistance>;
 	static constexpr int GROUP_SIZE = WorkingGroupSizeT::value;
 	static constexpr std::size_t MEMORY_ALIGNMENT = 16;
 	static_assert(IsPower2_c<MEMORY_ALIGNMENT>::type::value, "MEMORY_ALIGNMENT must be power of 2");
@@ -42,16 +87,22 @@ struct WorkGroupReaderBase : WorkGroupReaderBaseData<WorkingGroupSizeT, KeepDist
 	static_assert(IsPower2_c<BUFFER_SIZE>::type::value, "BUFFER_SIZE must be power of 2.");
 	using MemoryRequest = MemoryRequest_c<BUFFER_COUNT * BUFFER_SIZE, MemoryUsage::ActionUsage, MemoryType::Shared>;
 
+    template<bool KeepDistanceEnabled>
+    friend struct __impl_GroupDistance;
+
+    template<bool KeepDistanceEnabled>
+    friend struct __impl_IncreaseDistance;
+
 protected:
 	__device__ __forceinline__ WorkGroupReaderBase(const char* pSource, const char* pEndSource)
 	{
-		mSource = pSource;
-		mEndSource = (pEndSource == nullptr ? reinterpret_cast<char*>(~0x0ull) : pEndSource);
+		this->mSource = pSource;
+		this->mEndSource = (pEndSource == nullptr ? reinterpret_cast<char*>(~0x0ull) : pEndSource);
 	}
 
 	__device__ __forceinline__ void IncreaseDistance(uint32_t offset)
 	{
-		__impl_IncreaseDistance<KeepDistance>(offset);
+        __impl_IncreaseDistance<KeepDistance>::IncreaseDistance(*this, offset);
 	}
 
 private:
@@ -87,34 +138,6 @@ private:
 	//	return __all_sync(0xFF'FF'FF'FFu, predicate);
 	//}
 
-	template<bool KeepDistanceEnabled>
-	__device__ __forceinline__ void __impl_IncreaseDistance(uint32_t offset);
-
-	template<>
-	__device__ __forceinline__ void __impl_IncreaseDistance<true>(uint32_t offset)
-	{
-		mDistance += offset;
-	}
-
-	template<>
-	__device__ __forceinline__ void __impl_IncreaseDistance<false>(uint32_t offset)
-	{
-		return;
-	}
-
-	template<bool KeepDistanceEnabled>
-	__device__ __forceinline__ uint32_t __impl_GroupDistance()
-	{
-		static_assert(KeepDistanceEnabled, "KeepDistance was not enabled in WorkGroupReader!");
-		return 0;
-	}
-
-	template<>
-	__device__ __forceinline__ uint32_t __impl_GroupDistance<true>()
-	{
-		return mDistance;
-	}
-
 public:
 #pragma nv_exec_check_disable
 	__device__ __forceinline__ uint32_t ballot_sync(int predicate)
@@ -130,7 +153,7 @@ public:
 
 	__device__ __forceinline__ uint32_t GroupDistance()
 	{
-		return __impl_GroupDistance<KeepDistance>();
+		return __impl_GroupDistance<KeepDistance>::GroupDistance(*this);
 	}
 };
 
@@ -153,22 +176,22 @@ protected:
 	__device__ __noinline__ VectorType LoadLastBytes()
 	{
 		VectorType payload = VectorType(0);
-		if (mSource != mEndSource)
+		if (this->mSource != this->mEndSource)
 		{
-			const char* beginCopy = mSource + ThreadIndex() * sizeof(VectorType);
+			const char* beginCopy = this->mSource + ThreadIndex() * sizeof(VectorType);
 			const char* endCopy = beginCopy + sizeof(VectorType);
-			if (endCopy <= mEndSource)
-				payload = reinterpret_cast<const VectorType*>(mSource)[ThreadIndex()];
+			if (endCopy <= this->mEndSource)
+				payload = reinterpret_cast<const VectorType*>(this->mSource)[ThreadIndex()];
 			//finish from 1 to 3 chars
-			if (beginCopy < mEndSource && mEndSource < endCopy)
+			if (beginCopy < this->mEndSource && this->mEndSource < endCopy)
 			{
-				reinterpret_cast<char4*>(&payload)->x = mSource[4 * ThreadIndex()];
-				if (beginCopy + 1 < mEndSource)
-					reinterpret_cast<char4*>(&payload)->y = mSource[4 * ThreadIndex() + 1];
-				if (beginCopy + 2 < mEndSource)
-					reinterpret_cast<char4*>(&payload)->z = mSource[4 * ThreadIndex() + 2];
+				reinterpret_cast<char4*>(&payload)->x = this->mSource[4 * ThreadIndex()];
+				if (beginCopy + 1 < this->mEndSource)
+					reinterpret_cast<char4*>(&payload)->y = this->mSource[4 * ThreadIndex() + 1];
+				if (beginCopy + 2 < this->mEndSource)
+					reinterpret_cast<char4*>(&payload)->z = this->mSource[4 * ThreadIndex() + 2];
 			}
-			mSource = mEndSource;
+			this->mSource = this->mEndSource;
 		}
 		return payload;
 	}
@@ -177,12 +200,12 @@ public:
 	__device__ INLINE_METHOD void Load(unsigned int bufferId)
 	{
 		VectorType payload;
-		if (mSource + BUFFER_SIZE < mEndSource)
+		if (this->mSource + BUFFER_SIZE < this->mEndSource)
 		{
-			payload = reinterpret_cast<const VectorType*>(mSource)[ThreadIndex()];
-			mSource += BUFFER_SIZE;
+			payload = reinterpret_cast<const VectorType*>(this->mSource)[ThreadIndex()];
+			this->mSource += BUFFER_SIZE;
 		}
-		else if (mSource == mEndSource) 
+		else if (this->mSource == this->mEndSource) 
 		{
 			//Clear buffer
 			payload = VectorType(0);
@@ -226,7 +249,7 @@ public:
 
 	__device__ INLINE_METHOD void AdvanceBy(int advance)
 	{
-		IncreaseDistance(advance);
+		this->IncreaseDistance(advance);
 #ifdef _DEBUG
 		assert(advance <= GROUP_SIZE);
 #endif
@@ -254,18 +277,18 @@ public:
 		assert(blockDim.x == GROUP_SIZE);
 		assert(blockDim.z == 1);
 #endif
-		uint32_t missAlignment = BytesCast<uint32_t>(mSource) & 0x3u;
+		uint32_t missAlignment = BytesCast<uint32_t>(this->mSource) & 0x3u;
 		if (missAlignment)
 		{
 			//Clear buffer
 			reinterpret_cast<VectorType*>(mBufferPtr + (BUFFER_COUNT - 1) * BUFFER_SIZE)[ThreadIndex()] = VectorType(0);
 			missAlignment = 4 - missAlignment;
 			mInBufferOffset = BUFFER_COUNT * BUFFER_SIZE - missAlignment;
-			if (threadIdx.x < missAlignment && mSource + threadIdx.x < mEndSource)
-				 mBufferPtr[mInBufferOffset + threadIdx.x] = mSource[threadIdx.x];
-			mSource += missAlignment;
-			if (mSource > mEndSource)
-				mSource = mEndSource;
+			if (threadIdx.x < missAlignment && this->mSource + threadIdx.x < this->mEndSource)
+				 mBufferPtr[mInBufferOffset + threadIdx.x] = this->mSource[threadIdx.x];
+			this->mSource += missAlignment;
+			if (this->mSource > this->mEndSource)
+				this->mSource = this->mEndSource;
 			Load(0);
 		}
 		else
@@ -297,31 +320,31 @@ protected:
 	
 	__device__ INLINE_METHOD void LoadPrefetch()
 	{
-		if (mSource + BUFFER_SIZE < mEndSource)
+		if (this->mSource + BUFFER_SIZE < this->mEndSource)
 		{
-			mPrefetch = reinterpret_cast<const VectorType*>(mSource)[ThreadIndex()];
-			mSource += BUFFER_SIZE;
+			mPrefetch = reinterpret_cast<const VectorType*>(this->mSource)[ThreadIndex()];
+			this->mSource += BUFFER_SIZE;
 		}
 		else 
 		{
 			//Clear buffer
 			mPrefetch = VectorType(0);
-			if (mSource != mEndSource)
+			if (this->mSource != this->mEndSource)
 			{
-				const char* beginCopy = mSource + ThreadIndex() * sizeof(VectorType);
+				const char* beginCopy = this->mSource + ThreadIndex() * sizeof(VectorType);
 				const char* endCopy = beginCopy + sizeof(VectorType);
-				if (endCopy <= mEndSource)
-					mPrefetch = reinterpret_cast<const VectorType*>(mSource)[ThreadIndex()];
+				if (endCopy <= this->mEndSource)
+					mPrefetch = reinterpret_cast<const VectorType*>(this->mSource)[ThreadIndex()];
 				//finish from 1 to 3 chars
-				if (beginCopy < mEndSource && mEndSource < endCopy)
+				if (beginCopy < this->mEndSource && this->mEndSource < endCopy)
 				{
-					reinterpret_cast<char4*>(&mPrefetch)->x = mSource[4 * ThreadIndex()];
-					if (beginCopy + 1 < mEndSource)
-						reinterpret_cast<char4*>(&mPrefetch)->y = mSource[4 * ThreadIndex() + 1];
-					if (beginCopy + 2 < mEndSource)
-						reinterpret_cast<char4*>(&mPrefetch)->z = mSource[4 * ThreadIndex() + 2];
+					reinterpret_cast<char4*>(&mPrefetch)->x = this->mSource[4 * ThreadIndex()];
+					if (beginCopy + 1 < this->mEndSource)
+						reinterpret_cast<char4*>(&mPrefetch)->y = this->mSource[4 * ThreadIndex() + 1];
+					if (beginCopy + 2 < this->mEndSource)
+						reinterpret_cast<char4*>(&mPrefetch)->z = this->mSource[4 * ThreadIndex() + 2];
 				}
-				mSource = mEndSource;
+				this->mSource = this->mEndSource;
 			}
 		}
 	}
@@ -363,7 +386,7 @@ public:
 
 	__device__ INLINE_METHOD void AdvanceBy(int advance)
 	{
-		IncreaseDistance(advance);
+		this->IncreaseDistance(advance);
 #ifdef _DEBUG
 		assert(advance <= GROUP_SIZE);
 #endif
@@ -392,18 +415,18 @@ public:
 		assert(blockDim.x == GROUP_SIZE);
 		assert(blockDim.z == 1);
 #endif
-		uint32_t missAlignment = BytesCast<uint32_t>(mSource) & 0x3u;
+		uint32_t missAlignment = BytesCast<uint32_t>(this->mSource) & 0x3u;
 		if (missAlignment)
 		{
 			//Clear buffer
 			reinterpret_cast<VectorType*>(mBufferPtr + (BUFFER_COUNT - 1) * BUFFER_SIZE)[ThreadIndex()] = VectorType(0);
 			missAlignment = 4 - missAlignment;
 			mInBufferOffset = BUFFER_COUNT * BUFFER_SIZE - missAlignment;
-			if (threadIdx.x < missAlignment && mSource + threadIdx.x < mEndSource)
-				 mBufferPtr[mInBufferOffset + threadIdx.x] = mSource[threadIdx.x];
-			mSource += missAlignment;
-			if (mSource > mEndSource)
-				mSource = mEndSource;
+			if (threadIdx.x < missAlignment && this->mSource + threadIdx.x < this->mEndSource)
+				 mBufferPtr[mInBufferOffset + threadIdx.x] = this->mSource[threadIdx.x];
+			this->mSource += missAlignment;
+			if (this->mSource > this->mEndSource)
+				this->mSource = this->mEndSource;
 			LoadPrefetch();
 			StorePrefetch(0);
 			LoadPrefetch();

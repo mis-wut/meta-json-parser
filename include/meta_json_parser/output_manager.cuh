@@ -297,7 +297,7 @@ struct OutputManager
 	}
 
 	template<class TagT>
-	__host__ __device__ __forceinline__
+	__host__ __forceinline__
 	static size_t ToAlloc(const KernelLaunchConfiguration* launch_config, const size_t size)
 	{
 		using Index = TagIndex<TagT>;
