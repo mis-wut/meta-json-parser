@@ -95,23 +95,6 @@ namespace JsonParse
 		>
 	>;
 
-	template<int WorkGroupSize>
-	struct __dispatch_impl_Boolean {
-		template<class KernelContextT, class CallbackFnT>
-		static __device__ __forceinline__ ParsingError __impl_Boolean(KernelContextT& _kc, CallbackFnT&& fn) {
-			return __impl_WS_8_plus_Boolean(_kc, std::forward<CallbackFnT&&>(fn));
-		}
-	};
-
-	template<>
-	struct __dispatch_impl_Boolean<4> {
-		template<class KernelContextT, class CallbackFnT>
-		static __device__ __forceinline__ ParsingError __impl_Boolean(KernelContextT& _kc, CallbackFnT&& fn) {
-			return __impl_WS_4_Boolean(_kc, std::forward<CallbackFnT&&>(fn));
-		}
-	};
-
-
 	template<class KernelContextT, class CallbackFnT>
 	__device__ __forceinline__ ParsingError __impl_WS_8_plus_Boolean(KernelContextT& _kc, CallbackFnT&& fn)
 	{
@@ -202,6 +185,22 @@ namespace JsonParse
 		}
 		return ParsingError::Other;
 	}
+
+	template<int WorkGroupSize>
+	struct __dispatch_impl_Boolean {
+		template<class KernelContextT, class CallbackFnT>
+		static __device__ __forceinline__ ParsingError __impl_Boolean(KernelContextT& _kc, CallbackFnT&& fn) {
+			return __impl_WS_8_plus_Boolean(_kc, std::forward<CallbackFnT&&>(fn));
+		}
+	};
+
+	template<>
+	struct __dispatch_impl_Boolean<4> {
+		template<class KernelContextT, class CallbackFnT>
+		static __device__ __forceinline__ ParsingError __impl_Boolean(KernelContextT& _kc, CallbackFnT&& fn) {
+			return __impl_WS_4_Boolean(_kc, std::forward<CallbackFnT&&>(fn));
+		}
+	};
 
 	template<class KernelContextT, class CallbackFnT>
 	__device__ INLINE_METHOD ParsingError Boolean(KernelContextT& _kc, CallbackFnT&& fn)
