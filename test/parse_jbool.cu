@@ -7,6 +7,7 @@
 #include <meta_json_parser/parsing_error.h>
 #include <meta_json_parser/action/jbool.cuh>
 #include <meta_json_parser/parser_kernel.cuh>
+#include "test_helper.h"
 
 class ParseJBoolTest : public ::testing::Test {
 public:
@@ -115,40 +116,15 @@ void templated_ParseBool(ParseJBoolTest &test)
 	ASSERT_TRUE(thrust::equal(correct_begin, correct_end, result_begin));
 }
 
-TEST_F(ParseJBoolTest, bool_uint32_W32) {
-	templated_ParseBool<uint32_t, 32>(*this);
+#define META_bool_tests(WS)\
+TEST_F(ParseJBoolTest, bool_uint32_W##WS) {\
+	templated_ParseBool<uint32_t, WS>(*this);\
+}\
+TEST_F(ParseJBoolTest, bool_uint64_W##WS) {\
+	templated_ParseBool<uint64_t, WS>(*this);\
+}\
+TEST_F(ParseJBoolTest, bool_uint8_W##WS) {\
+	templated_ParseBool<uint8_t, WS>(*this);\
 }
 
-TEST_F(ParseJBoolTest, bool_uint32_W16) {
-	templated_ParseBool<uint32_t, 16>(*this);
-}
-
-TEST_F(ParseJBoolTest, bool_uint32_W8) {
-	templated_ParseBool<uint32_t, 8>(*this);
-}
-
-TEST_F(ParseJBoolTest, bool_uint64_W32) {
-	templated_ParseBool<uint64_t, 32>(*this);
-}
-
-TEST_F(ParseJBoolTest, bool_uint64_W16) {
-	templated_ParseBool<uint64_t, 16>(*this);
-}
-
-TEST_F(ParseJBoolTest, bool_uint64_W8) {
-	templated_ParseBool<uint64_t, 8>(*this);
-}
-
-TEST_F(ParseJBoolTest, bool_uint8_W32) {
-	templated_ParseBool<uint8_t, 32>(*this);
-}
-
-TEST_F(ParseJBoolTest, bool_uint8_W16) {
-	templated_ParseBool<uint8_t, 16>(*this);
-}
-
-TEST_F(ParseJBoolTest, bool_uint8_W8) {
-	templated_ParseBool<uint8_t, 8>(*this);
-}
-
-
+META_WS_4(META_bool_tests)

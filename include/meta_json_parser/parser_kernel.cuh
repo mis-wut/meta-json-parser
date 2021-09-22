@@ -172,7 +172,7 @@ __global__ void __launch_bounds__(1024, 2)
 	using KC = typename PK::KC;
 	using RT = typename PK::RT;
 	__shared__ typename PK::M3::SharedBuffers sharedBuffers;
-	KC kc(readOnlyBuffer, sharedBuffers, input, indices, output);
+	KC kc(readOnlyBuffer, sharedBuffers, input, indices, output, count);
 	if (RT::InputId() >= count)
 		return;
 	ParsingError e = BaseAction::Invoke(kc);

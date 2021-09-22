@@ -10,6 +10,7 @@
 #include <meta_json_parser/action/jarray.cuh>
 #include <meta_json_parser/parser_kernel.cuh>
 #include <meta_json_parser/mp_string.h>
+#include "test_helper.h"
 
 using namespace boost::mp11;
 
@@ -214,14 +215,9 @@ void templated_ParseBookJson()
 	ASSERT_TRUE(thrust::equal(h_r_pages.begin(), h_r_pages.end(), h_c_pages.begin()));
 }
 
-TEST_F(ParseBookJson, parsing_book_json_W32) {
-	templated_ParseBookJson<32>();
+#define META_book_tests(WS)\
+TEST_F(ParseBookJson, parsing_book_json_W##WS) {\
+	templated_ParseBookJson<WS>();\
 }
 
-TEST_F(ParseBookJson, parsing_book_json_W16) {
-	templated_ParseBookJson<16>();
-}
-
-TEST_F(ParseBookJson, parsing_book_json_W8) {
-	templated_ParseBookJson<8>();
-}
+META_WS_4(META_book_tests)

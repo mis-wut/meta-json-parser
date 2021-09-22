@@ -273,6 +273,8 @@ public:
 		mBufferPtr(reinterpret_cast<char*>(pBuffers.data)),
 		mInBufferOffset(0)
 	{
+		if (pSource == nullptr)
+			return;
 #ifdef _DEBUG
 		assert(blockDim.x == GROUP_SIZE);
 		assert(blockDim.z == 1);
@@ -411,6 +413,8 @@ public:
 		mBufferPtr(reinterpret_cast<char*>(pBuffers.data)),
 		mInBufferOffset(0)
 	{
+		if (pSource == nullptr)
+			return;
 #ifdef _DEBUG
 		assert(blockDim.x == GROUP_SIZE);
 		assert(blockDim.z == 1);

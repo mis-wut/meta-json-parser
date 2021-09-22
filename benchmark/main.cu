@@ -84,7 +84,7 @@ using BaseActionDynamic = GET_ACTION(STR_FUN_DYN);
 using BaseActionDynamicV2 = GET_ACTION(STR_FUN_DYN_V2);
 using BaseActionDynamicV3 = GET_ACTION(STR_FUN_DYN_V3);
 
-enum workgroup_size { W32, W16, W8 };
+enum workgroup_size { W32, W16, W8, W4 };
 enum end_of_line { unknown, unix, win };
 enum dynamic_version { v1, v2, v3 };
 
@@ -404,6 +404,8 @@ benchmark_device_buffers<BaseActionT> initialize_buffers_dynamic(benchmark_input
 		return initialize_buffers<BaseActionT, 16>(input, conf);
 	case workgroup_size::W8:
 		return initialize_buffers<BaseActionT, 8>(input, conf);
+	case workgroup_size::W4:
+		return initialize_buffers<BaseActionT, 4>(input, conf);
 	}
 }
 
@@ -445,6 +447,8 @@ void launch_kernel_dynamic(benchmark_device_buffers<BaseActionT>& device_buffers
 		return launch_kernel<BaseActionT, 16>(device_buffers);
 	case workgroup_size::W8:
 		return launch_kernel<BaseActionT, 8>(device_buffers);
+	case workgroup_size::W4:
+		return launch_kernel<BaseActionT, 4>(device_buffers);
 	default:
 		break;
 	}
@@ -597,7 +601,8 @@ void parse_args(int argc, char** argv)
 	std::map<std::string, workgroup_size> wg_sizes_map{
 		{"32", workgroup_size::W32},
         {"16", workgroup_size::W16},
-        { "8", workgroup_size::W8}
+        { "8", workgroup_size::W8},
+        { "4", workgroup_size::W4}
 	};
 
 	std::map<std::string, dynamic_version> versions_map{
@@ -620,7 +625,7 @@ void parse_args(int argc, char** argv)
 	app.add_option("--ws,--workspace-size", g_args.wg_size,
 	               "Workgroup size. Default = 32.")
 		->transform(CLI::CheckedTransformer(wg_sizes_map))
-		->option_text("32|16|8")
+		->option_text("32|16|8|4")
 		->default_str("32");
 	app.add_option("-o,--output", g_args.output_csv,
 	               "Name for an parsed output CSV file.\n"

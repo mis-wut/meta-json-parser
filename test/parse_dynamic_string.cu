@@ -16,6 +16,7 @@
 #include <meta_json_parser/parser_output_device.cuh>
 #include <meta_json_parser/action/jstring.cuh>
 #include <meta_json_parser/action/void_action.cuh>
+#include "test_helper.h"
 
 class DynamicOutputTest : public ::testing::TestWithParam<size_t> {
 public:
@@ -159,41 +160,18 @@ void templated_DynamicStringCopy(size_t max_str_len)
 	ASSERT_TRUE(thrust::all_of(d_err.begin(), d_err.end(), no_error()));
 }
 
-TEST_P(DynamicOutputTest, dynamic_output_copy_string_w32) {
-	templated_DynamicStringCopy<JStringDynamicCopy, 32>(GetParam());
+#define META_dynamic_string_tests(WS)\
+TEST_P(DynamicOutputTest, dynamic_output_copy_string_W##WS) {\
+	templated_DynamicStringCopy<JStringDynamicCopy, WS>(GetParam());\
+}\
+TEST_P(DynamicOutputTest, dynamic_output_copy_v2_string_W##WS) {\
+	templated_DynamicStringCopy<JStringDynamicCopyV2, WS>(GetParam());\
+}\
+TEST_P(DynamicOutputTest, dynamic_output_copy_v3_string_W##WS) {\
+	templated_DynamicStringCopy<JStringDynamicCopyV3, WS>(GetParam());\
 }
 
-TEST_P(DynamicOutputTest, dynamic_output_copy_string_w16) {
-	templated_DynamicStringCopy<JStringDynamicCopy, 16>(GetParam());
-}
-
-TEST_P(DynamicOutputTest, dynamic_output_copy_string_w8) {
-	templated_DynamicStringCopy<JStringDynamicCopy, 8>(GetParam());
-}
-
-TEST_P(DynamicOutputTest, dynamic_output_copy_v2_string_w32) {
-	templated_DynamicStringCopy<JStringDynamicCopyV2, 32>(GetParam());
-}
-
-TEST_P(DynamicOutputTest, dynamic_output_copy_v2_string_w16) {
-	templated_DynamicStringCopy<JStringDynamicCopyV2, 16>(GetParam());
-}
-
-TEST_P(DynamicOutputTest, dynamic_output_copy_v2_string_w8) {
-	templated_DynamicStringCopy<JStringDynamicCopyV2, 8>(GetParam());
-}
-
-TEST_P(DynamicOutputTest, dynamic_output_copy_v3_string_w32) {
-	templated_DynamicStringCopy<JStringDynamicCopyV3, 32>(GetParam());
-}
-
-TEST_P(DynamicOutputTest, dynamic_output_copy_v3_string_w16) {
-	templated_DynamicStringCopy<JStringDynamicCopyV3, 16>(GetParam());
-}
-
-TEST_P(DynamicOutputTest, dynamic_output_copy_v3_string_w8) {
-	templated_DynamicStringCopy<JStringDynamicCopyV3, 8>(GetParam());
-}
+META_WS_4(META_dynamic_string_tests)
 
 INSTANTIATE_TEST_SUITE_P(DynamicString, DynamicOutputTest, testing::Values(6, 18, 42), 
 	[](const testing::TestParamInfo<DynamicOutputTest::ParamType>& info) {

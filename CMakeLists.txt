@@ -90,6 +90,7 @@ target_sources(meta-json-parser-test PRIVATE
     test/parse_jstring.cu
     test/parse_uint_test.cu
     test/read_only_buffer_test.cu
+    test/test_helper.h
     test/test_memory_config.cu
     test/uint_test_context.cuh
     test/work_group_reader_test.cu

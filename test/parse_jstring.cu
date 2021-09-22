@@ -12,6 +12,7 @@
 #include <meta_json_parser/parser_configuration.h>
 #include <meta_json_parser/parser_kernel.cuh>
 #include <meta_json_parser/action/jstring.cuh>
+#include "test_helper.h"
 
 class ParseJStringTest : public ::testing::Test {
 public:
@@ -31,7 +32,7 @@ struct TestContextStringValidation {
 	TestContextStringValidation(size_t testSize, size_t group_size) {
 		std::minstd_rand rng;
 		std::uniform_int_distribution<uint32_t> r_chars((uint32_t)'A', (uint32_t)'Z');
-		const size_t MIN_LEN = group_size - 4;
+		const size_t MIN_LEN = (group_size + 4 > 0 ? group_size + 4 : 1);
 		const size_t MAX_LEN = group_size + 4;
 		const size_t MAX_STR_LEN = MAX_LEN + 3; //" + " + \0
 		std::uniform_int_distribution<uint32_t> r_len(MIN_LEN, MAX_LEN);
@@ -65,7 +66,7 @@ struct TestContextStringValidationBackslash {
 	TestContextStringValidationBackslash(size_t testSize, size_t group_size) {
 		std::minstd_rand rng;
 		std::uniform_int_distribution<uint32_t> r_chars((uint32_t)'A', (uint32_t)'Z');
-		const size_t MIN_LEN = group_size - 4;
+		const size_t MIN_LEN = (group_size + 4 > 0 ? group_size + 4 : 1);
 		const size_t MAX_LEN = group_size + 4;
 		const size_t MAX_STR_LEN = MAX_LEN + 3; //" + " + \0
 		std::uniform_int_distribution<uint32_t> r_len(MIN_LEN, MAX_LEN);
@@ -242,63 +243,21 @@ void templated_ParseStringStaticCopy(ParseJStringTest &test)
 }
 
 
-TEST_F(ParseJStringTest, validation_W32) {
-	templated_ParseStringValidation<TestContextStringValidation, 32>(*this);
+#define META_jstring_tests(WS)\
+TEST_F(ParseJStringTest, validation_W##WS) {\
+	templated_ParseStringValidation<TestContextStringValidation, WS>(*this);\
+}\
+TEST_F(ParseJStringTest, validation_backslash_W##WS) {\
+	templated_ParseStringValidation<TestContextStringValidationBackslash, WS>(*this);\
+}\
+TEST_F(ParseJStringTest, static_copy_B5_W##WS) {\
+	templated_ParseStringStaticCopy<5, WS>(*this);\
+}\
+TEST_F(ParseJStringTest, static_copy_B33_W##WS) {\
+	templated_ParseStringStaticCopy<33, WS>(*this);\
+}\
+TEST_F(ParseJStringTest, static_copy_B60_W##WS) {\
+	templated_ParseStringStaticCopy<60, WS>(*this);\
 }
 
-TEST_F(ParseJStringTest, validation_W16) {
-	templated_ParseStringValidation<TestContextStringValidation, 16>(*this);
-}
-
-TEST_F(ParseJStringTest, validation_W8) {
-	templated_ParseStringValidation<TestContextStringValidation, 8>(*this);
-}
-
-TEST_F(ParseJStringTest, validation_backslash_W32) {
-	templated_ParseStringValidation<TestContextStringValidationBackslash, 32>(*this);
-}
-
-TEST_F(ParseJStringTest, validation_backslash_W16) {
-	templated_ParseStringValidation<TestContextStringValidationBackslash, 16>(*this);
-}
-
-TEST_F(ParseJStringTest, validation_backslash_W8) {
-	templated_ParseStringValidation<TestContextStringValidationBackslash, 8>(*this);
-}
-
-TEST_F(ParseJStringTest, static_copy_B5_W32) {
-	templated_ParseStringStaticCopy<5, 32>(*this);
-}
-
-TEST_F(ParseJStringTest, static_copy_B5_W16) {
-	templated_ParseStringStaticCopy<5, 16>(*this);
-}
-
-TEST_F(ParseJStringTest, static_copy_B5_W8) {
-	templated_ParseStringStaticCopy<5, 8>(*this);
-}
-
-TEST_F(ParseJStringTest, static_copy_B33_W32) {
-	templated_ParseStringStaticCopy<33, 32>(*this);
-}
-
-TEST_F(ParseJStringTest, static_copy_B33_W16) {
-	templated_ParseStringStaticCopy<33, 16>(*this);
-}
-
-TEST_F(ParseJStringTest, static_copy_B33_W8) {
-	templated_ParseStringStaticCopy<33, 8>(*this);
-}
-
-TEST_F(ParseJStringTest, static_copy_B60_W32) {
-	templated_ParseStringStaticCopy<60, 32>(*this);
-}
-
-TEST_F(ParseJStringTest, static_copy_B60_W16) {
-	templated_ParseStringStaticCopy<60, 16>(*this);
-}
-
-TEST_F(ParseJStringTest, static_copy_B60_W8) {
-	templated_ParseStringStaticCopy<60, 8>(*this);
-}
-
+META_WS_4(META_jstring_tests)

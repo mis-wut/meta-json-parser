@@ -12,8 +12,7 @@
 #include <meta_json_parser/kernel_context.cuh>
 #include <meta_json_parser/kernel_launcher.cuh>
 #include <meta_json_parser/action/void_action.cuh>
-//#include <meta_json_parser/config.h>
-//#include <meta_json_parser/intelisense_silencer.h>
+#include "test_helper.h"
 
 constexpr int MAX_SENTENCE = 512;
 
@@ -39,7 +38,7 @@ __global__ void __launch_bounds__(1024, 2)
 	using PK = ParserKernel<PC>;
 	using KC = typename PK::KC;
 	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
-	KC context(nullptr, sharedBuffers, input, indices, nullptr);
+	KC context(nullptr, sharedBuffers, input, indices, nullptr, count);
 	if (RT::InputId() >= count)
 	{
 		return;
@@ -142,7 +141,7 @@ __global__ void __launch_bounds__(1024, 2)
 	using PK = ParserKernel<PC>;
 	using KC = typename PK::KC;
 	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
-	KC context(nullptr, sharedBuffers, input, indices, nullptr);
+	KC context(nullptr, sharedBuffers, input, indices, nullptr, count);
 	if (RT::InputId() >= count)
 	{
 		return;
@@ -196,74 +195,24 @@ void templated_ProperDistanceKeeping()
 	ASSERT_TRUE(thrust::equal(d_correct.begin(), d_correct.end(), d_result.begin()));
 }
 
-TEST_F(WorkGroupReaderTest, ProperDataReading_W32) {
-	templated_ProperDataReading<WorkGroupReader, 32, false>();
+#define META_WorkGroupReaderTest(WS)\
+TEST_F(WorkGroupReaderTest, ProperDataReading_W##WS) {\
+	templated_ProperDataReading<WorkGroupReader, WS, false>();\
+}\
+TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_W##WS) {\
+	templated_ProperDataReading<WorkGroupReaderPrefetch, WS, false>();\
+}\
+TEST_F(WorkGroupReaderTest, ProperDataReading_KD_W##WS) {\
+	templated_ProperDataReading<WorkGroupReader, WS, true>();\
+}\
+TEST_F(WorkGroupReaderTest, ProperDataReading_KD_Prefetch_W##WS) {\
+	templated_ProperDataReading<WorkGroupReaderPrefetch, WS, true>();\
+}\
+TEST_F(WorkGroupReaderTest, DistanceKeeping_W##WS) {\
+	templated_ProperDistanceKeeping<WorkGroupReader, WS>();\
+}\
+TEST_F(WorkGroupReaderTest, DistanceKeeping_Prefetch_W##WS) {\
+	templated_ProperDistanceKeeping<WorkGroupReaderPrefetch, WS>();\
 }
 
-TEST_F(WorkGroupReaderTest, ProperDataReading_W16) {
-	templated_ProperDataReading<WorkGroupReader, 16, false>();
-}
-
-TEST_F(WorkGroupReaderTest, ProperDataReading_W8) {
-	templated_ProperDataReading<WorkGroupReader, 8,  false>();
-}
-
-TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_W32) {
-	templated_ProperDataReading<WorkGroupReaderPrefetch, 32, false>();
-}
-
-TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_W16) {
-	templated_ProperDataReading<WorkGroupReaderPrefetch, 16, false>();
-}
-
-TEST_F(WorkGroupReaderTest, ProperDataReading_Prefetch_W8) {
-	templated_ProperDataReading<WorkGroupReaderPrefetch, 8,  false>();
-}
-
-TEST_F(WorkGroupReaderTest, ProperDataReading_KD_W32) {
-	templated_ProperDataReading<WorkGroupReader, 32, true>();
-}
-
-TEST_F(WorkGroupReaderTest, ProperDataReading_KD_W16) {
-	templated_ProperDataReading<WorkGroupReader, 16, true>();
-}
-
-TEST_F(WorkGroupReaderTest, ProperDataReading_KD_W8) {
-	templated_ProperDataReading<WorkGroupReader, 8,  true>();
-}
-
-TEST_F(WorkGroupReaderTest, ProperDataReading_KD_Prefetch_W32) {
-	templated_ProperDataReading<WorkGroupReaderPrefetch, 32, true>();
-}
-
-TEST_F(WorkGroupReaderTest, ProperDataReading_KD_Prefetch_W16) {
-	templated_ProperDataReading<WorkGroupReaderPrefetch, 16, true>();
-}
-
-TEST_F(WorkGroupReaderTest, ProperDataReading_KD_Prefetch_W8) {
-	templated_ProperDataReading<WorkGroupReaderPrefetch, 8,  true>();
-}
-
-TEST_F(WorkGroupReaderTest, DistanceKeeping_W32) {
-	templated_ProperDistanceKeeping<WorkGroupReader, 32>();
-}
-
-TEST_F(WorkGroupReaderTest, DistanceKeeping_W16) {
-	templated_ProperDistanceKeeping<WorkGroupReader, 16>();
-}
-
-TEST_F(WorkGroupReaderTest, DistanceKeeping_W8) {
-	templated_ProperDistanceKeeping<WorkGroupReader, 8>();
-}
-
-TEST_F(WorkGroupReaderTest, DistanceKeeping_Prefetch_W32) {
-	templated_ProperDistanceKeeping<WorkGroupReaderPrefetch, 32>();
-}
-
-TEST_F(WorkGroupReaderTest, DistanceKeeping_Prefetch_W16) {
-	templated_ProperDistanceKeeping<WorkGroupReaderPrefetch, 16>();
-}
-
-TEST_F(WorkGroupReaderTest, DistanceKeeping_Prefetch_W8) {
-	templated_ProperDistanceKeeping<WorkGroupReaderPrefetch, 8>();
-}
+META_WS_4(META_WorkGroupReaderTest)

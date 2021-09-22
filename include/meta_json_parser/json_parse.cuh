@@ -95,8 +95,25 @@ namespace JsonParse
 		>
 	>;
 
+	template<int WorkGroupSize>
+	struct __dispatch_impl_Boolean {
+		template<class KernelContextT, class CallbackFnT>
+		static __device__ __forceinline__ ParsingError __impl_Boolean(KernelContextT& _kc, CallbackFnT&& fn) {
+			return __impl_WS_8_plus_Boolean(_kc, std::forward<CallbackFnT&&>(fn));
+		}
+	};
+
+	template<>
+	struct __dispatch_impl_Boolean<4> {
+		template<class KernelContextT, class CallbackFnT>
+		static __device__ __forceinline__ ParsingError __impl_Boolean(KernelContextT& _kc, CallbackFnT&& fn) {
+			return __impl_WS_4_Boolean(_kc, std::forward<CallbackFnT&&>(fn));
+		}
+	};
+
+
 	template<class KernelContextT, class CallbackFnT>
-	__device__ INLINE_METHOD ParsingError Boolean(KernelContextT& _kc, CallbackFnT&& fn)
+	__device__ __forceinline__ ParsingError __impl_WS_8_plus_Boolean(KernelContextT& _kc, CallbackFnT&& fn)
 	{
 		using KC = KernelContextT;
 		using RT = typename KC::RT;
@@ -138,6 +155,61 @@ namespace JsonParse
 			return ParsingError::None;
 		}
 		return ParsingError::Other;
+	}
+
+	template<class KernelContextT, class CallbackFnT>
+	__device__ __forceinline__ ParsingError __impl_WS_4_Boolean(KernelContextT& _kc, CallbackFnT&& fn)
+	{
+		using KC = KernelContextT;
+		using RT = typename KC::RT;
+		using WorkGroupSize = typename RT::WorkGroupSize;
+		static_assert(WorkGroupSize::value == 4, "WorkGroup must have a size equal to 4.");
+		JsonKeywords& keywords = _kc.m3
+				.template Receive<BooleanRequest>()
+				.template Alias<JsonKeywords>();
+		int found = 0x0;
+		char c = _kc.wgr.CurrentChar();
+		{
+			int isTrue = 1;
+			int isFalse = 1;
+			isTrue = c == keywords.words._true[RT::WorkerId()];
+			isFalse = c == keywords.words._false[RT::WorkerId()];
+			_kc.wgr.AdvanceBy(4);
+			c = _kc.wgr.CurrentChar();
+			if (RT::WorkerId() == 0)
+			{
+				isTrue |= HasThisByte(VALID_ENDING, c) || HasThisByte(WHITESPACES, c);
+				isFalse |= c == 'e';
+			}
+			if (RT::WorkerId() == 1)
+				isFalse |= HasThisByte(VALID_ENDING, c) || HasThisByte(WHITESPACES, c);
+			found |= isTrue ? 0x1 : 0x0;
+			found |= isFalse ? 0x2 : 0x0;
+		}
+		found = Reduce<int, WorkGroupSize>(_kc).Reduce(found, BitAnd());
+		found = Scan<int, WorkGroupSize>(_kc).Broadcast(found, 0);
+		if (found & 0x1)
+		{
+			//No need for advance
+			fn(true);
+			return ParsingError::None;
+		}
+		else if (found & 0x2)
+		{
+			_kc.wgr.AdvanceBy(1);
+			fn(false);
+			return ParsingError::None;
+		}
+		return ParsingError::Other;
+	}
+
+	template<class KernelContextT, class CallbackFnT>
+	__device__ INLINE_METHOD ParsingError Boolean(KernelContextT& _kc, CallbackFnT&& fn)
+	{
+		using KC = KernelContextT;
+		using RT = typename KC::RT;
+		using WorkGroupSize = typename RT::WorkGroupSize;
+		return __dispatch_impl_Boolean<WorkGroupSize::value>::template __impl_Boolean(_kc, std::forward<CallbackFnT&&>(fn));
 	}
 
 	template<class OutTypeT>

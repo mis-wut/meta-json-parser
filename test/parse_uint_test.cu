@@ -22,6 +22,7 @@
 #include <thrust/equal.h>
 #include <thrust/logical.h>
 #include "uint_test_context.cuh"
+#include "test_helper.h"
 
 template<class GroupSizeT, class GroupCountT, class OutTypeT>
 __global__ void __launch_bounds__(1024, 2)
@@ -39,7 +40,7 @@ __global__ void __launch_bounds__(1024, 2)
 	using PK = ParserKernel<PC>;
 	using KC = typename PK::KC;
 	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
-	KC context(nullptr, sharedBuffers, input, indices, nullptr);
+	KC context(nullptr, sharedBuffers, input, indices, nullptr, count);
 	if (RT::InputId() >= count)
 	{
 		return;
@@ -98,50 +99,18 @@ void templated_ParseUnsignedInterger(ParseUnsignedIntegerTest &test)
 	ASSERT_TRUE(thrust::equal(context.d_correct.begin(), context.d_correct.end(), d_result.begin()));
 }
 
-TEST_F(ParseUnsignedIntegerTest, uint32_W32) {
-	templated_ParseUnsignedInterger<uint32_t, 32>(*this);
+#define META_uint_tests(WS)\
+TEST_F(ParseUnsignedIntegerTest, uint32_W##WS) {\
+	templated_ParseUnsignedInterger<uint32_t, WS>(*this);\
+}\
+TEST_F(ParseUnsignedIntegerTest, uint64_W##WS) {\
+	templated_ParseUnsignedInterger<uint64_t, WS>(*this);\
+}\
+TEST_F(ParseUnsignedIntegerTest, uint16_W##WS) {\
+	templated_ParseUnsignedInterger<uint16_t, WS>(*this);\
+}\
+TEST_F(ParseUnsignedIntegerTest, uint8_W##WS) {\
+	templated_ParseUnsignedInterger<uint8_t, WS>(*this);\
 }
 
-TEST_F(ParseUnsignedIntegerTest, uint32_W16) {
-	templated_ParseUnsignedInterger<uint32_t, 16>(*this);
-}
-
-TEST_F(ParseUnsignedIntegerTest, uint32_W8) {
-	templated_ParseUnsignedInterger<uint32_t, 8>(*this);
-}
-
-TEST_F(ParseUnsignedIntegerTest, uint64_W32) {
-	templated_ParseUnsignedInterger<uint64_t, 32>(*this);
-}
-
-TEST_F(ParseUnsignedIntegerTest, uint64_W16) {
-	templated_ParseUnsignedInterger<uint64_t, 16>(*this);
-}
-
-TEST_F(ParseUnsignedIntegerTest, uint64_W8) {
-	templated_ParseUnsignedInterger<uint64_t, 8>(*this);
-}
-
-TEST_F(ParseUnsignedIntegerTest, uint16_W32) {
-	templated_ParseUnsignedInterger<uint16_t, 32>(*this);
-}
-
-TEST_F(ParseUnsignedIntegerTest, uint16_W16) {
-	templated_ParseUnsignedInterger<uint16_t, 16>(*this);
-}
-
-TEST_F(ParseUnsignedIntegerTest, uint16_W8) {
-	templated_ParseUnsignedInterger<uint16_t, 8>(*this);
-}
-
-TEST_F(ParseUnsignedIntegerTest, uint8_W32) {
-	templated_ParseUnsignedInterger<uint8_t, 32>(*this);
-}
-
-TEST_F(ParseUnsignedIntegerTest, uint8_W16) {
-	templated_ParseUnsignedInterger<uint8_t, 16>(*this);
-}
-
-TEST_F(ParseUnsignedIntegerTest, uint8_W8) {
-	templated_ParseUnsignedInterger<uint8_t, 8>(*this);
-}
+META_WS_4(META_uint_tests)

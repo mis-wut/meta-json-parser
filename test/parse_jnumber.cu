@@ -4,6 +4,7 @@
 #include <meta_json_parser/action/jnumber.cuh>
 #include <meta_json_parser/parser_kernel.cuh>
 #include "uint_test_context.cuh"
+#include "test_helper.h"
 
 class ParseJNumberTest : public ::testing::Test {
 public:
@@ -57,50 +58,18 @@ void templated_ParseUnsignedInterger(ParseJNumberTest &test)
 	ASSERT_TRUE(thrust::equal(context.d_correct.begin(), context.d_correct.end(), d_result.begin()));
 }
 
-TEST_F(ParseJNumberTest, uint32_W32) {
-	templated_ParseUnsignedInterger<uint32_t, 32>(*this);
+#define META_ParseJNumberTests(WS)\
+TEST_F(ParseJNumberTest, uint32_W##WS) {\
+	templated_ParseUnsignedInterger<uint32_t, WS>(*this);\
+}\
+TEST_F(ParseJNumberTest, uint64_W##WS) {\
+	templated_ParseUnsignedInterger<uint64_t, WS>(*this);\
+}\
+TEST_F(ParseJNumberTest, uint16_W##WS) {\
+	templated_ParseUnsignedInterger<uint16_t, WS>(*this);\
+}\
+TEST_F(ParseJNumberTest, uint8_W##WS) {\
+	templated_ParseUnsignedInterger<uint8_t, WS>(*this);\
 }
 
-TEST_F(ParseJNumberTest, uint32_W16) {
-	templated_ParseUnsignedInterger<uint32_t, 16>(*this);
-}
-
-TEST_F(ParseJNumberTest, uint32_W8) {
-	templated_ParseUnsignedInterger<uint32_t, 8>(*this);
-}
-
-TEST_F(ParseJNumberTest, uint64_W32) {
-	templated_ParseUnsignedInterger<uint64_t, 32>(*this);
-}
-
-TEST_F(ParseJNumberTest, uint64_W16) {
-	templated_ParseUnsignedInterger<uint64_t, 16>(*this);
-}
-
-TEST_F(ParseJNumberTest, uint64_W8) {
-	templated_ParseUnsignedInterger<uint64_t, 8>(*this);
-}
-
-TEST_F(ParseJNumberTest, uint16_W32) {
-	templated_ParseUnsignedInterger<uint16_t, 32>(*this);
-}
-
-TEST_F(ParseJNumberTest, uint16_W16) {
-	templated_ParseUnsignedInterger<uint16_t, 16>(*this);
-}
-
-TEST_F(ParseJNumberTest, uint16_W8) {
-	templated_ParseUnsignedInterger<uint16_t, 8>(*this);
-}
-
-TEST_F(ParseJNumberTest, uint8_W32) {
-	templated_ParseUnsignedInterger<uint8_t, 32>(*this);
-}
-
-TEST_F(ParseJNumberTest, uint8_W16) {
-	templated_ParseUnsignedInterger<uint8_t, 16>(*this);
-}
-
-TEST_F(ParseJNumberTest, uint8_W8) {
-	templated_ParseUnsignedInterger<uint8_t, 8>(*this);
-}
+META_WS_4(META_ParseJNumberTests)
