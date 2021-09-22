@@ -1,12 +1,16 @@
 #include <map>
+#include <cstdio>
+#include <iostream>
 
 // should it be cuda_runtime_api.h or cuda_runtime.h?
 #include <cuda_runtime_api.h>
 
 // TODO: make configurable with CMake
+#define HAVE_LIBCUDF
 #if defined(HAVE_LIBCUDF)
 #include <cudf/table/table.hpp>
 #include <cudf/io/types.hpp>
+#include <cudf/utilities/traits.hpp>
 #endif /* HAVE_LIBCUDF */
 
 const char* memory_desc(const void *ptr)
@@ -31,6 +35,7 @@ const char* memory_desc(const void *ptr)
     auto   it  = memory_type_map.find(attrs.type);
     return it == memory_type_map.end() ? "Unknown CUDA memory type" : it->second;
 }
+
 
 #if defined(HAVE_LIBCUDF)
 const char* type_id_to_name(cudf::type_id id)
