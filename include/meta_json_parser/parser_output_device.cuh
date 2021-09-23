@@ -21,17 +21,22 @@
 #include <type_traits>
 
 
-// TODO: DEBUG !!!
-#include <boost/core/demangle.hpp>
-#include <iostream>
-
 // TODO: make configurable with CMake
 #define HAVE_LIBCUDF
 #if defined(HAVE_LIBCUDF)
 #include <cudf/utilities/type_dispatcher.hpp> //< type_to_id<Type>()
 #include <cudf/column/column_factories.hpp>
+#include <cudf/column/column.hpp>
 #include <cudf/table/table.hpp>
 #include <rmm/device_buffer.hpp>
+
+
+// TODO: DEBUG !!!
+#include <boost/core/demangle.hpp>
+#include <iostream>
+//#include <meta_json_parser/debug_helpers.cuh>
+#include <meta_json_parser/debug_helpers.h>
+
 
 struct rmm_device_buffer_data {
 	// NOTE: Horrible, horrible hack needed because of design decisions of rmm::device_buffer
@@ -72,7 +77,8 @@ struct CudfNumericColumn {
 		std::cout << "converting column " << i << " (numeric: "
 				  << boost::core::demangle(typeid(OutputType).name()) << ", "
 				  << elem_size << " bytes, "
-				  << 8*elem_size << " bits"
+				  << 8*elem_size << " bits,"
+				  << " data_ptr=" << data_ptr << " is " << memory_desc(const_cast<const void*>(data_ptr))
 				  << ")\n";
 
 		rmm_device_buffer_union u;
@@ -84,6 +90,21 @@ struct CudfNumericColumn {
 			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
 			u.rmm //< The column's data, as rmm::device_buffer or something convertible
 		);
+
+		// DEBUG:
+		std::cout << "- 'column' is " << boost::core::demangle(typeid(column).name()) << "\n";
+		std::cout << "- 'column.get()' is " << boost::core::demangle(typeid(column.get()).name()) 
+		          << " = " << column.get() 
+				  << " is " << memory_desc(column.get())
+				  << "\n";
+		std::cout << "  - elements in column=" << column.get()->size() << "\n";
+		std::cout << "- 'column.get()->view() is " 
+		          << boost::core::demangle(typeid(column.get()->view()).name())
+				  << "\n";
+		std::cout << "  - number of children (via view) = "
+		          << column.get()->view().num_children()
+				  << "\n";
+		describe_column(column.get()->view());
 
 		columns.emplace_back(column.release());
 	}
@@ -97,7 +118,9 @@ struct CudfBoolColumn {
 	{
 		void* data_ptr = (void *)(output.template Pointer<TagT>());
 
-		std::cout << "converting column " << i << " (bool)\n";
+		std::cout << "converting column " << i << " (bool,"
+		          << " data_ptr=" << data_ptr << " is " << memory_desc(const_cast<const void*>(data_ptr))
+		          << ")\n";
 
 		// TODO: fix code repetition
 		rmm_device_buffer_union u;
@@ -109,6 +132,9 @@ struct CudfBoolColumn {
 			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
 			u.rmm //< The column's data, as rmm::device_buffer or something convertible
 		);
+
+		// DEBUG:
+		describe_column(column.get()->view());
 
 		columns.emplace_back(column.release());
 	}
@@ -160,7 +186,8 @@ struct CudfStringColumnFromStaticMemory {
 
 		std::cout << "converting column " << i << " (string, static memory,"
 				  << " max length=" << maxCharacters << ","
-				  << " elem_size=" << elem_size
+				  << " elem_size=" << elem_size << ","
+				  << " data_ptr=" << data_ptr << " is " << memory_desc(const_cast<const void*>(data_ptr))
 				  << ")\n";
 
 		thrust::device_vector<str_pair_t> strings_info(n_elements);
@@ -172,6 +199,9 @@ struct CudfStringColumnFromStaticMemory {
 						  to_str_pair<maxCharacters>());
 
 		auto column = cudf::make_strings_column(strings_info);
+
+		// DEBUG:
+		describe_column(column.get()->view());
 
 		columns.emplace_back(column.release());
 	}
@@ -352,6 +382,14 @@ struct ParserOutputDevice
 		cudf::table table{std::move(columns)}; // std::move or std::forward
 		std::cout << "...with " << table.num_columns() << " / " << n_columns
 				  << " columns and " << table.num_rows() << " rows\n";
+
+		const auto view  = table.view();
+    	const int n_cols = table.num_columns();
+    	//printf("view is of %s type\n", typeid(view).name());
+    	for (int col_idx = 0; col_idx < n_cols; col_idx++) {
+        	printf("column(%d):\n", col_idx);
+            describe_column(view.column(col_idx));
+    	}
 
 		return table;
 	}
