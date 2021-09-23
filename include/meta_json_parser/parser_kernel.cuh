@@ -67,7 +67,7 @@ struct ParserKernel
 		const uint32_t
 	>;
 
-	static const size_t CUB_BUFFER_SIZE = 0x10000;
+	static const size_t CUB_BUFFER_SIZE = 0x1000000;
 
 	ROB* m_d_rob;
 	uint8_t* m_cub_buffer;
