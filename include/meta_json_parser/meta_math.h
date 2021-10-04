@@ -1,6 +1,7 @@
 #pragma once
 #include <boost/mp11/integral.hpp>
 #include <boost/mp11/function.hpp>
+#include <boost/mp11/algorithm.hpp>
 
 template<typename ValueT>
 struct IsPower2_impl
@@ -87,3 +88,13 @@ template<class... T> using mp_mul = typename detail::mp_mul_impl<T...>::type;
 
 }
 }
+
+template<class X, class Y>
+using Power = boost::mp11::mp_fold<
+    boost::mp11::mp_repeat<
+        boost::mp11::mp_list<X>,
+        Y
+    >,
+    boost::mp11::mp_int<1>,
+    boost::mp11::mp_mul
+>;

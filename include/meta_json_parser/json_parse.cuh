@@ -231,9 +231,102 @@ namespace JsonParse
 		>
 	>;
 
-
 	template<class OutTypeT, class KernelContextT, class CallbackFnT>
 	__device__ INLINE_METHOD ParsingError UnsignedInteger(KernelContextT& _kc, CallbackFnT&& fn)
+	{
+		static_assert(std::is_arithmetic_v<OutTypeT>, "OutTypeT must be arithmetic.");
+		using KC = KernelContextT;
+		using R = UnsignedIntegerRequests<OutTypeT>;
+		using RT = typename KC::RT;
+		using WorkGroupSize = typename RT::WorkGroupSize;
+		using OP = UnsignedIntegerOperationType<OutTypeT>;
+		static_assert(WorkGroupSize::value >= 2, "WorkGroup must have a size of at least 2.");
+
+		if (_kc.wgr.PeekChar(0) == '0')
+		{
+			char c = _kc.wgr.PeekChar(1);
+			if (HasThisByte(WHITESPACES, c) ||
+				HasThisByte(VALID_ENDING, c))
+			{
+				_kc.wgr.AdvanceBy(1);
+				if (KC::RT::WorkerId() == 0)
+					fn(OutTypeT(0));
+				return ParsingError::None;
+			}
+			return ParsingError::Other;
+		}
+		OutTypeT output = OutTypeT(0);
+
+		int activeThreads;
+		//First loop
+		{
+			char c = _kc.wgr.CurrentChar();
+			bool isEnd = HasThisByte(WHITESPACES, c) || HasThisByte(VALID_ENDING, c);
+			activeThreads = Reduce<int, WorkGroupSize>(_kc).Reduce((isEnd ? RT::WorkerId() : WorkGroupSize::value), cub::Min());
+			activeThreads = Scan<int, WorkGroupSize>(_kc).Broadcast(activeThreads, 0);
+			if (activeThreads == 0)
+				return ParsingError::Other;
+			int valid = c >= '0' && c <= '9';
+			valid = Reduce<int, WorkGroupSize>(_kc).Reduce(valid || RT::WorkerId() >= activeThreads, BitAnd());
+			valid = Scan<int, WorkGroupSize>(_kc).Broadcast(valid, 0);
+			if (!valid)
+				return ParsingError::Other;
+			OutTypeT power = OutTypeT(1);
+			if (RT::WorkerId() < activeThreads)
+			{
+				//TODO
+				//OutTypeT = static_cast<OutTypeT>(HERE SHOULD BE ACCESS TO PRECALCULATED VALUE);
+
+				//Temporary solution, for sake of correctness
+				power = 1;
+				for (int i = 0; i < (activeThreads - RT::WorkerId() - 1); ++i)
+					power *= OutTypeT(10);
+				power = static_cast<OutTypeT>(c - '0') * power;
+			}
+			output += Reduce<OP, WorkGroupSize>(_kc).Reduce(power, cub::Sum(), activeThreads);
+			_kc.wgr.AdvanceBy(activeThreads);
+		}
+
+		while (activeThreads == WorkGroupSize::value)
+		{
+			char c = _kc.wgr.CurrentChar();
+			bool isEnd = HasThisByte(WHITESPACES, c) || HasThisByte(VALID_ENDING, c);
+			activeThreads = Reduce<int, WorkGroupSize>(_kc).Reduce((isEnd ? RT::WorkerId() : WorkGroupSize::value), cub::Min());
+			activeThreads = Scan<int, WorkGroupSize>(_kc).Broadcast(activeThreads, 0);
+			// No digits/charactes in each next workgroup pass
+			if (activeThreads == 0)
+				break;
+			//Temporary solution
+			for (int i = 0; i < activeThreads; ++i)
+				output *= OutTypeT(10);
+			int valid = c >= '0' && c <= '9';
+			valid = Reduce<int, WorkGroupSize>(_kc).Reduce(valid || RT::WorkerId() >= activeThreads, BitAnd());
+			valid = Scan<int, WorkGroupSize>(_kc).Broadcast(valid, 0);
+			if (!valid)
+				return ParsingError::Other;
+			OutTypeT power = OutTypeT(1);
+			if (RT::WorkerId() < activeThreads)
+			{
+				//TODO
+				//OutTypeT = static_cast<OutTypeT>(HERE SHOULD BE ACCESS TO PRECALCULATED VALUE);
+
+				//Temporary solution, for sake of correctness
+				power = 1;
+				for (int i = 0; i < (activeThreads - RT::WorkerId() - 1); ++i)
+					power *= OutTypeT(10);
+				power = static_cast<OutTypeT>(c - '0') * power;
+			}
+			output += Reduce<OP, WorkGroupSize>(_kc).Reduce(power, cub::Sum(), activeThreads);
+			_kc.wgr.AdvanceBy(activeThreads);
+		}
+
+		if (KC::RT::WorkerId() == 0)
+			fn(output);
+		return ParsingError::None;
+	}
+
+	template<class OutTypeT, class KernelContextT, class CallbackFnT>
+	__device__ INLINE_METHOD ParsingError UnsignedIntegerFitsWorkgroup(KernelContextT& _kc, CallbackFnT&& fn)
 	{
 		static_assert(std::is_arithmetic_v<OutTypeT>, "OutTypeT must be arithmetic.");
 		using KC = KernelContextT;
@@ -264,11 +357,11 @@ namespace JsonParse
 		activeThreads = Scan<int, WorkGroupSize>(_kc).Broadcast(activeThreads, 0);
 		if (activeThreads == 0)
 			return ParsingError::Other;
-		if (activeThreads == WorkGroupSize::value)
-		{
-			//Unsupported uints larger than (GroupSize - 1) chars
-			return ParsingError::Other;
-		}
+		// It should not occur as integer should fit in work group
+		//if (activeThreads == WorkGroupSize::value)
+		//{
+		//	return ParsingError::Other;
+		//}
 		int valid = c >= '0' && c <= '9';
 		valid = Reduce<int, WorkGroupSize>(_kc).Reduce(valid || RT::WorkerId() >= activeThreads, BitAnd());
 		valid = Scan<int, WorkGroupSize>(_kc).Broadcast(valid, 0);
