@@ -88,6 +88,27 @@ enum workgroup_size { W32, W16, W8, W4 };
 enum end_of_line { unknown, unix, win };
 enum dynamic_version { v1, v2, v3 };
 
+// TODO: move to debug_helpers, maybe
+const char* workgroup_size_desc(enum workgroup_size ws)
+{
+	switch (ws) {
+	case workgroup_size::W32:
+		return "W32";
+
+	case workgroup_size::W16:
+		return "W16";
+
+	case workgroup_size::W8:
+		return "W8";
+
+	case workgroup_size::W4:
+		return "W4";
+
+	default:
+		return "<unknown>";
+	};
+}
+
 struct benchmark_input
 {
 	vector<char> data;
@@ -539,6 +560,7 @@ void main_templated(benchmark_input& input)
 	cudaEventRecord(gpu_start, stream);
 	KernelLaunchConfiguration conf = prepare_dynamic_config<BaseActionT>(input);
 	benchmark_device_buffers<BaseActionT> device_buffers = initialize_buffers_dynamic<BaseActionT>(input, &conf);
+	cout << "Workgroup size: " << workgroup_size_desc(input.wg_size) << " [" << input.wg_size << "]\n";
 	launch_kernel_dynamic<BaseActionT>(device_buffers, input.wg_size);
 	auto host_output = copy_output<BaseActionT>(device_buffers);
 	cudaEventRecord(gpu_stop, stream);
