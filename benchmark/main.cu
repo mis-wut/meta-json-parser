@@ -637,7 +637,7 @@ void parse_args(int argc, char** argv)
 	app.add_option("-V,--version", g_args.version,
 				   "Version of dynamic string parsing.\n"
 				   "1 -> old version with double copying. [default]\n"
-				   "2 -> new version with single copying."
+				   "2 -> new version with single copying.\n"
 				   "3 -> new version with double copying and double buffer.")
 		->option_text("VERSION")
 		->transform(CLI::CheckedTransformer(versions_map))
