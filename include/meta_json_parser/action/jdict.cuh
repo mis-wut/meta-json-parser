@@ -17,9 +17,33 @@ namespace JDictOpts {
 	struct ConstOrder {};
 }
 
+namespace __JDict_internal {
+    template<class JDictT, class = void>
+    struct InvokeDispatch
+    {
+        template<class KernelContextT>
+        static __device__ __forceinline__ ParsingError dispatch(KernelContextT& kc)
+        {
+            return JDictT::invoke_base(kc);
+        }
+    };
+
+    //Temporary solution due to Visual studio compile issues
+    template<class JDictT>
+    struct InvokeDispatch<JDictT, boost::mp11::mp_list<JDictOpts::ConstOrder>>
+    {
+        template<class KernelContextT>
+        static __device__ __forceinline__ ParsingError dispatch(KernelContextT& kc)
+        {
+            return JDictT::invoke_const_order(kc);
+        }
+    };
+}
+
 template<class EntriesList, class OptionsT = boost::mp11::mp_list<>>
 struct JDict
 {
+    using type = JDict<EntriesList, OptionsT>;
 	using Options = OptionsT;
 	using Children = boost::mp11::mp_transform<
 		boost::mp11::mp_second,
@@ -35,6 +59,9 @@ struct JDict
 	>;
 	static_assert(UniqueKeys::value, "Keys must be unique in JDict.");
 	static_assert(boost::mp11::mp_size<JDict>::value, "JDict needs at least 1 entry.");
+
+    template<class JDictT, class>
+    friend struct __JDict_internal::InvokeDispatch;
 
 	struct KeyWriter
 	{
@@ -332,31 +359,11 @@ private:
 		return ParsingError::None;
 	}
 
-	template<class = void>
-	struct InvokeDispatch
-	{
-		template<class KernelContextT>
-		static __device__ __forceinline__ ParsingError dispatch(KernelContextT& kc)
-		{
-			return invoke_base(kc);
-		}
-	};
-
-	//Temporary solution due to Visual studio compile issues
-	template<>
-	struct InvokeDispatch<boost::mp11::mp_list<JDictOpts::ConstOrder>>
-	{
-		template<class KernelContextT>
-		static __device__ __forceinline__ ParsingError dispatch(KernelContextT& kc)
-		{
-			return invoke_const_order(kc);
-		}
-	};
-
 public:
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
-		return InvokeDispatch<Options>::dispatch(kc);
+
+        return __JDict_internal::InvokeDispatch<type, Options>::dispatch(kc);
 	}
 };
