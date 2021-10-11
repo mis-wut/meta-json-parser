@@ -28,7 +28,7 @@ struct no_error {
 	}
 };
 
-template<int GroupSizeT>
+template<int GroupSizeT, class DictOpts>
 void templated_ParseBookJson()
 {
 	const size_t INPUT_T = 0x8001;
@@ -67,18 +67,23 @@ void templated_ParseBookJson()
 		mp_list<K_author,      JStringStaticCopy<mp_int<B_author     >, K_author     >>,
 		mp_list<K_published,   JStringStaticCopy<mp_int<B_published  >, K_published  >>,
 		mp_list<K_publisher,   JStringStaticCopy<mp_int<B_publisher  >, K_publisher  >>,
-		mp_list<K_description, JStringStaticCopy<mp_int<B_description>, K_description>>,
-		mp_list<K_website,     JStringStaticCopy<mp_int<B_website    >, K_website    >>,
 		//                                      |OutputType           | OutputTag    |
-		mp_list<K_pages,       JNumber          <uint32_t,              K_pages      >>
-	>>;
+		mp_list<K_pages,       JNumber          <uint32_t,              K_pages      >>,
+		//                                      | Bytes to copy       | OutputTag    |
+		mp_list<K_description, JStringStaticCopy<mp_int<B_description>, K_description>>,
+		mp_list<K_website,     JStringStaticCopy<mp_int<B_website    >, K_website    >>
+	>,
+		DictOpts
+	>;
 	using A_book_array = JArray<mp_list<
 		//Pair < Index   , Action      >
 		mp_list<mp_int<0>, A_book_entry>
 	>>;
 	using BA = JDict<mp_list<
 		mp_list<K_books, A_book_array>
-	>>;
+	>,
+		DictOpts
+	>;
 	using PC = ParserConfiguration<RT, BA>;
 	using PK = ParserKernel<PC>;
 	const char* json_format =
@@ -217,7 +222,10 @@ void templated_ParseBookJson()
 
 #define META_book_tests(WS)\
 TEST_F(ParseBookJson, parsing_book_json_W##WS) {\
-	templated_ParseBookJson<WS>();\
+	templated_ParseBookJson<WS, boost::mp11::mp_list<>>();\
+}\
+TEST_F(ParseBookJson, parsing_book_json_constant_order_W##WS) {\
+	templated_ParseBookJson<WS, boost::mp11::mp_list<JDictOpts::ConstOrder>>();\
 }
 
 META_WS_4(META_book_tests)
