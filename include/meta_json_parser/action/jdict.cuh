@@ -148,11 +148,6 @@ private:
 				if (err != ParsingError::None)
 					return;
 				int stringReadIdx = 0;
-				// OUTER_I | keyMask
-				// 0       | 0xFF'00'00'00
-				// 1       | 0x00'FF'00'00
-				// 2       | 0x00'00'FF'00
-				// 3       | 0x00'00'00'FF
 				bool keyMatch = true;
 				err = JsonParse::String(kc, [&](bool& isEscaped, int& activeThreads) {
 					char c = kc.wgr.CurrentChar();
@@ -170,11 +165,12 @@ private:
 						key = static_cast<char>(key4);
 					}
 
-					keyMatch &= key == (threadIdx.x < activeThreads ? c : '\0');
+					keyMatch &= key == (RT::WorkerId() < activeThreads ? c : '\0');
 					keyMatch = kc.wgr.all_sync(keyMatch);
 					++stringReadIdx;
 					return keyMatch ? ParsingError::None : ParsingError::Other;
 				});
+                __syncwarp();
 				if (err != ParsingError::None)
 					return;
 				err = Parse::FindNext<':', WS>::KC(kc).template Do<Parse::StopTag::StopAfter>();
