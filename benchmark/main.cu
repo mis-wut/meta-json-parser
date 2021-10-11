@@ -10,6 +10,9 @@
 #include <cstdlib>
 #include <cuda_runtime_api.h>
 #include <thrust/logical.h>
+#include <boost/mp11/set.hpp>
+#include <boost/mp11/list.hpp>
+#include <boost/mp11/algorithm.hpp>
 #include <meta_json_parser/parser_output_device.cuh>
 #include <meta_json_parser/output_printer.cuh>
 #include <meta_json_parser/memory_configuration.h>
@@ -50,43 +53,48 @@ using K_L1_3_lon = mp_string<'3', '_', 'l', 'o', 'n'>;
 using K_L1_3_is_checked = mp_string<'3', '_', 'i', 's', '_', 'c', 'h', 'e', 'c', 'k', 'e', 'd'>;
 using K_L1_3_name = mp_string<'3', '_', 'n', 'a', 'm', 'e'>;
 
-#define STR_FUN_STA(KEY, SIZE) JStringStaticCopy<mp_int<SIZE>, KEY>
-#define STR_FUN_DYN(KEY, ...) JStringDynamicCopy<KEY>
-#define STR_FUN_DYN_V2(KEY, ...) JStringDynamicCopyV2<KEY>
-#define STR_FUN_DYN_V3(KEY, ...) JStringDynamicCopyV3<KEY>
+template<class Key, int Size>
+using StaticCopyFun = JStringStaticCopy<mp_int<Size>, Key>;
 
-#define GET_ACTION(STR_FUN)\
-JDict < mp_list <\
-	mp_list<K_L1_date, STR_FUN(K_L1_date, 32)>,\
-	mp_list<K_L1_lat, JNumber<uint32_t, K_L1_lat>>,\
-	mp_list<K_L1_lon, JNumber<uint32_t, K_L1_lon>>,\
-	mp_list<K_L1_is_checked, JBool<uint8_t, K_L1_is_checked>>,\
-	mp_list<K_L1_name, STR_FUN(K_L1_name, 32)>,\
-	mp_list<K_L1_1_date, STR_FUN(K_L1_1_date, 32)>,\
-	mp_list<K_L1_1_lat, JNumber<uint32_t, K_L1_1_lat>>,\
-	mp_list<K_L1_1_lon, JNumber<uint32_t, K_L1_1_lon>>,\
-	mp_list<K_L1_1_is_checked, JBool<uint8_t, K_L1_1_is_checked>>,\
-	mp_list<K_L1_1_name, STR_FUN(K_L1_1_name, 32)>,\
-	mp_list<K_L1_2_date, STR_FUN(K_L1_2_date, 32)>,\
-	mp_list<K_L1_2_lat, JNumber<uint32_t, K_L1_2_lat>>,\
-	mp_list<K_L1_2_lon, JNumber<uint32_t, K_L1_2_lon>>,\
-	mp_list<K_L1_2_is_checked, JBool<uint8_t, K_L1_2_is_checked>>,\
-	mp_list<K_L1_2_name, STR_FUN(K_L1_2_name, 32)>,\
-	mp_list<K_L1_3_date, STR_FUN(K_L1_3_date, 32)>,\
-	mp_list<K_L1_3_lat, JNumber<uint32_t, K_L1_3_lat>>,\
-	mp_list<K_L1_3_lon, JNumber<uint32_t, K_L1_3_lon>>,\
-	mp_list<K_L1_3_is_checked, JBool<uint8_t, K_L1_3_is_checked>>,\
-	mp_list<K_L1_3_name, STR_FUN(K_L1_3_name, 32)>\
->>
+template<class Key, int Size>
+using DynamicV1CopyFun = JStringDynamicCopy<Key>;
 
-using BaseActionStatic = GET_ACTION(STR_FUN_STA);
-using BaseActionDynamic = GET_ACTION(STR_FUN_DYN);
-using BaseActionDynamicV2 = GET_ACTION(STR_FUN_DYN_V2);
-using BaseActionDynamicV3 = GET_ACTION(STR_FUN_DYN_V3);
+template<class Key, int Size>
+using DynamicV2CopyFun = JStringDynamicCopyV2<Key>;
+
+template<class Key, int Size>
+using DynamicV3CopyFun = JStringDynamicCopyV3<Key>;
+
+template<template<class, int> class StringFun, class DictOpts>
+using DictCreator = JDict < mp_list <
+	mp_list<K_L1_date, StringFun<K_L1_date, 32>>,
+	mp_list<K_L1_lat, JNumber<uint32_t, K_L1_lat>>,
+	mp_list<K_L1_lon, JNumber<uint32_t, K_L1_lon>>,
+	mp_list<K_L1_is_checked, JBool<uint8_t, K_L1_is_checked>>,
+	mp_list<K_L1_name, StringFun<K_L1_name, 32>>,
+	mp_list<K_L1_1_date, StringFun<K_L1_1_date, 32>>,
+	mp_list<K_L1_1_lat, JNumber<uint32_t, K_L1_1_lat>>,
+	mp_list<K_L1_1_lon, JNumber<uint32_t, K_L1_1_lon>>,
+	mp_list<K_L1_1_is_checked, JBool<uint8_t, K_L1_1_is_checked>>,
+	mp_list<K_L1_1_name, StringFun<K_L1_1_name, 32>>,
+	mp_list<K_L1_2_date, StringFun<K_L1_2_date, 32>>,
+	mp_list<K_L1_2_lat, JNumber<uint32_t, K_L1_2_lat>>,
+	mp_list<K_L1_2_lon, JNumber<uint32_t, K_L1_2_lon>>,
+	mp_list<K_L1_2_is_checked, JBool<uint8_t, K_L1_2_is_checked>>,
+	mp_list<K_L1_2_name, StringFun<K_L1_2_name, 32>>,
+	mp_list<K_L1_3_date, StringFun<K_L1_3_date, 32>>,
+	mp_list<K_L1_3_lat, JNumber<uint32_t, K_L1_3_lat>>,
+	mp_list<K_L1_3_lon, JNumber<uint32_t, K_L1_3_lon>>,
+	mp_list<K_L1_3_is_checked, JBool<uint8_t, K_L1_3_is_checked>>,
+	mp_list<K_L1_3_name, StringFun<K_L1_3_name, 32>>
+>,
+	DictOpts
+> ;
 
 enum workgroup_size { W32, W16, W8, W4 };
 enum end_of_line { unknown, unix, win };
 enum dynamic_version { v1, v2, v3 };
+enum dictionary_assumption { none, const_order };
 
 // TODO: move to debug_helpers, maybe
 const char* workgroup_size_desc(enum workgroup_size ws)
@@ -140,6 +148,7 @@ struct cmd_args {
 	bool error_check;
 	int bytes_per_string;
 	dynamic_version version;
+	dictionary_assumption dict_assumption;
 } g_args;
 
 chrono::high_resolution_clock::time_point cpu_start;
@@ -480,35 +489,45 @@ KernelLaunchConfiguration prepare_dynamic_config(benchmark_input& input)
 {
 	KernelLaunchConfiguration conf;
 
-	using DynamicStringActions = boost::mp11::mp_copy_if_q<
+	using DynamicStringActions = mp_copy_if_q<
 		ActionIterator<BaseActionT>,
-		boost::mp11::mp_bind<
-			boost::mp11::mp_similar,
-			boost::mp11::mp_if<
-				boost::mp11::mp_same<BaseActionT, BaseActionDynamic>,
-				JStringDynamicCopy<void>,
-				JStringDynamicCopyV2<void>
-			>,
-			boost::mp11::_1
+		mp_bind<
+			mp_similar,
+			JStringDynamicCopy<void>,
+			_1
 		>
 	>;
 
-	using DynamicStringActionsV3 = boost::mp11::mp_copy_if_q<
+	using DynamicStringActionsV2 = mp_copy_if_q<
 		ActionIterator<BaseActionT>,
-		boost::mp11::mp_bind<
-			boost::mp11::mp_similar,
+		mp_bind<
+			mp_similar,
+			JStringDynamicCopyV2<void>,
+			_1
+		>
+	>;
+
+	using DynamicStringActionsV3 = mp_copy_if_q<
+		ActionIterator<BaseActionT>,
+		mp_bind<
+			mp_similar,
 			JStringDynamicCopyV3<void>,
-			boost::mp11::_1
+			_1
 		>
 	>;
 
-	boost::mp11::mp_for_each<DynamicStringActions>([&conf, &input](auto a) {
+	mp_for_each<
+		mp_append<
+			DynamicStringActions,
+			DynamicStringActionsV2
+		>
+	>([&conf, &input](auto a) {
 		using Action = decltype(a);
 		using Tag = typename Action::DynamicStringRequestTag;
 		conf.SetDynamicSize<BaseActionT, Tag>(input.bytes_per_string);
 	});
 
-	boost::mp11::mp_for_each<DynamicStringActionsV3>([&conf, &input](auto a) {
+	mp_for_each<DynamicStringActionsV3>([&conf, &input](auto a) {
 		using Action = decltype(a);
 		using TagInternal = typename Action::DynamicStringInternalRequestTag;
 		conf.SetDynamicSize<BaseActionT, TagInternal>(input.bytes_per_string);
@@ -571,15 +590,29 @@ void main_templated(benchmark_input& input)
 		to_csv<BaseActionT>(host_output);
 }
 
-int main(int argc, char** argv)
-{
-	init_gpu();
-	parse_args(argc, argv);
-	benchmark_input input = get_input();
+template<template<class, int> class StrFun>
+void select_dict_opts(benchmark_input& input) {
+	switch (g_args.dict_assumption)
+	{
+	case dictionary_assumption::none:
+		cout << "Assumptions: none\n";
+		main_templated<DictCreator<StrFun, mp_list<>>>(input);
+		return;
+	case dictionary_assumption::const_order:
+		cout << "Assumptions: constant order\n";
+		main_templated<DictCreator<StrFun, mp_list<JDictOpts::ConstOrder>>>(input);
+		return;
+	default:
+		cerr << "Fatal. Unknown dictionary assumption.\n";
+		break;
+	}
+}
+
+void select_string_function(benchmark_input& input) {
 	if (input.bytes_per_string == 0)
 	{
 		cout << "Using STATIC string copy.\n";
-		main_templated<BaseActionStatic>(input);
+		select_dict_opts<StaticCopyFun>(input);
 	}
 	else
 	{
@@ -587,21 +620,29 @@ int main(int argc, char** argv)
 		{
 		case dynamic_version::v1:
 			cout << "Using DYNAMIC V1 string copy.\n";
-			main_templated<BaseActionDynamic>(input);
+			select_dict_opts<DynamicV1CopyFun>(input);
 			break;
 		case dynamic_version::v2:
 			cout << "Using DYNAMIC V2 string copy.\n";
-			main_templated<BaseActionDynamicV2>(input);
+			select_dict_opts<DynamicV2CopyFun>(input);
 			break;
 		case dynamic_version::v3:
 			cout << "Using DYNAMIC V3 string copy.\n";
-			main_templated<BaseActionDynamicV3>(input);
+			select_dict_opts<DynamicV3CopyFun>(input);
 			break;
 		default:
 			cerr << "Fatal. Unknown dynamic algorithm chosen.\n";
 			break;
 		}
 	}
+}
+
+int main(int argc, char** argv)
+{
+	init_gpu();
+	parse_args(argc, argv);
+	benchmark_input input = get_input();
+	select_string_function(input);
 	return 0;
 }
 
@@ -632,9 +673,15 @@ void parse_args(int argc, char** argv)
         {"2", dynamic_version::v2},
         {"3", dynamic_version::v3}
 	};
+
+	std::map<bool, dictionary_assumption> assumption_map{
+		{false, dictionary_assumption::none},
+		{true, dictionary_assumption::const_order}
+	};
 	// defaults
 	g_args.error_check = false;
 	g_args.wg_size = workgroup_size::W32;
+	g_args.dict_assumption = dictionary_assumption::none;
 
 	app.add_option("JSONLINES_FILE", g_args.filename,
 	               "NDJSON / JSONL input file to parse.")
@@ -656,6 +703,9 @@ void parse_args(int argc, char** argv)
 	app.add_flag("-b,--error-checking", g_args.error_check,
 	             "Enable error check. If there was a parsing error,\n"
 	             "a message will be printed.");
+	app.add_flag("--const-order", g_args.dict_assumption,
+				 "Parses json with an assumption of keys in a constant order")
+		->transform(CLI::CheckedTransformer(assumption_map));
 	app.add_option("-V,--version", g_args.version,
 				   "Version of dynamic string parsing.\n"
 				   "1 -> old version with double copying. [default]\n"

@@ -13,9 +13,14 @@
 #include <meta_json_parser/kernel_launch_configuration.cuh>
 #include <type_traits>
 
-template<class EntriesList>
+namespace JDictOpts {
+	struct ConstOrder {};
+}
+
+template<class EntriesList, class OptionsT = boost::mp11::mp_list<>>
 struct JDict
 {
+	using Options = OptionsT;
 	using Children = boost::mp11::mp_transform<
 		boost::mp11::mp_second,
 		EntriesList
@@ -86,8 +91,106 @@ struct JDict
 		ReduceRequest<uint32_t>
 	>;
 
+private:
 	template<class KernelContextT>
-	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
+	static __device__ __forceinline__ ParsingError invoke_const_order(KernelContextT& kc)
+	{
+		using KC = KernelContextT;
+		using RT = typename KC::RT;
+		using WS = typename RT::WorkGroupSize;
+		ParsingError err = ParsingError::None;
+		if (kc.wgr.PeekChar(0) != '{')
+			return ParsingError::Other;
+		kc.wgr.AdvanceBy(1);
+		char c;
+		err = Parse::FindNoneWhite<WS>::KC(kc).template Do<Parse::StopTag::StopAt>();
+		if (err != ParsingError::None)
+			return err;
+		boost::mp11::mp_for_each<Keys>([&](auto key) {
+			if (err != ParsingError::None)
+				return;
+			using Key = decltype(key);
+			using KeyPos = boost::mp11::mp_find<Keys, Key>;
+			typename KeyWriter::Buffer& keys = kc.m3
+				.template Receive<KeyRequest>()
+				.template Alias<typename KeyWriter::Buffer>();
+			constexpr int OUTER_LOOPS = (KeyWriter::KeyCount::value + 31) / 32;
+			constexpr uint32_t keyMask = (0xFFu << (3 - (KeyPos::value % 4)) * 8);
+			static_assert(OUTER_LOOPS == 1, "JDict currently is hardcoded for max 32 keys.");
+			boost::mp11::mp_for_each<boost::mp11::mp_iota_c<OUTER_LOOPS>>([&](auto i) {
+				if (err != ParsingError::None)
+					return;
+				int stringReadIdx = 0;
+				// OUTER_I | keyMask
+				// 0       | 0xFF'00'00'00
+				// 1       | 0x00'FF'00'00
+				// 2       | 0x00'00'FF'00
+				// 3       | 0x00'00'00'FF
+				bool keyMatch = true;
+				err = JsonParse::String(kc, [&](bool& isEscaped, int& activeThreads) {
+					char c = kc.wgr.CurrentChar();
+					char key = '\0';
+					if (stringReadIdx * RT::GroupSize() + RT::WorkerId() < KeyWriter::Longest::value)
+					{
+						//Each row contains 4 combined keys.
+						uint32_t key4 = reinterpret_cast<uint32_t*>(&keys)[
+							KeyWriter::Longest::value * (KeyPos::value / 4) + //Key offset
+							stringReadIdx * RT::GroupSize() + //In-key offset
+							RT::WorkerId() //Thread offset
+						];
+						key4 &= keyMask;
+						key4 >>= (3 - (KeyPos::value % 4)) * 8;
+						key = static_cast<char>(key4);
+					}
+
+					keyMatch &= key == (threadIdx.x < activeThreads ? c : '\0');
+					keyMatch = kc.wgr.all_sync(keyMatch);
+					++stringReadIdx;
+					return keyMatch ? ParsingError::None : ParsingError::Other;
+				});
+				if (err != ParsingError::None)
+					return;
+				err = Parse::FindNext<':', WS>::KC(kc).template Do<Parse::StopTag::StopAfter>();
+				if (err != ParsingError::None)
+					return;
+				err = Parse::FindNoneWhite<WS>::KC(kc).template Do<Parse::StopTag::StopAt>();
+				if (err != ParsingError::None)
+					return;
+				using Action = boost::mp11::mp_second<boost::mp11::mp_map_find<
+					EntriesList,
+					Key
+					>>;
+				err = Action::Invoke(kc);
+				return;
+			});
+			if (err != ParsingError::None)
+				return;
+			err = Parse::FindNoneWhite<WS>::KC(kc).template Do<Parse::StopTag::StopAt>();
+			if (err != ParsingError::None)
+				return;
+			c = kc.wgr.PeekChar(0);
+			kc.wgr.AdvanceBy(1);
+			if (c != boost::mp11::mp_if_c <
+				KeyPos::value < boost::mp11::mp_size<Keys>::value - 1,
+				std::integral_constant<char, ','>,
+				std::integral_constant<char, '}'>
+				>::value)
+			{
+				err = ParsingError::Other;
+				return;
+			}
+			if (KeyPos::value < boost::mp11::mp_size<Keys>::value - 1)
+			{
+				err = Parse::FindNext<'"', WS>::KC(kc).template Do<Parse::StopTag::StopAt>();
+				if (err != ParsingError::None)
+					return;
+			}
+		});
+		return err;
+	}
+
+	template<class KernelContextT>
+	static __device__ __forceinline__ ParsingError invoke_base(KernelContextT& kc)
 	{
 		using KC = KernelContextT;
 		using RT = typename KC::RT;
@@ -227,5 +330,33 @@ struct JDict
 				return err;
 		} while (true);
 		return ParsingError::None;
+	}
+
+	template<class = void>
+	struct InvokeDispatch
+	{
+		template<class KernelContextT>
+		static __device__ __forceinline__ ParsingError dispatch(KernelContextT& kc)
+		{
+			return invoke_base(kc);
+		}
+	};
+
+	//Temporary solution due to Visual studio compile issues
+	template<>
+	struct InvokeDispatch<boost::mp11::mp_list<JDictOpts::ConstOrder>>
+	{
+		template<class KernelContextT>
+		static __device__ __forceinline__ ParsingError dispatch(KernelContextT& kc)
+		{
+			return invoke_const_order(kc);
+		}
+	};
+
+public:
+	template<class KernelContextT>
+	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
+	{
+		return InvokeDispatch<Options>::dispatch(kc);
 	}
 };

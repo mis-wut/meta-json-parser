@@ -19,7 +19,7 @@ public:
 #endif
 };
 
-template<class Key1T, class OutType1T, class Key2T, class OutType2T>
+template<class Key1T, class OutType1T, class Key2T, class OutType2T, bool RandomOrder = true>
 struct TestContextJDict2UInt {
 	thrust::host_vector<OutType1T> h_correct_1;
 	thrust::host_vector<OutType2T> h_correct_2;
@@ -88,7 +88,7 @@ struct TestContextJDict2UInt {
 			auto x2 = static_cast<long long unsigned int>(h_correct_2[i]);
 			char* k1 = key_1.data();
 			char* k2 = key_2.data();
-			if (dist_1(rng) & 0x1)
+			if (RandomOrder && dist_1(rng) & 0x1)
 			{
 				std::swap(x1, x2);
 				std::swap(k1, k2);
@@ -115,7 +115,7 @@ struct no_error {
 	}
 };
 
-template<class OutType1T, class OutType2T, int GroupSizeT>
+template<class OutType1T, class OutType2T, int GroupSizeT, class DictOpts>
 void templated_ParseDict2UInt(ParseJDictTest &test)
 {
 	using GroupSize = boost::mp11::mp_int<GroupSizeT>;
@@ -125,10 +125,13 @@ void templated_ParseDict2UInt(ParseJDictTest &test)
 	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
 	using Key1 = boost::mp11::mp_string<'K', 'e', 'y', ' ', 'n', 'u', 'm', ' ', 'o', 'n', 'e'>;
 	using Key2 = boost::mp11::mp_string<'S', 'e', 'c', 'o', 'n', 'd', ' ', 'k', 'e', 'y'>;
-	using BA = JDict<boost::mp11::mp_list<
-		boost::mp11::mp_list<Key1, JNumber<OutType1T, Key1>>,
-		boost::mp11::mp_list<Key2, JNumber<OutType2T, Key2>>
-	>>;
+	using BA = JDict<
+		boost::mp11::mp_list<
+			boost::mp11::mp_list<Key1, JNumber<OutType1T, Key1>>,
+			boost::mp11::mp_list<Key2, JNumber<OutType2T, Key2>>
+		>,
+		DictOpts
+	>;
 	using PC = ParserConfiguration<RT, BA>;
 	using PK = ParserKernel<PC>;
 	using M3 = typename PK::M3;
@@ -136,7 +139,8 @@ void templated_ParseDict2UInt(ParseJDictTest &test)
 	thrust::host_vector<BUF> h_buff(1);
 	M3::FillReadOnlyBuffer(h_buff[0], nullptr);
 	const size_t INPUT_T = ParseJDictTest::TEST_SIZE;
-	TestContextJDict2UInt<Key1, OutType1T, Key2, OutType2T> context(INPUT_T, GROUP_SIZE);
+	using ConstOrder = std::is_same<DictOpts, boost::mp11::mp_list<JDictOpts::ConstOrder>>;
+	TestContextJDict2UInt<Key1, OutType1T, Key2, OutType2T, !ConstOrder::value> context(INPUT_T, GROUP_SIZE);
 	const unsigned int BLOCKS_COUNT = (INPUT_T + GROUP_COUNT - 1) / GROUP_COUNT;
 	thrust::device_vector<BUF> d_buff(h_buff);
 	thrust::device_vector<ParsingError> d_err(INPUT_T);
@@ -168,16 +172,28 @@ void templated_ParseDict2UInt(ParseJDictTest &test)
 
 #define META_dict_tests(WS)\
 TEST_F(ParseJDictTest, uint8_uint32_W##WS) {\
-	templated_ParseDict2UInt<uint8_t, uint32_t, WS>(*this);\
+	templated_ParseDict2UInt<uint8_t, uint32_t, WS, boost::mp11::mp_list<>>(*this);\
 }\
 TEST_F(ParseJDictTest, uint64_uint16_W##WS) {\
-	templated_ParseDict2UInt<uint64_t, uint16_t, WS>(*this);\
+	templated_ParseDict2UInt<uint64_t, uint16_t, WS, boost::mp11::mp_list<>>(*this);\
 }\
 TEST_F(ParseJDictTest, uint64_uint64_W##WS) {\
-	templated_ParseDict2UInt<uint64_t, uint64_t, WS>(*this);\
+	templated_ParseDict2UInt<uint64_t, uint64_t, WS, boost::mp11::mp_list<>>(*this);\
 }\
 TEST_F(ParseJDictTest, uint8_uint8_W##WS) {\
-	templated_ParseDict2UInt<uint8_t, uint8_t, WS>(*this);\
+	templated_ParseDict2UInt<uint8_t, uint8_t, WS, boost::mp11::mp_list<>>(*this);\
+}\
+TEST_F(ParseJDictTest, uint8_uint32_const_order_W##WS) {\
+	templated_ParseDict2UInt<uint8_t, uint32_t, WS, boost::mp11::mp_list<JDictOpts::ConstOrder>>(*this);\
+}\
+TEST_F(ParseJDictTest, uint64_uint16_const_order_W##WS) {\
+	templated_ParseDict2UInt<uint64_t, uint16_t, WS, boost::mp11::mp_list<JDictOpts::ConstOrder>>(*this);\
+}\
+TEST_F(ParseJDictTest, uint64_uint64_const_order_W##WS) {\
+	templated_ParseDict2UInt<uint64_t, uint64_t, WS, boost::mp11::mp_list<JDictOpts::ConstOrder>>(*this);\
+}\
+TEST_F(ParseJDictTest, uint8_uint8_const_order_W##WS) {\
+	templated_ParseDict2UInt<uint8_t, uint8_t, WS, boost::mp11::mp_list<JDictOpts::ConstOrder>>(*this);\
 }
 
 META_WS_4(META_dict_tests)
