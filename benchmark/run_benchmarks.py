@@ -67,6 +67,14 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 
 	click.echo(f"Using '{click.format_filename(exec_path)}' executable")
 	click.echo(f"('{exec_path.resolve()}')")
+	click.echo(f"  --workspace-size={ws}")
+	click.echo(f"  --const-order={const_order}")
+	if str_size is not None:
+		click.echo(f"  --max-string-size={str_size}")
+		click.echo(f"  --version={version}")
+	else:
+		click.echo(f"  --version={version} (ignored)")
+
 	check_exec(exec_path)
 	click.echo(f"JSON files from '{click.format_filename(json_dir)}' directory")
 	check_json_dir(json_dir)
