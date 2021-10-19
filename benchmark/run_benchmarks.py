@@ -90,11 +90,14 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 	with click.progressbar(sizes, label='number of objects') as sizes_list:
 		for size in sizes_list:
 			json_file = json_dir / pattern.format(n=size)
+			exec_args = [
+				exec_path, json_file, str(size),
+				f"--workspace-size={ws}",
+				f"--const-order={const_order}",
+				f"--version={version}",
+			]
 			process = subprocess.Popen(
-				[exec_path, json_file, str(size),
-				 f"--workspace-size={ws}",
-				 f"--const-order={const_order}",
-				 f"--version={version}"],
+				exec_args,
 				stdout=subprocess.PIPE
 			)
 			lines = process.stdout.read().decode('utf-8').split('\n')
