@@ -55,11 +55,14 @@ def time_ns(s):
               type=click.Choice(['0', '1']), show_choices=True,
               default='0', show_default=True)
 @click.option('-V', '--version', # NOTE: conflicts with same option for version of script
-              help="Version of dynamic string parsing."	,
+              help='Version of dynamic string parsing.',
               type=click.IntRange(1, 3), # inclusive
               default='1', show_default=True)
+@click.option('-s', '--max-string-size', 'str_size',
+              help='Bytes allocated per dynamic string.  Turns on dynamic strings.',
+              type=click.IntRange(min=1))
 def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
-         ws, const_order, version):
+         ws, const_order, version, str_size):
     ### run as script
 
 	click.echo(f"Using '{click.format_filename(exec_path)}' executable")
@@ -96,6 +99,8 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 				f"--const-order={const_order}",
 				f"--version={version}",
 			]
+			if str_size is not None:
+				exec_args.append(f"--max-string-size={str_size}")
 			process = subprocess.Popen(
 				exec_args,
 				stdout=subprocess.PIPE
@@ -104,6 +109,7 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 			result = {
 				'json file': json_file.name,
 				'number of objects': size,
+				'max string size': str_size,
 			}
 
 			results.append(parse_run_output(lines, result))
