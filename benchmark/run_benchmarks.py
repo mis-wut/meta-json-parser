@@ -33,44 +33,74 @@ def time_ns(s):
 @click.option('--pattern', help="JSON file name pattern, using {n} placeholder",
               default="sample_{n}.json", show_default=True)
 @click.option('--size', '--n_objects', 'size_arg',
-              help="Number of objects in JSON file to use",
+              help="Number of objects in JSON file to use, or 'scan'",
               default="10")
 @click.option('--output-csv', # uses path_type=click.Path (and not click.File) to support '--append'
               type=click.Path(dir_okay=False, path_type=pathlib.Path),
 			  help="Output file in CSV format",
-			  default="benchmark.csv")
+			  default="benchmark.csv", show_default=True)
 @click.option('--append/--no-append', default=False,
               help="Append to output file (no header)")
 def main(exec, json_dir, pattern, size_arg, output_csv, append):
 	### run as script
 
 	click.echo(f"Using '{click.format_filename(exec)}' executable")
+	click.echo(f"('{exec.resolve()}')")
 	check_exec(exec)
 	click.echo(f"JSON files from '{click.format_filename(json_dir)}' directory")
 	check_json_dir(json_dir)
 	
 	if size_arg.isdigit():
-		size = size_arg
+		sizes = [size_arg]
+	elif size_arg == 'scan':
+		sizes = range(100000, 900000+1, 100000)
 	else:
-		size = 10
+		sizes = [10]
 
-	json_file = json_dir / pattern.format(n=size)
-	click.echo(f"Input file is '{json_file}' with {size} objects")
+	if size_arg != 'scan':
+		size = sizes[0]
+		json_file = json_dir / pattern.format(n=size)
+		click.echo(f"Input file is '{json_file}' with {size} objects")
 
 	#if not json_file.is_file():
 	#	click.echo(f"... is not a file")
 	#	exit
 	
-	process = subprocess.Popen(
-		[exec.resolve(), json_file, size],
-		stdout=subprocess.PIPE
-	)
-	lines = process.stdout.read().decode('utf-8').split('\n')
-	results = {
-		'json file': json_file.name,
-		'number of objects': int(size, base=10),
-	}
+	results = []
+	exec = exec.resolve()
 
+	with click.progressbar(sizes, label='number of objects') as sizes_list:
+		for size in sizes_list:
+			json_file = json_dir / pattern.format(n=size)
+			process = subprocess.Popen(
+				[exec, json_file, str(size)],
+				stdout=subprocess.PIPE
+			)
+			lines = process.stdout.read().decode('utf-8').split('\n')
+			result = {
+				'json file': json_file.name,
+				'number of objects': int(size, base=10) if type(size) is str else size,
+			}
+
+			results.append(parse_run_output(lines, result))
+
+
+	no_header = False
+	if output_csv.exists() and append:
+		no_header = True
+
+	print(f"Writing benchmarks results to '{output_csv.name}'")
+	with output_csv.open('a' if append else 'w') as csv_file:
+		csv_writer = csv.DictWriter(csv_file, fieldnames=results[0].keys(), dialect='unix')
+
+		if not no_header:
+			csv_writer.writeheader()
+
+		for result in results:
+			csv_writer.writerow(result)
+
+
+def parse_run_output(lines, results = {}):
 	re_string_handling = re.compile('Using (.*) string copy')
 	re_assumptions     = re.compile('Assumptions: (.*)')
 	re_workgroup_size  = re.compile('Workgroup size: W([0-9]*)')
@@ -133,20 +163,7 @@ def main(exec, json_dir, pattern, size_arg, output_csv, append):
 		if match:
 			results['Total time measured by CPU [ns]'] = time_ns(match.group(1))
 
-
-	no_header = False
-	if output_csv.exists() and append:
-		no_header = True
-
-	with output_csv.open('a' if append else 'w') as csv_file:
-		csv_writer = csv.DictWriter(csv_file, fieldnames=results.keys(), dialect='unix')
-
-		if not no_header:
-			csv_writer.writeheader()
-
-		csv_writer.writerow(results)
-
-
+	return results
 
 
 if __name__ == '__main__':
