@@ -20,6 +20,7 @@ def check_json_dir(json_dir):
 
 
 def time_ns(s):
+	"""Convert time in nanoseconds as string to a number"""
 	# int64_t gpu_total = static_cast<int64_t>(ms * 1'000'000.0);
 	return int(s, base=10)
 
@@ -54,7 +55,7 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append):
 	check_json_dir(json_dir)
 	
 	if size_arg.isdigit():
-		sizes = [size_arg]
+		sizes = [int(size_arg, base=10)]
 	elif size_arg == 'scan':
 		sizes = range(100000, 900000+1, 100000)
 	else:
@@ -82,7 +83,7 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append):
 			lines = process.stdout.read().decode('utf-8').split('\n')
 			result = {
 				'json file': json_file.name,
-				'number of objects': int(size, base=10) if type(size) is str else size,
+				'number of objects': size,
 			}
 
 			results.append(parse_run_output(lines, result))
@@ -93,7 +94,7 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append):
 
 	print(f"Writing benchmarks results to '{output_csv.name}'")
 	with output_csv.open('a' if append else 'w') as csv_file:
-		csv_writer = csv.DictWriter(csv_file, fieldnames=results[0].keys(), dialect='unix')
+		csv_writer = csv.DictWriter(csv_file, fieldnames=list(results[0].keys()), dialect='unix')
 
 		if not no_header:
 			csv_writer.writeheader()
@@ -102,7 +103,7 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append):
 			csv_writer.writerow(result)
 
 
-def parse_run_output(lines, results = {}):
+def parse_run_output(lines, result = {}):
 	re_string_handling = re.compile('Using (.*) string copy')
 	re_assumptions     = re.compile('Assumptions: (.*)')
 	re_workgroup_size  = re.compile('Workgroup size: W([0-9]*)')
@@ -119,53 +120,53 @@ def parse_run_output(lines, results = {}):
 	for line in lines:
 		match = re_string_handling.match(line)
 		if match:
-			results['string handling'] = match.group(1)
+			result['string handling'] = match.group(1)
 
 		match = re_assumptions.match(line)
 		if match:
-			results['assumptions'] = match.group(1)
+			result['assumptions'] = match.group(1)
 
 		match = re_workgroup_size.match(line)
 		if match:
-			results['workgroup size'] = int(match.group(1), base=10)
+			result['workgroup size'] = int(match.group(1), base=10)
 
 		match = re_initialization.match(line)
 		if match:
-			results['Initialization [ns]'] = time_ns(match.group(1))
+			result['Initialization [ns]'] = time_ns(match.group(1))
 
 		match = re_memory.match(line)
 		if match:
-			results['Memory allocation and copying [ns]'] = time_ns(match.group(1))
+			result['Memory allocation and copying [ns]'] = time_ns(match.group(1))
 		
 		match = re_newlines.match(line)
 		if match:
-			results['Finding newlines offsets [ns]'] = time_ns(match.group(1))
+			result['Finding newlines offsets [ns]'] = time_ns(match.group(1))
 
 		match = re_parsing_total.match(line)
 		if match:
-			results['Parsing total [ns]'] = time_ns(match.group(1))
+			result['Parsing total [ns]'] = time_ns(match.group(1))
 
 		match = re_json_processing.match(line)
 		if match:
-			results['JSON processing [ns]'] = time_ns(match.group(1))
+			result['JSON processing [ns]'] = time_ns(match.group(1))
 
 		match = re_post_processing.match(line)
 		if match:
-			results['Post kernel hooks [ns]'] = time_ns(match.group(1))
+			result['Post kernel hooks [ns]'] = time_ns(match.group(1))
 
 		match = re_copyig_output.match(line)
 		if match:
-			results['Copying output [ns]'] = time_ns(match.group(1))
+			result['Copying output [ns]'] = time_ns(match.group(1))
 
 		match = re_gpu_total.match(line)
 		if match:
-			results['Total time measured by GPU [ns]'] = time_ns(match.group(1))
+			result['Total time measured by GPU [ns]'] = time_ns(match.group(1))
 
 		match = re_cpu_total.match(line)
 		if match:
-			results['Total time measured by CPU [ns]'] = time_ns(match.group(1))
+			result['Total time measured by CPU [ns]'] = time_ns(match.group(1))
 
-	return results
+	return result
 
 
 if __name__ == '__main__':
