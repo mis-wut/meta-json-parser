@@ -9,7 +9,7 @@ import csv         # writing results in CSV format
 import click       # command line parsing
 
 
-def check_exec(exec):
+def check_exec(exec_path):
 	"""TODO: Check '--exec' option for correctness"""
 	pass
 
@@ -25,7 +25,7 @@ def time_ns(s):
 
 
 @click.command()
-@click.option('--exec', '--executable', 'exec',
+@click.option('--exec', '--executable', 'exec_path',
               type=click.Path(exists=True, dir_okay=False, path_type=pathlib.Path),
               help="Path to 'meta-json-parser-benchmark' executable",
               default='./meta-json-parser-benchmark')
@@ -44,12 +44,12 @@ def time_ns(s):
               default="benchmark.csv", show_default=True)
 @click.option('--append/--no-append', default=False,
               help="Append to output file (no header)")
-def main(exec, json_dir, pattern, size_arg, output_csv, append):
+def main(exec_path, json_dir, pattern, size_arg, output_csv, append):
     ### run as script
 
-	click.echo(f"Using '{click.format_filename(exec)}' executable")
-	click.echo(f"('{exec.resolve()}')")
-	check_exec(exec)
+	click.echo(f"Using '{click.format_filename(exec_path)}' executable")
+	click.echo(f"('{exec_path.resolve()}')")
+	check_exec(exec_path)
 	click.echo(f"JSON files from '{click.format_filename(json_dir)}' directory")
 	check_json_dir(json_dir)
 	
@@ -70,13 +70,13 @@ def main(exec, json_dir, pattern, size_arg, output_csv, append):
 	#	 exit
 	
 	results = []
-	exec = exec.resolve()
+	exec_path = exec_path.resolve()
 
 	with click.progressbar(sizes, label='number of objects') as sizes_list:
 		for size in sizes_list:
 			json_file = json_dir / pattern.format(n=size)
 			process = subprocess.Popen(
-				[exec, json_file, str(size)],
+				[exec_path, json_file, str(size)],
 				stdout=subprocess.PIPE
 			)
 			lines = process.stdout.read().decode('utf-8').split('\n')
