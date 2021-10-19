@@ -45,7 +45,21 @@ def time_ns(s):
               default="benchmark.csv", show_default=True)
 @click.option('--append/--no-append', default=False,
               help="Append to output file (no header)")
-def main(exec_path, json_dir, pattern, size_arg, output_csv, append):
+## These arguments should follow arguments of the benchmark executable
+@click.option('--ws', '--workspace-size',
+              help='Workgroup size.',
+              type=click.Choice(['32','16','8','4']), show_choices=True,
+              default='32', show_default=True)
+@click.option('--const-order',
+              help='Assumption of keys in JSON in a constant order',
+              type=click.Choice(['0', '1']), show_choices=True,
+              default='0', show_default=True)
+@click.option('-V', '--version', # NOTE: conflicts with same option for version of script
+              help="Version of dynamic string parsing."	,
+              type=click.IntRange(1, 3), # inclusive
+              default='1', show_default=True)
+def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
+         ws, const_order, version):
     ### run as script
 
 	click.echo(f"Using '{click.format_filename(exec_path)}' executable")
@@ -77,7 +91,10 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append):
 		for size in sizes_list:
 			json_file = json_dir / pattern.format(n=size)
 			process = subprocess.Popen(
-				[exec_path, json_file, str(size)],
+				[exec_path, json_file, str(size),
+				 f"--workspace-size={ws}",
+				 f"--const-order={const_order}",
+				 f"--version={version}"],
 				stdout=subprocess.PIPE
 			)
 			lines = process.stdout.read().decode('utf-8').split('\n')
