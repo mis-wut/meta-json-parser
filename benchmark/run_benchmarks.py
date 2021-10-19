@@ -13,23 +13,26 @@ def check_exec(exec):
 	"""TODO: Check '--exec' option for correctness"""
 	pass
 
+
 def check_json_dir(json_dir):
 	"""TODO: Check '--json-dir' option for correctness"""
 	pass
+
 
 def time_ns(s):
 	# int64_t gpu_total = static_cast<int64_t>(ms * 1'000'000.0);
 	return int(s, base=10)
 
+
 @click.command()
 @click.option('--exec', '--executable', 'exec',
               type=click.Path(exists=True, dir_okay=False, path_type=pathlib.Path),
-			  help="Path to 'meta-json-parser-benchmark' executable",
+              help="Path to 'meta-json-parser-benchmark' executable",
               default='./meta-json-parser-benchmark')
 @click.option('--json-dir',
               type=click.Path(exists=True, file_okay=False, path_type=pathlib.Path),
-			  help="Directory with generated JSON files",
-			  default='../../data/json/generated/')
+              help="Directory with generated JSON files",
+              default='../../data/json/generated/')
 @click.option('--pattern', help="JSON file name pattern, using {n} placeholder",
               default="sample_{n}.json", show_default=True)
 @click.option('--size', '--n_objects', 'size_arg',
@@ -37,12 +40,12 @@ def time_ns(s):
               default="10")
 @click.option('--output-csv', # uses path_type=click.Path (and not click.File) to support '--append'
               type=click.Path(dir_okay=False, path_type=pathlib.Path),
-			  help="Output file in CSV format",
-			  default="benchmark.csv", show_default=True)
+              help="Output file in CSV format",
+              default="benchmark.csv", show_default=True)
 @click.option('--append/--no-append', default=False,
               help="Append to output file (no header)")
 def main(exec, json_dir, pattern, size_arg, output_csv, append):
-	### run as script
+    ### run as script
 
 	click.echo(f"Using '{click.format_filename(exec)}' executable")
 	click.echo(f"('{exec.resolve()}')")
@@ -62,9 +65,9 @@ def main(exec, json_dir, pattern, size_arg, output_csv, append):
 		json_file = json_dir / pattern.format(n=size)
 		click.echo(f"Input file is '{json_file}' with {size} objects")
 
-	#if not json_file.is_file():
-	#	click.echo(f"... is not a file")
-	#	exit
+	# if not json_file.is_file():
+	#	 click.echo(f"... is not a file")
+	#	 exit
 	
 	results = []
 	exec = exec.resolve()
@@ -83,7 +86,6 @@ def main(exec, json_dir, pattern, size_arg, output_csv, append):
 			}
 
 			results.append(parse_run_output(lines, result))
-
 
 	no_header = False
 	if output_csv.exists() and append:
