@@ -38,7 +38,7 @@ def time_ns(s):
               default="sample_{n}.json", show_default=True)
 @click.option('--size', '--n_objects', 'size_arg',
               help="Number of objects in JSON file to use, or 'scan'",
-              default="10")
+              default="scan", show_default=True)
 @click.option('--output-csv', # uses path_type=click.Path (and not click.File) to support '--append'
               type=click.Path(dir_okay=False, path_type=pathlib.Path),
               help="Output file in CSV format",
