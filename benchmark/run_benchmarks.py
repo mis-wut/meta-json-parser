@@ -1,15 +1,12 @@
 #!/usr/bin/env python
 
-# file and path handling
-import pathlib
-# command line parsing
-import click
-# running commands
-import subprocess
-# parsing output
-import re
-# writing results
-import csv
+
+import pathlib     # file and path handling
+import subprocess  # running commands and capturing their output
+import re          # parsing output with regular expressions
+import csv         # writing results in CSV format
+
+import click       # command line parsing
 
 
 def check_exec(exec):
