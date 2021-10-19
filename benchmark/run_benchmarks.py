@@ -1,0 +1,156 @@
+#!/usr/bin/env python
+
+# file and path handling
+import pathlib
+# command line parsing
+import click
+# running commands
+import subprocess
+# parsing output
+import re
+# writing results
+import csv
+
+
+def check_exec(exec):
+	"""TODO: Check '--exec' option for correctness"""
+	pass
+
+def check_json_dir(json_dir):
+	"""TODO: Check '--json-dir' option for correctness"""
+	pass
+
+def time_ns(s):
+	# int64_t gpu_total = static_cast<int64_t>(ms * 1'000'000.0);
+	return int(s, base=10)
+
+@click.command()
+@click.option('--exec', '--executable', 'exec',
+              type=click.Path(exists=True, dir_okay=False, path_type=pathlib.Path),
+			  help="Path to 'meta-json-parser-benchmark' executable",
+              default='./meta-json-parser-benchmark')
+@click.option('--json-dir',
+              type=click.Path(exists=True, file_okay=False, path_type=pathlib.Path),
+			  help="Directory with generated JSON files",
+			  default='../../data/json/generated/')
+@click.option('--pattern', help="JSON file name pattern, using {n} placeholder",
+              default="sample_{n}.json", show_default=True)
+@click.option('--size', '--n_objects', 'size_arg',
+              help="Number of objects in JSON file to use",
+              default="10")
+@click.option('--output-csv', # uses path_type=click.Path (and not click.File) to support '--append'
+              type=click.Path(dir_okay=False, path_type=pathlib.Path),
+			  help="Output file in CSV format",
+			  default="benchmark.csv")
+@click.option('--append/--no-append', default=False,
+              help="Append to output file (no header)")
+def main(exec, json_dir, pattern, size_arg, output_csv, append):
+	### run as script
+
+	click.echo(f"Using '{click.format_filename(exec)}' executable")
+	check_exec(exec)
+	click.echo(f"JSON files from '{click.format_filename(json_dir)}' directory")
+	check_json_dir(json_dir)
+	
+	if size_arg.isdigit():
+		size = size_arg
+	else:
+		size = 10
+
+	json_file = json_dir / pattern.format(n=size)
+	click.echo(f"Input file is '{json_file}' with {size} objects")
+
+	#if not json_file.is_file():
+	#	click.echo(f"... is not a file")
+	#	exit
+	
+	process = subprocess.Popen(
+		[exec.resolve(), json_file, size],
+		stdout=subprocess.PIPE
+	)
+	lines = process.stdout.read().decode('utf-8').split('\n')
+	results = {
+		'json file': json_file.name,
+		'number of objects': int(size, base=10),
+	}
+
+	re_string_handling = re.compile('Using (.*) string copy')
+	re_assumptions     = re.compile('Assumptions: (.*)')
+	re_workgroup_size  = re.compile('Workgroup size: W([0-9]*)')
+	re_initialization  = re.compile('\\+ Initialization:\\s*([0-9.]*) ns')
+	re_memory          = re.compile('\\+ Memory allocation and copying:\\s*([0-9.]*) ns')
+	re_newlines        = re.compile('\\+ Finding newlines offsets (indices):\\s*([0-9.]*) ns')
+	re_parsing_total   = re.compile('\\+ Parsing total (sum of the following):\\s*([0-9.]*) ns')
+	re_json_processing = re.compile('  - JSON processing:\\s*([0-9.]*) ns')
+	re_post_processing = re.compile('  - Post kernel hooks:\\s*([0-9.]*) ns')
+	re_copyig_output   = re.compile('\\+ Copying output\\s*([0-9.]*) ns')
+	re_gpu_total       = re.compile('Total time measured by GPU:\\s*([0-9.]*) ns')
+	re_cpu_total       = re.compile('Total time measured by CPU:\\s*([0-9.]*) ns')
+
+	for line in lines:
+		match = re_string_handling.match(line)
+		if match:
+			results['string handling'] = match.group(1)
+
+		match = re_assumptions.match(line)
+		if match:
+			results['assumptions'] = match.group(1)
+
+		match = re_workgroup_size.match(line)
+		if match:
+			results['workgroup size'] = int(match.group(1), base=10)
+
+		match = re_initialization.match(line)
+		if match:
+			results['Initialization [ns]'] = time_ns(match.group(1))
+
+		match = re_memory.match(line)
+		if match:
+			results['Memory allocation and copying [ns]'] = time_ns(match.group(1))
+		
+		match = re_newlines.match(line)
+		if match:
+			results['Finding newlines offsets [ns]'] = time_ns(match.group(1))
+
+		match = re_parsing_total.match(line)
+		if match:
+			results['Parsing total [ns]'] = time_ns(match.group(1))
+
+		match = re_json_processing.match(line)
+		if match:
+			results['JSON processing [ns]'] = time_ns(match.group(1))
+
+		match = re_post_processing.match(line)
+		if match:
+			results['Post kernel hooks [ns]'] = time_ns(match.group(1))
+
+		match = re_copyig_output.match(line)
+		if match:
+			results['Copying output [ns]'] = time_ns(match.group(1))
+
+		match = re_gpu_total.match(line)
+		if match:
+			results['Total time measured by GPU [ns]'] = time_ns(match.group(1))
+
+		match = re_cpu_total.match(line)
+		if match:
+			results['Total time measured by CPU [ns]'] = time_ns(match.group(1))
+
+
+	no_header = False
+	if output_csv.exists() and append:
+		no_header = True
+
+	with output_csv.open('a' if append else 'w') as csv_file:
+		csv_writer = csv.DictWriter(csv_file, fieldnames=results.keys(), dialect='unix')
+
+		if not no_header:
+			csv_writer.writeheader()
+
+		csv_writer.writerow(results)
+
+
+
+
+if __name__ == '__main__':
+	main()
