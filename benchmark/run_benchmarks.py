@@ -7,6 +7,7 @@ import re          # parsing output with regular expressions
 import csv         # writing results in CSV format
 
 import click       # command line parsing
+from tqdm import tqdm # a smart progress meter
 
 
 def check_exec(exec_path):
@@ -20,7 +21,19 @@ def check_json_dir(json_dir):
 
 
 def time_ns(s):
-	"""Convert time in nanoseconds as string to a number"""
+	"""Convert time in nanoseconds as string to a number
+
+	Parameters
+	----------
+	s : str
+		Time in nanoseconds as string, extracted from the benchmark
+		command output.
+
+	Returns
+	-------
+	int
+		Time in nanoseconds as integer value.
+	"""
 	# int64_t gpu_total = static_cast<int64_t>(ms * 1'000'000.0);
 	return int(s, base=10)
 
@@ -98,29 +111,32 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 	results = []
 	exec_path = exec_path.resolve()
 
-	with click.progressbar(sizes, label='number of objects') as sizes_list:
-		for size in sizes_list:
-			json_file = json_dir / pattern.format(n=size)
-			exec_args = [
-				exec_path, json_file, str(size),
-				f"--workspace-size={ws}",
-				f"--const-order={const_order}",
-				f"--version={version}",
-			]
-			if str_size is not None:
-				exec_args.append(f"--max-string-size={str_size}")
-			process = subprocess.Popen(
-				exec_args,
-				stdout=subprocess.PIPE
-			)
-			lines = process.stdout.read().decode('utf-8').split('\n')
-			result = {
-				'json file': json_file.name,
-				'number of objects': size,
-				'max string size': str_size,
-			}
+	for size in tqdm(sizes, desc='size'):
+		json_file = json_dir / pattern.format(n=size)
+		exec_args = [
+			exec_path, json_file, str(size),
+			f"--workspace-size={ws}",
+			f"--const-order={const_order}",
+			f"--version={version}",
+		]
+		if str_size is not None:
+			exec_args.append(f"--max-string-size={str_size}")
 
-			results.append(parse_run_output(lines, result))
+		process = subprocess.Popen(
+			exec_args,
+			stdout=subprocess.PIPE
+		)
+		lines = process.stdout.read().decode('utf-8').split('\n')
+		result = {
+			'json file': json_file.name,
+			'file size [bytes]': json_file.stat().st_size,
+			'number of objects': size,
+			# those options/parameters are not printed by meta-json-parser-benchmark
+			# and you cannot find them in the command output with parse_run_output()
+			'max string size': str_size,
+		}
+
+		results.append(parse_run_output(lines, result))
 
 	no_header = False
 	if output_csv.exists() and append:
@@ -138,6 +154,22 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 
 
 def parse_run_output(lines, result = {}):
+	"""Parse the output of `meta-json-parser-benchmark` command
+
+	Parameters
+	----------
+	lines : list of str
+		The `meta-json-parser-benchmark` output, split into individual lines.
+	result : dict
+		The dictionary to store results into.
+
+	Returns
+	-------
+	result : dict
+		The dictionary, with keys naming extracted data, which are the configuration
+		values and benchmark results (the latter stores time in nanoseconds it took
+		for specific part of the runtime (or totals, or subtotals)).
+	"""
 	re_string_handling = re.compile('Using (.*) string copy')
 	re_assumptions     = re.compile('Assumptions: (.*)')
 	re_workgroup_size  = re.compile('Workgroup size: W([0-9]*)')
@@ -178,7 +210,7 @@ def parse_run_output(lines, result = {}):
 
 		match = re_parsing_total.match(line)
 		if match:
-			result['Parsing total [ns]'] = time_ns(match.group(1))
+			result['TOTAL Parsing time (JSON+hooks) [ns]'] = time_ns(match.group(1))
 
 		match = re_json_processing.match(line)
 		if match:
@@ -194,11 +226,11 @@ def parse_run_output(lines, result = {}):
 
 		match = re_gpu_total.match(line)
 		if match:
-			result['Total time measured by GPU [ns]'] = time_ns(match.group(1))
+			result['TOTAL time measured by GPU [ns]'] = time_ns(match.group(1))
 
 		match = re_cpu_total.match(line)
 		if match:
-			result['Total time measured by CPU [ns]'] = time_ns(match.group(1))
+			result['TOTAL time measured by CPU [ns]'] = time_ns(match.group(1))
 
 	return result
 
