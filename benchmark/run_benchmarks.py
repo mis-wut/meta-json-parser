@@ -129,7 +129,10 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 		lines = process.stdout.read().decode('utf-8').split('\n')
 		result = {
 			'json file': json_file.name,
+			'file size [bytes]': json_file.stat().st_size,
 			'number of objects': size,
+			# those options/parameters are not printed by meta-json-parser-benchmark
+			# and you cannot find them in the command output with parse_run_output()
 			'max string size': str_size,
 		}
 
