@@ -7,6 +7,7 @@ import re          # parsing output with regular expressions
 import csv         # writing results in CSV format
 
 import click       # command line parsing
+from tqdm import tqdm # a smart progress meter
 
 
 def check_exec(exec_path):
@@ -98,29 +99,29 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 	results = []
 	exec_path = exec_path.resolve()
 
-	with click.progressbar(sizes, label='number of objects') as sizes_list:
-		for size in sizes_list:
-			json_file = json_dir / pattern.format(n=size)
-			exec_args = [
-				exec_path, json_file, str(size),
-				f"--workspace-size={ws}",
-				f"--const-order={const_order}",
-				f"--version={version}",
-			]
-			if str_size is not None:
-				exec_args.append(f"--max-string-size={str_size}")
-			process = subprocess.Popen(
-				exec_args,
-				stdout=subprocess.PIPE
-			)
-			lines = process.stdout.read().decode('utf-8').split('\n')
-			result = {
-				'json file': json_file.name,
-				'number of objects': size,
-				'max string size': str_size,
-			}
+	for size in tqdm(sizes, desc='size'):
+		json_file = json_dir / pattern.format(n=size)
+		exec_args = [
+			exec_path, json_file, str(size),
+			f"--workspace-size={ws}",
+			f"--const-order={const_order}",
+			f"--version={version}",
+		]
+		if str_size is not None:
+			exec_args.append(f"--max-string-size={str_size}")
 
-			results.append(parse_run_output(lines, result))
+		process = subprocess.Popen(
+			exec_args,
+			stdout=subprocess.PIPE
+		)
+		lines = process.stdout.read().decode('utf-8').split('\n')
+		result = {
+			'json file': json_file.name,
+			'number of objects': size,
+			'max string size': str_size,
+		}
+
+		results.append(parse_run_output(lines, result))
 
 	no_header = False
 	if output_csv.exists() and append:
