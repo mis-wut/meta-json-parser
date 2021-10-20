@@ -210,7 +210,7 @@ def parse_run_output(lines, result = {}):
 
 		match = re_parsing_total.match(line)
 		if match:
-			result['Parsing total [ns]'] = time_ns(match.group(1))
+			result['TOTAL Parsing time (JSON+hooks) [ns]'] = time_ns(match.group(1))
 
 		match = re_json_processing.match(line)
 		if match:
@@ -226,11 +226,11 @@ def parse_run_output(lines, result = {}):
 
 		match = re_gpu_total.match(line)
 		if match:
-			result['Total time measured by GPU [ns]'] = time_ns(match.group(1))
+			result['TOTAL time measured by GPU [ns]'] = time_ns(match.group(1))
 
 		match = re_cpu_total.match(line)
 		if match:
-			result['Total time measured by CPU [ns]'] = time_ns(match.group(1))
+			result['TOTAL time measured by CPU [ns]'] = time_ns(match.group(1))
 
 	return result
 
