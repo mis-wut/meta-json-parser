@@ -21,7 +21,19 @@ def check_json_dir(json_dir):
 
 
 def time_ns(s):
-	"""Convert time in nanoseconds as string to a number"""
+	"""Convert time in nanoseconds as string to a number
+
+	Parameters
+	----------
+	s : str
+		Time in nanoseconds as string, extracted from the benchmark
+		command output.
+
+	Returns
+	-------
+	int
+		Time in nanoseconds as integer value.
+	"""
 	# int64_t gpu_total = static_cast<int64_t>(ms * 1'000'000.0);
 	return int(s, base=10)
 
@@ -139,6 +151,22 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 
 
 def parse_run_output(lines, result = {}):
+	"""Parse the output of `meta-json-parser-benchmark` command
+
+	Parameters
+	----------
+	lines : list of str
+		The `meta-json-parser-benchmark` output, split into individual lines.
+	result : dict
+		The dictionary to store results into.
+
+	Returns
+	-------
+	result : dict
+		The dictionary, with keys naming extracted data, which are the configuration
+		values and benchmark results (the latter stores time in nanoseconds it took
+		for specific part of the runtime (or totals, or subtotals)).
+	"""
 	re_string_handling = re.compile('Using (.*) string copy')
 	re_assumptions     = re.compile('Assumptions: (.*)')
 	re_workgroup_size  = re.compile('Workgroup size: W([0-9]*)')
