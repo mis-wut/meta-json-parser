@@ -122,11 +122,6 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 		if str_size is not None:
 			exec_args.append(f"--max-string-size={str_size}")
 
-		process = subprocess.Popen(
-			exec_args,
-			stdout=subprocess.PIPE
-		)
-		lines = process.stdout.read().decode('utf-8').split('\n')
 		result = {
 			'json file': json_file.name,
 			'file size [bytes]': json_file.stat().st_size,
@@ -135,6 +130,12 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 			# and you cannot find them in the command output with parse_run_output()
 			'max string size': str_size,
 		}
+
+		process = subprocess.Popen(
+			exec_args,
+			stdout=subprocess.PIPE
+		)
+		lines = process.stdout.read().decode('utf-8').split('\n')
 
 		results.append(parse_run_output(lines, result))
 
