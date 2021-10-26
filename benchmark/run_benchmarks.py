@@ -47,12 +47,16 @@ def time_ns(s):
               type=click.Path(exists=True, file_okay=False, path_type=pathlib.Path),
               help="Directory with generated JSON files",
               default='../../data/json/generated/')
-@click.option('--pattern', help="JSON file name pattern, using {n} placeholder",
+@click.option('--pattern', 
+              metavar='JSONLINES_PATTERN',
+              help="JSON file name pattern, using {n} placeholder",
               default="sample_{n}.json", show_default=True)
-@click.option('--size', '--n_objects', 'size_arg',
+@click.option('--size', '--n_objects', 'size_arg', 
+              metavar='JSON_COUNT',
               help="Number of objects in JSON file to use, or 'scan'",
               default="scan", show_default=True)
 @click.option('--output-csv', # uses path_type=click.Path (and not click.File) to support '--append'
+              metavar='CSV_FILENAME',
               type=click.Path(dir_okay=False, path_type=pathlib.Path),
               help="Output file in CSV format",
               default="benchmark.csv", show_default=True)
@@ -68,10 +72,12 @@ def time_ns(s):
               type=click.Choice(['0', '1']), show_choices=True,
               default='0', show_default=True)
 @click.option('-V', '--version', # NOTE: conflicts with same option for version of script
+              metavar='VERSION',
               help='Version of dynamic string parsing.',
               type=click.IntRange(1, 3), # inclusive
               default='1', show_default=True)
 @click.option('-s', '--max-string-size', 'str_size',
+              metavar='BYTES',
               help='Bytes allocated per dynamic string.  Turns on dynamic strings.',
               type=click.IntRange(min=1))
 def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
@@ -86,7 +92,7 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 		click.echo(f"  --max-string-size={str_size}")
 		click.echo(f"  --version={version}")
 	else:
-		click.echo(f"  --version={version} (ignored)")
+		click.echo(f"  --version={version} (ignored without --max-string-size=SIZE)")
 
 	check_exec(exec_path)
 	click.echo(f"JSON files from '{click.format_filename(json_dir)}' directory")
