@@ -48,15 +48,13 @@ def time_ns(s):
               help="Directory with generated JSON files",
               default='../../data/json/generated/')
 @click.option('--pattern', 
-              metavar='JSONLINES_PATTERN',
               help="JSON file name pattern, using {n} placeholder",
               default="sample_{n}.json", show_default=True)
-@click.option('--size', '--n_objects', 'size_arg', 
-              metavar='JSON_COUNT',
+@click.option('--size', '--n_objects', 'size_arg',
+              metavar='[NUMBER|scan]',
               help="Number of objects in JSON file to use, or 'scan'",
               default="scan", show_default=True)
 @click.option('--output-csv', # uses path_type=click.Path (and not click.File) to support '--append'
-              metavar='CSV_FILENAME',
               type=click.Path(dir_okay=False, path_type=pathlib.Path),
               help="Output file in CSV format",
               default="benchmark.csv", show_default=True)
@@ -72,7 +70,7 @@ def time_ns(s):
               type=click.Choice(['0', '1']), show_choices=True,
               default='0', show_default=True)
 @click.option('-V', '--version', # NOTE: conflicts with same option for version of script
-              metavar='VERSION',
+              metavar='[1|2|3]',
               help='Version of dynamic string parsing.',
               type=click.IntRange(1, 3), # inclusive
               default='1', show_default=True)
