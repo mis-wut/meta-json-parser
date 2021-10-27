@@ -7,7 +7,7 @@ import re          # parsing output with regular expressions
 import csv         # writing results in CSV format
 
 import click       # command line parsing
-from tqdm import tqdm # a smart progress meter
+from tqdm import tqdm, trange # a smart progress meter
 
 
 def check_exec(exec_path):
@@ -47,9 +47,11 @@ def time_ns(s):
               type=click.Path(exists=True, file_okay=False, path_type=pathlib.Path),
               help="Directory with generated JSON files",
               default='../../data/json/generated/')
-@click.option('--pattern', help="JSON file name pattern, using {n} placeholder",
+@click.option('--pattern', 
+              help="JSON file name pattern, using {n} placeholder",
               default="sample_{n}.json", show_default=True)
 @click.option('--size', '--n_objects', 'size_arg',
+              metavar='[NUMBER|scan]',
               help="Number of objects in JSON file to use, or 'scan'",
               default="scan", show_default=True)
 @click.option('--output-csv', # uses path_type=click.Path (and not click.File) to support '--append'
@@ -68,14 +70,20 @@ def time_ns(s):
               type=click.Choice(['0', '1']), show_choices=True,
               default='0', show_default=True)
 @click.option('-V', '--version', # NOTE: conflicts with same option for version of script
+              metavar='[1|2|3]',
               help='Version of dynamic string parsing.',
               type=click.IntRange(1, 3), # inclusive
               default='1', show_default=True)
 @click.option('-s', '--max-string-size', 'str_size',
+              metavar='BYTES',
               help='Bytes allocated per dynamic string.  Turns on dynamic strings.',
               type=click.IntRange(min=1))
+@click.option('--samples', metavar='REPETITIONS',
+              help='Number of samples (repetitions) with the same values of parameters',
+			  type=click.IntRange(min=1),
+			  default='1', show_default=True)
 def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
-         ws, const_order, version, str_size):
+         ws, const_order, version, str_size, samples):
     ### run as script
 
 	click.echo(f"Using '{click.format_filename(exec_path)}' executable")
@@ -86,7 +94,9 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 		click.echo(f"  --max-string-size={str_size}")
 		click.echo(f"  --version={version}")
 	else:
-		click.echo(f"  --version={version} (ignored)")
+		click.echo(f"  --version={version} (ignored without --max-string-size=SIZE)")
+	if samples > 1:
+		click.echo(f"  --samples={samples}")
 
 	check_exec(exec_path)
 	click.echo(f"JSON files from '{click.format_filename(json_dir)}' directory")
@@ -122,11 +132,6 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 		if str_size is not None:
 			exec_args.append(f"--max-string-size={str_size}")
 
-		process = subprocess.Popen(
-			exec_args,
-			stdout=subprocess.PIPE
-		)
-		lines = process.stdout.read().decode('utf-8').split('\n')
 		result = {
 			'json file': json_file.name,
 			'file size [bytes]': json_file.stat().st_size,
@@ -136,7 +141,14 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 			'max string size': str_size,
 		}
 
-		results.append(parse_run_output(lines, result))
+		for _ in trange(samples, desc='samples', leave=None):
+			process = subprocess.Popen(
+				exec_args,
+				stdout=subprocess.PIPE
+			)
+			lines = process.stdout.read().decode('utf-8').split('\n')
+
+			results.append(parse_run_output(lines, result))
 
 	no_header = False
 	if output_csv.exists() and append:
