@@ -7,7 +7,7 @@ import re          # parsing output with regular expressions
 import csv         # writing results in CSV format
 
 import click       # command line parsing
-from tqdm import tqdm # a smart progress meter
+from tqdm import tqdm, trange # a smart progress meter
 
 
 def check_exec(exec_path):
@@ -78,8 +78,12 @@ def time_ns(s):
               metavar='BYTES',
               help='Bytes allocated per dynamic string.  Turns on dynamic strings.',
               type=click.IntRange(min=1))
+@click.option('--samples', metavar='REPETITIONS',
+              help='Number of samples (repetitions) with the same values of parameters',
+			  type=click.IntRange(min=1),
+			  default='1', show_default=True)
 def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
-         ws, const_order, version, str_size):
+         ws, const_order, version, str_size, samples):
     ### run as script
 
 	click.echo(f"Using '{click.format_filename(exec_path)}' executable")
@@ -91,6 +95,8 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 		click.echo(f"  --version={version}")
 	else:
 		click.echo(f"  --version={version} (ignored without --max-string-size=SIZE)")
+	if samples > 1:
+		click.echo(f"  --samples={samples}")
 
 	check_exec(exec_path)
 	click.echo(f"JSON files from '{click.format_filename(json_dir)}' directory")
@@ -135,13 +141,14 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 			'max string size': str_size,
 		}
 
-		process = subprocess.Popen(
-			exec_args,
-			stdout=subprocess.PIPE
-		)
-		lines = process.stdout.read().decode('utf-8').split('\n')
+		for _ in trange(samples, desc='samples', leave=None):
+			process = subprocess.Popen(
+				exec_args,
+				stdout=subprocess.PIPE
+			)
+			lines = process.stdout.read().decode('utf-8').split('\n')
 
-		results.append(parse_run_output(lines, result))
+			results.append(parse_run_output(lines, result))
 
 	no_header = False
 	if output_csv.exists() and append:
