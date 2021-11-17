@@ -105,7 +105,8 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 	if size_arg.isdigit():
 		sizes = [int(size_arg, base=10)]
 	elif size_arg == 'scan':
-		sizes = range(100000, 900000+1, 100000)
+		# TODO: maybe find a better way of adding size 10 to beginning
+		sizes = [10]+list(range(100000, 900000+1, 100000))
 	else:
 		sizes = [10]
 
