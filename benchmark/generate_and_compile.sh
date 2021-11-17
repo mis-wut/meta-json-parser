@@ -1,10 +1,23 @@
 #!/bin/bash
 
+# Script used to generate parser configuration of meta-json-parser
+# for a given JSON file based on a sample from it (currently it is
+# based on the first line of this JSON file), making it possible to
+# run the benchmark for this file.
+#
+# It is meant for testing, in particular finding the time it takes
+# to generate benchmark/data_def.cuh, then recompile meta-json-parser-benchmark
+#
+# Usage:
+# $ export JSON2META_DIR=/path/to/json2meta
+# $ export METAJSONPARSER_DIR=/path/to/meta-json-parser
+# $ ./generate_and_compile.sh path/to/file.json
 
-JSON2META_DIR="$HOME/GPU-IDUB/json2meta"
+
+JSON2META_DIR="${JSON2META_DIR:-$HOME/GPU-IDUB/json2meta}"
 JSON2CUDA="$JSON2META_DIR/poc/json2cuda.py"
 
-METAJSONPARSER_DIR="$HOME/GPU-IDUB/meta-json-parser"
+METAJSONPARSER_DIR="${METAJSONPARSER_DIR:-$HOME/GPU-IDUB/meta-json-parser}"
 METAJSONPARSER_BUILDDIR="$METAJSONPARSER_DIR/build/"
 METAJSONPARSER_METAHEADER="$METAJSONPARSER_DIR/benchmark/data_def.cuh"
 
