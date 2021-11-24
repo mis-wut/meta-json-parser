@@ -113,6 +113,25 @@ add_executable(meta-json-parser-benchmark)
 
 target_link_libraries(meta-json-parser-benchmark PRIVATE lib-meta-json-parser CLI11)
 
+# libcudf is an optional dependency for meta-json-parser-benchmark
+# run cmake with -DUSE_LIBCUDF=1 to enable it
+if (USE_LIBCUDF)
+    message("USE_LIBCUDF is true, compiling with libcudf support")
+    # TODO: make location of the cudf library and its prerequisties configurable
+    #       instead of hardcoding paths to includes and to libraries, like below
+    target_include_directories(meta-json-parser-benchmark PUBLIC
+                               /usr/local/include
+                               /usr/local/include/libcudf/libcudacxx
+    )
+    target_link_libraries(meta-json-parser-benchmark PRIVATE
+                          cudf
+                          -L/usr/local/cuda/lib64 -L/usr/local/lib
+    )
+    target_compile_definitions(meta-json-parser-benchmark PRIVATE
+                               HAVE_LIBCUDF=1
+    )
+endif()
+
 target_sources(meta-json-parser-benchmark PRIVATE
 	benchmark/main.cu
 )

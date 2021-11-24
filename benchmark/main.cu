@@ -28,6 +28,15 @@
 #include <cub/cub.cuh>
 #include <CLI/CLI.hpp>
 
+#ifdef HAVE_LIBCUDF
+#pragma message("Compiling meta-json-parser-benchmark with HAVE_LIBCUDF")
+#include <cudf/table/table.hpp>
+#include <cudf/io/types.hpp>
+#include <cudf/io/json.hpp>
+#include <cudf/io/csv.hpp>
+#endif /* HAVE_LIBCUDF */
+
+
 using namespace boost::mp11;
 using namespace std;
 
