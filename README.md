@@ -29,3 +29,27 @@ the `third_party/` subdirectory:
 [mp11]: https://www.boost.org/doc/libs/1_66_0/libs/mp11/doc/html/mp11.html
 [GTest]: https://google.github.io/googletest/
 [CLI11]: https://github.com/CLIUtils/CLI11
+
+## RAPIDS (cuDF) comparison and integration
+
+The [RAPIDS][] suite of libraries and APIs gives the ability to execute
+end-to-end data science and analytics pipelines entirely on NVIDIA GPUs.
+RAPIDS include the [cuDF][], a [pandas][]-like DataFrame manipulation
+library for Python, that Meta-JSON-Parser intends to integrate with.
+
+cuDF in turn uses the [libcudf][], a C++ GPU DataFrame library for
+_loading_, joining, aggregating, filtering, and otherwise manipulating
+data.  Meta-JSON-Parser can **optionally** make use of libcudf, either
+to benchmark JSON parsing time against, or to integrate with the
+RAPIDS ecosystem.
+
+To configure the build system to compile `meta-json-parser-benchmark`
+with the libcudf support, use:
+```.sh
+cmake -DUSE_LIBCUDF=1 ..
+```
+
+[RAPIDS]: https://rapids.ai/
+[cuDF]: https://github.com/rapidsai/cudf
+[pandas]: https://pandas.pydata.org/
+[libcudf]: https://docs.rapids.ai/api/libcudf/stable/
