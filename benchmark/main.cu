@@ -649,11 +649,13 @@ void parse_args(int argc, char** argv)
 		{false, dictionary_assumption::none},
 		{true, dictionary_assumption::const_order}
 	};
+
 	// defaults
 	g_args.error_check = false;
 	g_args.wg_size = workgroup_size::W32;
 	g_args.dict_assumption = dictionary_assumption::none;
 
+	// required parameters as positionals
 	app.add_option("JSONLINES_FILE", g_args.filename,
 	               "NDJSON / JSONL input file to parse.")
 		->required()
@@ -662,15 +664,19 @@ void parse_args(int argc, char** argv)
 	               "Number of lines/objects in the input file.")
 		->required()
 		->check(CLI::NonNegativeNumber);
+
+	// common options
+	app.add_option("-o,--output", g_args.output_csv,
+	               "Name for an parsed output CSV file.\n"
+                   "If omitted no output is saved.")
+		->option_text("CSV_FILENAME");
+
+	// configuration of meta-json-parser, as options
 	app.add_option("--ws,--workspace-size", g_args.wg_size,
 	               "Workgroup size. Default = 32.")
 		->transform(CLI::CheckedTransformer(wg_sizes_map))
 		->option_text("32|16|8|4")
 		->default_str("32");
-	app.add_option("-o,--output", g_args.output_csv,
-	               "Name for an parsed output CSV file.\n"
-                   "If omitted no output is saved.")
-		->option_text("CSV_FILENAME");
 	app.add_flag("-b,--error-checking", g_args.error_check,
 	             "Enable error check. If there was a parsing error,\n"
 	             "a message will be printed.");
