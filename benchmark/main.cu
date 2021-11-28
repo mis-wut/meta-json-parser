@@ -610,7 +610,14 @@ int main(int argc, char** argv)
 	return 0;
 }
 
+#ifdef HAVE_LIBCUDF
+static CLI::App app{
+	"meta-json-parser-benchmark -- benchmark JSON meta-parser, running on GPU\n"
+	"(built with support for libcudf library, which is part of RAPIDS.ai)"
+};
+#else
 static CLI::App app{"meta-json-parser-benchmark -- benchmark JSON meta-parser, running on GPU"};
+#endif
 
 void usage()
 {
