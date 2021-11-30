@@ -672,17 +672,25 @@ void parse_args(int argc, char** argv)
 		->option_text("CSV_FILENAME");
 
 	// configuration of meta-json-parser, as options
+	auto meta_group = app.add_option_group("meta-json-parser", "meta parser configuration");
+	auto opt =
 	app.add_option("--ws,--workspace-size", g_args.wg_size,
 	               "Workgroup size. Default = 32.")
 		->transform(CLI::CheckedTransformer(wg_sizes_map))
 		->option_text("32|16|8|4")
 		->default_str("32");
+	meta_group->add_option(opt);
+	opt =
 	app.add_flag("-b,--error-checking", g_args.error_check,
 	             "Enable error check. If there was a parsing error,\n"
 	             "a message will be printed.");
+	meta_group->add_option(opt);
+	opt =
 	app.add_flag("--const-order", g_args.dict_assumption,
 				 "Parses json with an assumption of keys in a constant order")
 		->transform(CLI::CheckedTransformer(assumption_map));
+	meta_group->add_option(opt);
+	opt =
 	app.add_option("-V,--version", g_args.version,
 				   "Version of dynamic string parsing.\n"
 				   "1 -> old version with double copying. [default]\n"
@@ -691,6 +699,8 @@ void parse_args(int argc, char** argv)
 		->option_text("VERSION")
 		->transform(CLI::CheckedTransformer(versions_map))
 		->default_str("1");
+	meta_group->add_option(opt);
+	opt =
 	app.add_option("-s,--max-string-size", g_args.bytes_per_string,
 	               "Bytes allocated per dynamic string.\n"
 	               "For V1: Strings that are too long will be truncated.\n"
@@ -699,6 +709,7 @@ void parse_args(int argc, char** argv)
                    "If not provided, then strings with static length will be used.")
 		->option_text("BYTES")
 		->check(CLI::PositiveNumber);
+	meta_group->add_option(opt);
 
 	app.get_formatter()->column_width(40);
 
