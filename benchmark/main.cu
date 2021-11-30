@@ -106,7 +106,9 @@ struct benchmark_device_buffers
 
 struct cmd_args {
 	std::string filename;
+#ifdef HAVE_LIBCUDF
 	bool use_libcudf_parser;
+#endif
 	int count;
 	workgroup_size wg_size;
 	std::string output_csv;
@@ -607,6 +609,8 @@ int main(int argc, char** argv)
 	init_gpu();
 	parse_args(argc, argv);
 	benchmark_input input = get_input();
+
+#ifdef HAVE_LIBCUDF
 	if (g_args.use_libcudf_parser) {
 		cout << "Using libcudf's cudf::io::read_json\n";
 
@@ -616,6 +620,9 @@ int main(int argc, char** argv)
 		cout << "Using meta-JSON-parser\n";
 		select_string_function(input);
 	}
+#else  /* !defined(HAVE_LIBCUDF) */
+	select_string_function(input);
+#endif /* !defined(HAVE_LIBCUDF) */
 	return 0;
 }
 
@@ -660,7 +667,9 @@ void parse_args(int argc, char** argv)
 	};
 
 	// defaults
+#ifdef HAVE_LIBCUDF
 	g_args.use_libcudf_parser = false;
+#endif
 	g_args.error_check = false;
 	g_args.wg_size = workgroup_size::W32;
 	g_args.dict_assumption = dictionary_assumption::none;
@@ -682,9 +691,11 @@ void parse_args(int argc, char** argv)
 		->option_text("CSV_FILENAME");
 
 	// choosing the parser to benchmark, meta-json-parser or libcudf
+#ifdef HAVE_LIBCUDF
 	auto opt_libcudf_parser =
 	app.add_flag("--use-libcudf-parser", g_args.use_libcudf_parser,
 	             "Use libcudf JSON parser. Default = false.");
+#endif
 
 	// configuration of meta-json-parser, as options
 	auto meta_group = app.add_option_group("meta-json-parser", "meta parser configuration");
