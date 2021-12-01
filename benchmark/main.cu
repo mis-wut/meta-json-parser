@@ -604,6 +604,49 @@ void select_string_function(benchmark_input& input) {
 	}
 }
 
+#ifdef HAVE_LIBCUDF
+// forward declarations
+// TODO: implement those functions
+void init_libcudf() {}
+cudf::io::json_reader_options prepare_libcudf(benchmark_input& input) {}
+cudf::io::table_with_metadata parse_json_libcudf(cudf::io::json_reader_options const& json_in_opts) {}
+template<class BaseActionT>
+ParserOutputHost<BaseActionT> copy_output_libcudf(cudf::io::table_with_metadata const& table_with_metadata) {}
+void print_results_libcudf() {}
+void to_csv_libcudf(cudf::io::table_with_metadata const& table_with_metadata) {}
+
+/**
+ * Parse JSON file using `cudf::io::read_json()` from the libcudf library
+ * 
+ * The libcudf library is the engine for cuDF, a Pandas-like DataFrame manipulation
+ * library for Python that is a part of RAPIDS suite of libraries for data science
+ * from NVIDIA.
+ * 
+ * @attention It assumes that `init_gpu()` - which creates CUDA events,
+ * `parse_args()` - which parses command line arguments storing them in global
+ * variable `g_args` are run before calling this command, and that the `input`
+ * parameter was created with `get_input()`.
+ * 
+ * @param[in] input  Contains the contents of JSON file as std::vector<char>
+ */
+void main_libcudf(benchmark_input& input)
+{
+    init_libcudf();
+
+    cudaEventRecord(gpu_start, stream);
+    auto json_reader_options = prepare_libcudf(input);
+    auto libcudf_result = parse_json_libcudf(json_reader_options);
+    //TODO: auto host_output = copy_output_libcudf(libcudf_result);
+    cudaEventRecord(gpu_stop, stream);
+    cudaEventSynchronize(gpu_stop);
+    cpu_stop = chrono::high_resolution_clock::now();
+    print_results_libcudf();
+    // TODO: to csv for libcudf
+    //if (!g_args.output_csv.empty())
+    //    to_csv_libcudf(libcudf_result);
+}
+#endif /* defined(HAVE_LIBCUDF) */
+
 int main(int argc, char** argv)
 {
 	init_gpu();
@@ -613,9 +656,7 @@ int main(int argc, char** argv)
 #ifdef HAVE_LIBCUDF
 	if (g_args.use_libcudf_parser) {
 		cout << "Using libcudf's cudf::io::read_json\n";
-
-		cerr << "!!! NOT IMPLEMENTED YET !!!\n";
-		return 1;
+		main_libcudf(input);
 	} else {
 		cout << "Using meta-JSON-parser\n";
 		select_string_function(input);
