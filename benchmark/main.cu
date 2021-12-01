@@ -606,14 +606,13 @@ void select_string_function(benchmark_input& input) {
 
 #ifdef HAVE_LIBCUDF
 // forward declarations
-// TODO: implement those functions
-void init_libcudf() {}
-cudf::io::json_reader_options prepare_libcudf(benchmark_input& input) {}
-cudf::io::table_with_metadata parse_json_libcudf(cudf::io::json_reader_options const& json_in_opts) {}
-template<class BaseActionT>
-ParserOutputHost<BaseActionT> copy_output_libcudf(cudf::io::table_with_metadata const& table_with_metadata) {}
-void print_results_libcudf() {}
-void to_csv_libcudf(cudf::io::table_with_metadata const& table_with_metadata) {}
+void init_libcudf();
+cudf::io::json_reader_options prepare_libcudf(benchmark_input& input);
+cudf::io::table_with_metadata parse_json_libcudf(cudf::io::json_reader_options const& json_in_opts);
+//template<class BaseActionT>
+//ParserOutputHost<BaseActionT> copy_output_libcudf(cudf::io::table_with_metadata const& table_with_metadata);
+void print_results_libcudf();
+//void to_csv_libcudf(std::string& filename, cudf::io::table_with_metadata const& table_with_metadata);
 
 /**
  * Parse JSON file using `cudf::io::read_json()` from the libcudf library
@@ -641,9 +640,10 @@ void main_libcudf(benchmark_input& input)
     cudaEventSynchronize(gpu_stop);
     cpu_stop = chrono::high_resolution_clock::now();
     print_results_libcudf();
-    // TODO: to csv for libcudf
-    //if (!g_args.output_csv.empty())
-    //    to_csv_libcudf(libcudf_result);
+    if (!g_args.output_csv.empty())
+		cerr << "Writing results of JSON parsed by libcudf to CSV not implemented yet\n";
+		//TODO: to csv for libcudf
+    	//to_csv_libcudf(g_args.output_csv, libcudf_result);
 }
 #endif /* defined(HAVE_LIBCUDF) */
 
@@ -896,3 +896,77 @@ void print_results()
 		;
 }
 
+#ifdef HAVE_LIBCUDF
+void init_libcudf()
+{
+    /*
+     * events and streams are created by init_gpu()
+     * events needed:
+     * - gpu_start
+	 * - gpu_memory_checkpoint
+     * - gpu_parsing_checkpoint
+     * - gpu_stop
+     */
+}
+
+cudf::io::json_reader_options prepare_libcudf(benchmark_input& input)
+{
+    cudaEventRecord(gpu_memory_checkpoint, stream);
+
+    cudf::io::source_info json_in_info =
+        cudf::io::source_info{
+            input.data.data(),
+            input.data.size()
+        };
+    cudf::io::json_reader_options json_in_opts =
+        cudf::io::json_reader_options::builder(json_in_info)
+        .lines(true);
+
+    return json_in_opts;
+}
+
+cudf::io::table_with_metadata parse_json_libcudf(cudf::io::json_reader_options const& json_in_opts)
+{
+    cudaEventRecord(gpu_parsing_checkpoint, stream);
+
+    auto result = cudf::io::read_json(json_in_opts);
+    return result;
+}
+
+void print_results_libcudf()
+{
+    float ms;
+    int64_t cpu_ns = (cpu_stop - cpu_start).count();
+    cudaEventElapsedTime(&ms, gpu_start, gpu_stop);
+    int64_t gpu_total = static_cast<int64_t>(ms * 1'000'000.0);
+    cudaEventElapsedTime(&ms, gpu_start, gpu_memory_checkpoint);
+    int64_t gpu_init = static_cast<int64_t>(ms * 1'000'000.0);
+    cudaEventElapsedTime(&ms, gpu_memory_checkpoint, gpu_parsing_checkpoint);
+    int64_t gpu_prep = static_cast<int64_t>(ms * 1'000'000.0);
+    cudaEventElapsedTime(&ms, gpu_parsing_checkpoint, gpu_stop);
+    int64_t gpu_parsing = static_cast<int64_t>(ms * 1'000'000.0);
+
+    const int c1 = 40; // description width
+    const int c2 = 10; // results width
+
+    cout
+            << "Time measured by GPU:\n"
+            << setw(c1) << left  << "+ Initialization: "
+            << setw(c2) << right << gpu_init << " ns\n"
+            << setw(c1) << left  << "+ Building input options: "
+            << setw(c2) << right << gpu_prep << " ns\n"
+            << setw(c1) << left  << "+ Parsing json: "
+            << setw(c2) << right << gpu_parsing << " ns\n"
+            //<< setw(c1) << left  << "+ Copying output: "
+            //<< setw(c2) << right << gpu_output << " ns\n"
+            ;
+
+    cout
+        << setw(c1 + c2 + 4) << setfill('-') << "\n" << setfill(' ')
+        << setw(c1) << left  << "Total time measured by GPU: "
+        << setw(c2) << right << gpu_total << " ns\n"
+        << setw(c1) << left  << "Total time measured by CPU: "
+        << setw(c2) << right << cpu_ns << " ns\n"
+        ;
+}
+#endif /* defined(HAVE_LIBCUDF) */
