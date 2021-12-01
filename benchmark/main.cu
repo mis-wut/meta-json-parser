@@ -612,7 +612,8 @@ cudf::io::table_with_metadata parse_json_libcudf(cudf::io::json_reader_options c
 //template<class BaseActionT>
 //ParserOutputHost<BaseActionT> copy_output_libcudf(cudf::io::table_with_metadata const& table_with_metadata);
 void print_results_libcudf();
-//void to_csv_libcudf(std::string& filename, cudf::io::table_with_metadata const& table_with_metadata);
+void to_csv_libcudf(std::string& filename, cudf::io::table_with_metadata const& table_with_metadata);
+void to_csv_libcudf(std::string& filename, cudf::table const& cudf_table);
 
 /**
  * Parse JSON file using `cudf::io::read_json()` from the libcudf library
@@ -641,9 +642,7 @@ void main_libcudf(benchmark_input& input)
     cpu_stop = chrono::high_resolution_clock::now();
     print_results_libcudf();
     if (!g_args.output_csv.empty())
-		cerr << "Writing results of JSON parsed by libcudf to CSV not implemented yet\n";
-		//TODO: to csv for libcudf
-    	//to_csv_libcudf(g_args.output_csv, libcudf_result);
+    	to_csv_libcudf(g_args.output_csv, libcudf_result);
 }
 #endif /* defined(HAVE_LIBCUDF) */
 
@@ -923,6 +922,45 @@ cudf::io::json_reader_options prepare_libcudf(benchmark_input& input)
         .lines(true);
 
     return json_in_opts;
+}
+
+void to_csv_libcudf(std::string& filename, cudf::io::table_with_metadata const& table_with_metadata)
+{
+	if (filename.empty())
+		return;
+
+	cout << "Saving results to '" << filename << "' (via libcudf, with metadata)";
+	cout.flush();
+
+	// TODO: make it configurable with respect to style, and if headers are used
+	cudf::io::csv_writer_options csv_out_opts =
+		cudf::io::csv_writer_options::builder(cudf::io::sink_info{filename},
+											  table_with_metadata.tbl->view())
+			.inter_column_delimiter(',')
+			//.metadata(&table_with_metadata.metadata)  // TODO: fix issue with const-ness type mismatch
+			.include_header(false);
+	cudf::io::write_csv(csv_out_opts);
+
+	cout << "\n";
+}
+
+void to_csv_libcudf(std::string& filename, cudf::table const& cudf_table)
+{
+	if (filename.empty())
+		return;
+
+	cout << "Saving results to '" << filename << "' (via libcudf)";
+	cout.flush();
+
+	// TODO: make it configurable with respect to style
+	cudf::io::csv_writer_options csv_out_opts =
+		cudf::io::csv_writer_options::builder(cudf::io::sink_info{filename},
+											  cudf_table.view())
+			.inter_column_delimiter(',')
+			.include_header(false);
+	cudf::io::write_csv(csv_out_opts);
+
+	cout << "\n";
 }
 
 cudf::io::table_with_metadata parse_json_libcudf(cudf::io::json_reader_options const& json_in_opts)
