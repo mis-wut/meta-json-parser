@@ -128,6 +128,9 @@ cudaEvent_t gpu_post_hooks_checkpoint;
 cudaEvent_t gpu_output_checkpoint;
 cudaEvent_t gpu_error_checkpoint;
 cudaEvent_t gpu_stop;
+size_t total_gpu_mem;
+size_t free_gpu_mem_start;
+size_t free_gpu_mem_stop;
 cudaStream_t stream;
 
 void init_gpu();
@@ -543,13 +546,15 @@ void to_csv(ParserOutputHost<BaseActionT>& output_hosts)
 template<class BaseActionT>
 void main_templated(benchmark_input& input)
 {
-	cudaEventRecord(gpu_start, stream);
+	cudaMemGetInfo(&free_gpu_mem_start, &total_gpu_mem);
+    cudaEventRecord(gpu_start, stream);
 	KernelLaunchConfiguration conf = prepare_dynamic_config<BaseActionT>(input);
 	benchmark_device_buffers<BaseActionT> device_buffers = initialize_buffers_dynamic<BaseActionT>(input, &conf);
 	cout << "Workgroup size: " << workgroup_size_desc(input.wg_size) << " [" << input.wg_size << "]\n";
 	launch_kernel_dynamic<BaseActionT>(device_buffers, input.wg_size);
 	auto host_output = copy_output<BaseActionT>(device_buffers);
 	cudaEventRecord(gpu_stop, stream);
+    cudaMemGetInfo(&free_gpu_mem_stop, &total_gpu_mem);
 	cudaEventSynchronize(gpu_stop);
 	cpu_stop = chrono::high_resolution_clock::now();
 	print_results();
@@ -633,11 +638,13 @@ void main_libcudf(benchmark_input& input)
 {
     init_libcudf();
 
+    cudaMemGetInfo(&free_gpu_mem_start, &total_gpu_mem);
     cudaEventRecord(gpu_start, stream);
     auto json_reader_options = prepare_libcudf(input);
     auto libcudf_result = parse_json_libcudf(json_reader_options);
     //TODO: auto host_output = copy_output_libcudf(libcudf_result);
     cudaEventRecord(gpu_stop, stream);
+    cudaMemGetInfo(&free_gpu_mem_stop, &total_gpu_mem);
     cudaEventSynchronize(gpu_stop);
     cpu_stop = chrono::high_resolution_clock::now();
     print_results_libcudf();
@@ -893,6 +900,23 @@ void print_results()
 		<< setw(c1) << left  << "Total time measured by CPU: "
 		<< setw(c2) << right << cpu_ns << " ns\n"
 		;
+    long int used_gpu_mem = free_gpu_mem_start - free_gpu_mem_stop;
+    cout
+        << setw(c1 + c2 + 4) << setfill('-') << "\n" << setfill(' ')
+        << setw(c1) << left  << "Total GPU memory: "
+        << setw(c2) << right << total_gpu_mem/1024/1024 << " MB\n"
+        << setw(c1) << left  << "Free GPU memory at start: "
+        << setw(c2) << right << free_gpu_mem_start/1024/1024 << " MB\n"
+        << setw(c1) << left  << "Free GPU memory at stop: "
+        << setw(c2) << right << free_gpu_mem_stop/1024/1024 << " MB\n"
+        << setw(c1) << left  << "Used GPU memory: "
+        << setw(c2) << right << used_gpu_mem/1024/1024 << " MB = "
+        << setw(6)  << right << fixed << setprecision(2) << 100.0*used_gpu_mem/total_gpu_mem << "% of total\n"
+        << "\n"
+        << setw(c1) << left  << "Total GPU memory: "
+        << setw(12) << right << total_gpu_mem << " bytes\n"
+        << setw(c1) << left  << "Used GPU memory: "
+        << setw(12) << right << used_gpu_mem << " bytes\n";
 }
 
 #ifdef HAVE_LIBCUDF
@@ -1006,5 +1030,23 @@ void print_results_libcudf()
         << setw(c1) << left  << "Total time measured by CPU: "
         << setw(c2) << right << cpu_ns << " ns\n"
         ;
+    // TODO: remove this code duplication (below)
+    long int used_gpu_mem = free_gpu_mem_start - free_gpu_mem_stop;
+    cout
+        << setw(c1 + c2 + 4) << setfill('-') << "\n" << setfill(' ')
+        << setw(c1) << left  << "Total GPU memory: "
+        << setw(c2) << right << total_gpu_mem/1024/1024 << " MB\n"
+        << setw(c1) << left  << "Free GPU memory at start: "
+        << setw(c2) << right << free_gpu_mem_start/1024/1024 << " MB\n"
+        << setw(c1) << left  << "Free GPU memory at stop: "
+        << setw(c2) << right << free_gpu_mem_stop/1024/1024 << " MB\n"
+        << setw(c1) << left  << "Used GPU memory: "
+        << setw(c2) << right << used_gpu_mem/1024/1024 << " MB = "
+        << setw(6)  << right << fixed << setprecision(2) << 100.0*used_gpu_mem/total_gpu_mem << "% of total\n"
+        << "\n"
+        << setw(c1) << left  << "Total GPU memory: "
+        << setw(12) << right << total_gpu_mem << " bytes\n"
+        << setw(c1) << left  << "Used GPU memory: "
+        << setw(12) << right << used_gpu_mem << " bytes\n";
 }
 #endif /* defined(HAVE_LIBCUDF) */
