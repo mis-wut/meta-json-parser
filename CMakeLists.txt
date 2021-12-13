@@ -134,6 +134,7 @@ endif()
 
 target_sources(meta-json-parser-benchmark PRIVATE
 	benchmark/main.cu
+    include/meta_json_parser/debug_helpers.cpp
 )
 
 target_compile_features(meta-json-parser-benchmark INTERFACE cxx_std_17 cuda_std_17)
