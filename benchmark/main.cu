@@ -36,6 +36,8 @@
 #include <cudf/io/csv.hpp>
 #endif /* HAVE_LIBCUDF */
 
+#include <meta_json_parser/debug_helpers.h>
+
 
 using namespace boost::mp11;
 using namespace std;
@@ -108,6 +110,7 @@ struct cmd_args {
 	std::string filename;
 #ifdef HAVE_LIBCUDF
 	bool use_libcudf_parser;
+	bool show_cudf_table_structure;
 #endif
 	int count;
 	workgroup_size wg_size;
@@ -649,7 +652,9 @@ void main_libcudf(benchmark_input& input)
     cpu_stop = chrono::high_resolution_clock::now();
     print_results_libcudf();
     if (!g_args.output_csv.empty())
-    	to_csv_libcudf(g_args.output_csv, libcudf_result);
+        to_csv_libcudf(g_args.output_csv, libcudf_result);
+    if (g_args.show_cudf_table_structure)
+        describe_table(libcudf_result);
 }
 #endif /* defined(HAVE_LIBCUDF) */
 
@@ -716,6 +721,7 @@ void parse_args(int argc, char** argv)
 	// defaults
 #ifdef HAVE_LIBCUDF
 	g_args.use_libcudf_parser = false;
+	g_args.show_cudf_table_structure = false;
 #endif
 	g_args.error_check = false;
 	g_args.wg_size = workgroup_size::W32;
@@ -742,6 +748,10 @@ void parse_args(int argc, char** argv)
 	auto opt_libcudf_parser =
 	app.add_flag("--use-libcudf-parser", g_args.use_libcudf_parser,
 	             "Use libcudf JSON parser. Default = false.");
+	// NOTE: this will be used both for libcudf parser output,
+	// and for convertion of metaparser output to cudf::table
+	app.add_flag("--cudf-structure", g_args.show_cudf_table_structure,
+	             "Describe structure of cudf::table. Default = false.");
 #endif
 
 	// configuration of meta-json-parser, as options

@@ -13,4 +13,6 @@ void column_data_dumper(const void *data, size_t data_size,
                         cudf::type_id type_id, int n_elems,
                         const char *indent = "");
 void describe_column(cudf::column_view col, bool dump_data = false, const char *indent = "");
+void describe_table(cudf::io::table_with_metadata& table_with_metadata, bool dump_data = false);
+void describe_table(cudf::table& table, bool dump_data = false);
 #endif /* HAVE_LIBCUDF */
