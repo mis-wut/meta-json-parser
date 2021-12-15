@@ -581,12 +581,7 @@ template<class BaseActionT>
 cudf::table output_to_cudf(benchmark_device_buffers<BaseActionT>& device_buffers)
 {
     cudaEventRecord(gpu_convert_checkpoint, stream);
-    //return device_buffers.parser_output_buffers.ToCudf(stream);
-
-    // TODO: return actual result, not an empty table
-    // see https://github.com/mis-wut/test-libcudf/blob/main/generate-libcudf.cu
-    std::vector<std::unique_ptr<cudf::column>> columns(0);
-    return cudf::table(std::move(columns));
+    return device_buffers.parser_output_buffers.ToCudf(stream);
 }
 #endif /* defined(HAVE_LIBCUDF) */
 

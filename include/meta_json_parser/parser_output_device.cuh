@@ -16,6 +16,14 @@
 #include <cstdint>
 #include <type_traits>
 
+#ifdef HAVE_LIBCUDF
+#include <vector>
+#include <memory>
+
+#include <cudf/column/column.hpp>
+#include <cudf/table/table.hpp>
+#endif
+
 struct OutputsPointers
 {
 	thrust::host_vector<void*> h_outputs;
@@ -77,4 +85,23 @@ struct ParserOutputDevice
 		});
 		return result;
 	}
+
+#ifdef HAVE_LIBCUDF
+	/**
+	 * This is currently a DUMMY method to convert parser output to cuDF format.
+	 *
+	 * It will try to avoid new memory allocations and data copying
+	 * (device to device) if possible.
+	 *
+	 * @param stream This is CUDA stream in which operations take place
+	 * @return cudf::table which is the data in cuDF format
+	 */
+	cudf::table ToCudf(cudaStream_t stream = 0) const
+	{
+		// TODO: return actual conversion result, not an empty table
+		// see https://github.com/mis-wut/test-libcudf/blob/main/generate-libcudf.cu
+		std::vector<std::unique_ptr<cudf::column>> columns(0);
+		return cudf::table(std::move(columns));
+	}
+#endif /* defined(HAVE_LIBCUDF) */
 };
