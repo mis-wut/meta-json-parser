@@ -26,7 +26,10 @@
 
 #ifdef HAVE_LIBCUDF
 // to be used when we don't know how to convert to cudf::column
+template<class T>
 struct CudfUnknownColumnType {
+	using OT = T;
+
 	template<typename TagT, typename ParserOutputDeviceT>
 	static void call(const ParserOutputDeviceT& output,
 					 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
@@ -49,7 +52,7 @@ using GetCudfColumnConverter = typename T::CudfColumnConverter;
 template<class T>
 using TryGetCudfColumnConverter = boost::mp11::mp_eval_if_not<
 	HaveCudfColumnConverter<T>,
-	CudfUnknownColumnType, // or `boost::mp11::mp_list<>` for no attempt at conversion
+	CudfUnknownColumnType<T>, // or `boost::mp11::mp_list<>` for no attempt at conversion
 	GetCudfColumnConverter,
 	T
 >;
@@ -73,7 +76,10 @@ struct ParserOutputDevice
 	using CudfColumnConverterList = boost::mp11::mp_flatten<
 		boost::mp11::mp_transform<
 			TryGetCudfColumnConverter,
-			ActionIterator<BaseAction>
+			boost::mp11::mp_copy_if<
+				ActionIterator<BaseAction>,
+				HaveOutputRequests
+			>
 		>
 	>;
 #endif
@@ -139,10 +145,29 @@ struct ParserOutputDevice
 	 */
 	cudf::table ToCudf(cudaStream_t stream = 0) const
 	{
-		// TODO: return actual conversion result, not an empty table
-		// see https://github.com/mis-wut/test-libcudf/blob/main/generate-libcudf.cu
-		std::vector<std::unique_ptr<cudf::column>> columns(0);
-		return cudf::table(std::move(columns));
+		const cudf::size_type n_columns = output_buffers_count;
+		std::vector<std::unique_ptr<cudf::column>> columns;
+		columns.reserve(n_columns);
+
+		boost::mp11::mp_for_each<typename ParserOutputDevice::CudfColumnConverterList>([&, idx=0](auto k) mutable {
+			using CudfConverter = decltype(k);
+			using RequestList = typename CudfConverter::OT::OutputRequests;
+			using Request = boost::mp11::mp_first<RequestList>;
+			using Tag = typename Request::OutputTag;
+			using T = typename Request::OutputType;
+			const size_t elem_size = OM::template ToAlloc<Tag>(m_launch_config, m_size);
+
+			// DOING: ...
+			CudfConverter::template call<Tag>(*this, columns, idx++, m_size, elem_size);
+		});
+
+		// create a table (which will be turned into DataFrame equivalent)
+		std::cout << "created table...\n";
+		cudf::table table{std::move(columns)}; // std::move or std::forward
+		std::cout << "...with " << table.num_columns() << " / " << n_columns
+		          << " columns and " << table.num_rows() << " rows\n";
+
+		return table;
 	}
 #endif /* defined(HAVE_LIBCUDF) */
 };
