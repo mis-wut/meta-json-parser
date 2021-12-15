@@ -20,11 +20,114 @@
 #include <vector>
 #include <memory>
 
+#include <cudf/utilities/type_dispatcher.hpp> //< type_to_id<Type>()
 #include <cudf/column/column.hpp>
 #include <cudf/table/table.hpp>
+
+#include <rmm/device_buffer.hpp>
+
+// TODO: DEBUG !!!
+#include <boost/core/demangle.hpp> //< boost::core::demangle()
+#include <iostream>
+#include <meta_json_parser/debug_helpers.h>
 #endif
 
 #ifdef HAVE_LIBCUDF
+struct rmm_device_buffer_data {
+	// NOTE: Horrible, horrible hack needed because of design decisions of rmm::device_buffer
+	// idea of the hack borrowed from https://stackoverflow.com/a/19209874/46058
+
+	// NOTE: the types and order of fields copied from <rmm/device_buffer.hpp>, must be the same!
+	void* _data{nullptr};
+	std::size_t _size{};
+	std::size_t _capacity{};
+	rmm::cuda_stream_view _stream{};
+	rmm::mr::device_memory_resource* _mr{rmm::mr::get_current_device_resource()};
+
+	void move_into(void * device_ptr, std::size_t size_bytes)
+	{
+		_data = device_ptr;
+		_size = _capacity = size_bytes;
+	}
+};
+
+union rmm_device_buffer_union {
+	rmm::device_buffer rmm;
+	rmm_device_buffer_data data;
+
+	rmm_device_buffer_union() : rmm() {}
+	~rmm_device_buffer_union() {}
+};
+
+template<class T, typename OutputType>
+struct CudfNumericColumn {
+	using OT = T;
+
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 size_t n_elements, size_t total_size)
+	{
+		//const uint8_t* data_ptr = output.m_d_outputs[idx++].data().get();
+		void* data_ptr = (void *)(output.template Pointer<TagT>());
+
+		std::cout << "converting column " << i << " (numeric: "
+				  << boost::core::demangle(typeid(OutputType).name()) << ", "
+				  << sizeof(OutputType) << " bytes, "
+				  << 8*sizeof(OutputType) << " bits,"
+				  << " data_ptr=" << data_ptr << " is " << memory_desc(const_cast<const void*>(data_ptr))
+				  << ")\n";
+
+		// DEBUG:
+		std::cout << "- n_elements=" << n_elements << "; total_size=" << total_size
+		          << " (average size: " << 1.0f*total_size/n_elements << ")\n";
+		std::cout << "- original type is " << boost::core::demangle(typeid(OT).name()) << "\n";
+
+		rmm_device_buffer_union u;
+		u.data.move_into(data_ptr, total_size); //< data pointer and size in bytes
+
+		// DEBUG:
+		std::cout << "- sizeof(u.data) = " << sizeof(u.data) << "; sizeof(u.rmm) = " << sizeof(u.rmm) << "\n";
+		std::cout
+			<< "  - u.data._size = " << u.data._size << "\n"
+			<< "  - u.data._capacity = " << u.data._capacity << "\n"
+			<< "  - u.data._data = " << u.data._data << "\n"
+			<< "  + u.rmm.size() = " << u.rmm.size() << "\n"
+			<< "  + u.rmm.capacity() = " << u.rmm.capacity() << "\n"
+			<< "  + u.rmm.data() = " << u.rmm.data() << "\n";
+		std::cout << "- cudf::type_id = " << type_id_to_name(cudf::type_to_id<OutputType>()) << "\n";
+		std::cout << "- cudf::data_type is "
+		          << boost::core::demangle(typeid(cudf::data_type{cudf::type_to_id<OutputType>()}).name()) << "\n";
+
+		auto column = std::make_unique<cudf::column>(
+			cudf::data_type{cudf::type_to_id<OutputType>()}, //< The element type
+			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
+			u.rmm //< The column's data, as rmm::device_buffer or something convertible
+		);
+
+		// DEBUG:
+		std::cout << "- 'column' is " << boost::core::demangle(typeid(column).name()) << "\n";
+		std::cout << "- 'column.get()' is " << boost::core::demangle(typeid(column.get()).name())
+		          << " = " << column.get()
+				  << " is " << memory_desc(column.get())
+				  << "\n";
+		std::cout << "  - elements in column = " << column.get()->size() << "\n";
+		std::cout << "  - can contain null values = " << (column.get()->nullable() ? "true" : "false") << "\n";
+		std::cout << "  - number of children (directly) = " << column.get()->num_children()  << "\n";
+		std::cout << "getting view: column.get()->view()...\n";
+		auto view = column.get()->view();
+		std::cout << "- 'column.get()->view() is "
+		          << boost::core::demangle(typeid(view).name())
+				  << "\n";
+		std::cout << "  - number of children (via view) = "
+		          << view.num_children()
+				  << "\n";
+		//describe_column(column.get()->view());
+
+		columns.emplace_back(column.release());
+	}
+};
+
 // to be used when we don't know how to convert to cudf::column
 template<class T>
 struct CudfUnknownColumnType {
@@ -105,6 +208,20 @@ struct ParserOutputDevice
 				OM::template ToAlloc<Tag>(m_launch_config, m_size)
 			);
 		});
+	}
+
+	// TODO: remove code duplication wrt parser_output_host.cuh
+	// NOTE: using `uint8_t*` instead of `void*`.
+	template<class TagT>
+	void* Pointer()
+	{
+		return m_d_outputs[OM::template TagIndex<TagT>::value].data().get();
+	}
+
+	template<class TagT>
+	void const* Pointer() const
+	{
+		return m_d_outputs[OM::template TagIndex<TagT>::value].data().get();
 	}
 
 	OutputsPointers GetOutputs()
