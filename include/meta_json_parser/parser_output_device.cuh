@@ -74,55 +74,16 @@ struct CudfNumericColumn {
 		std::cout << "converting column " << i << " (numeric: "
 				  << boost::core::demangle(typeid(OutputType).name()) << ", "
 				  << sizeof(OutputType) << " bytes, "
-				  << 8*sizeof(OutputType) << " bits,"
-				  << " data_ptr=" << data_ptr << " is " << memory_desc(const_cast<const void*>(data_ptr))
-				  << ")\n";
-
-		// DEBUG:
-		std::cout << "- n_elements=" << n_elements << "; total_size=" << total_size
-		          << " (average size: " << 1.0f*total_size/n_elements << ")\n";
-		std::cout << "- original type is " << boost::core::demangle(typeid(OT).name()) << "\n";
+				  << 8*sizeof(OutputType) << " bits)\n";
 
 		rmm_device_buffer_union u;
 		u.data.move_into(data_ptr, total_size); //< data pointer and size in bytes
-
-		// DEBUG:
-		std::cout << "- sizeof(u.data) = " << sizeof(u.data) << "; sizeof(u.rmm) = " << sizeof(u.rmm) << "\n";
-		std::cout
-			<< "  - u.data._size = " << u.data._size << "\n"
-			<< "  - u.data._capacity = " << u.data._capacity << "\n"
-			<< "  - u.data._data = " << u.data._data << "\n"
-			<< "  + u.rmm.size() = " << u.rmm.size() << "\n"
-			<< "  + u.rmm.capacity() = " << u.rmm.capacity() << "\n"
-			<< "  + u.rmm.data() = " << u.rmm.data() << "\n";
-		std::cout << "- cudf::type_id = " << type_id_to_name(cudf::type_to_id<OutputType>()) << "\n";
-		std::cout << "- cudf::data_type is "
-		          << boost::core::demangle(typeid(cudf::data_type{cudf::type_to_id<OutputType>()}).name()) << "\n";
 
 		auto column = std::make_unique<cudf::column>(
 			cudf::data_type{cudf::type_to_id<OutputType>()}, //< The element type
 			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
 			u.rmm //< The column's data, as rmm::device_buffer or something convertible
 		);
-
-		// DEBUG:
-		std::cout << "- 'column' is " << boost::core::demangle(typeid(column).name()) << "\n";
-		std::cout << "- 'column.get()' is " << boost::core::demangle(typeid(column.get()).name())
-		          << " = " << column.get()
-				  << " is " << memory_desc(column.get())
-				  << "\n";
-		std::cout << "  - elements in column = " << column.get()->size() << "\n";
-		std::cout << "  - can contain null values = " << (column.get()->nullable() ? "true" : "false") << "\n";
-		std::cout << "  - number of children (directly) = " << column.get()->num_children()  << "\n";
-		std::cout << "getting view: column.get()->view()...\n";
-		auto view = column.get()->view();
-		std::cout << "- 'column.get()->view() is "
-		          << boost::core::demangle(typeid(view).name())
-				  << "\n";
-		std::cout << "  - number of children (via view) = "
-		          << view.num_children()
-				  << "\n";
-		//describe_column(column.get()->view());
 
 		columns.emplace_back(column.release());
 	}
