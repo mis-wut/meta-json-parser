@@ -33,9 +33,12 @@ struct CudfUnknownColumnType {
 	template<typename TagT, typename ParserOutputDeviceT>
 	static void call(const ParserOutputDeviceT& output,
 					 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
-					 size_t n_elements, size_t elem_size)
+					 size_t n_elements, size_t total_size)
 	{
-		std::cout << "skipping column " << i << " (don't know how to convert to cudf::column)\n";
+		std::cout
+			<< "skipping column " << std::setw(2) << i << " (no convert); "
+		    << "n_elements=" << n_elements << "; "
+			<< "total_size=" << total_size << "\n";
 	}
 };
 
