@@ -24,6 +24,37 @@
 #include <cudf/table/table.hpp>
 #endif
 
+#ifdef HAVE_LIBCUDF
+// to be used when we don't know how to convert to cudf::column
+struct CudfUnknownColumnType {
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+					 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 size_t n_elements, size_t elem_size)
+	{
+		std::cout << "skipping column " << i << " (don't know how to convert to cudf::column)\n";
+	}
+};
+
+// NOTE: based on HaveOutputRequests, GetOutputRequests and TryGetOutputRequests
+template<class T, typename = int>
+struct HaveCudfColumnConverter : std::false_type {};
+
+template<class T>
+struct HaveCudfColumnConverter<T, decltype(std::declval<typename T::CudfColumnConverter>(), 0)> : std::true_type {};
+
+template<class T>
+using GetCudfColumnConverter = typename T::CudfColumnConverter;
+
+template<class T>
+using TryGetCudfColumnConverter = boost::mp11::mp_eval_if_not<
+	HaveCudfColumnConverter<T>,
+	CudfUnknownColumnType, // or `boost::mp11::mp_list<>` for no attempt at conversion
+	GetCudfColumnConverter,
+	T
+>;
+#endif
+
 struct OutputsPointers
 {
 	thrust::host_vector<void*> h_outputs;
@@ -36,6 +67,16 @@ struct ParserOutputDevice
 	using BaseAction = BaseActionT;
 	using OC = OutputConfiguration<BaseAction>;
 	using OM = OutputManager<BaseAction>;
+
+#ifdef HAVE_LIBCUDF
+	// NOTE: patterned on the RequestList from OutputConfiguration in output_manager.cuh
+	using CudfColumnConverterList = boost::mp11::mp_flatten<
+		boost::mp11::mp_transform<
+			TryGetCudfColumnConverter,
+			ActionIterator<BaseAction>
+		>
+	>;
+#endif
 
 	static constexpr size_t output_buffers_count = boost::mp11::mp_size<typename OC::RequestList>::value;
 
