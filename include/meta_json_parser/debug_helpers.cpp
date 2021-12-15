@@ -178,6 +178,7 @@ void describe_column(cudf::column_view col, bool dump_data, const char *indent)
 void describe_table(cudf::table& table, bool dump_data)
 {
 	const int n_cols = table.num_columns();
+	printf("table has %d columns\n", n_cols);
 	for (int col_idx = 0; col_idx < n_cols; col_idx++) {
 		printf("column(%d):\n", col_idx);
 		describe_column(table.view().column(col_idx), dump_data);
@@ -188,6 +189,7 @@ void describe_table(cudf::io::table_with_metadata& table_with_metadata, bool dum
 {
 	const auto table = table_with_metadata.tbl->view();
 	const int n_cols = table.num_columns();
+	printf("table (with metadata) has %d columns\n", n_cols);
 	for (int col_idx = 0; col_idx < n_cols; col_idx++) {
 		printf("column(%d) name is \"%s\":\n", col_idx,
 		       table_with_metadata.metadata.column_names[col_idx].c_str());
