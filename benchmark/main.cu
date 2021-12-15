@@ -149,6 +149,9 @@ cudaEvent_t gpu_parsing_checkpoint;
 cudaEvent_t gpu_post_hooks_checkpoint;
 cudaEvent_t gpu_output_checkpoint;
 cudaEvent_t gpu_error_checkpoint;
+#ifdef HAVE_LIBCUDF
+cudaEvent_t gpu_convert_checkpoint;
+#endif // defined(HAVE_LIBCUDF)
 cudaEvent_t gpu_stop;
 size_t total_gpu_mem;
 size_t free_gpu_mem_start;
@@ -565,6 +568,28 @@ void to_csv(ParserOutputHost<BaseActionT>& output_hosts)
 	output_hosts.DropToCsv(g_args.output_csv.c_str());;
 }
 
+#ifdef HAVE_LIBCUDF
+void to_csv_libcudf(std::string& filename, cudf::io::table_with_metadata const& table_with_metadata);
+void to_csv_libcudf(std::string& filename, cudf::table const& cudf_table);
+
+/**
+ * This function converts benchmark results on GPU to cuDF format.
+ * @param device_buffers represents benchmark results on GPU
+ * @return cudf::table @todo: results converted to cuDF compatibile format
+ */
+template<class BaseActionT>
+cudf::table output_to_cudf(benchmark_device_buffers<BaseActionT>& device_buffers)
+{
+    cudaEventRecord(gpu_convert_checkpoint, stream);
+    //return device_buffers.parser_output_buffers.ToCudf(stream);
+
+    // TODO: return actual result, not an empty table
+    // see https://github.com/mis-wut/test-libcudf/blob/main/generate-libcudf.cu
+    std::vector<std::unique_ptr<cudf::column>> columns(0);
+    return cudf::table(std::move(columns));
+}
+#endif /* defined(HAVE_LIBCUDF) */
+
 template<class BaseActionT>
 void main_templated(benchmark_input& input)
 {
@@ -576,13 +601,27 @@ void main_templated(benchmark_input& input)
 			<< " [" << static_cast<int>(input.wg_size) << "]\n";
 	launch_kernel_dynamic<BaseActionT>(device_buffers, input.wg_size);
 	auto host_output = copy_output<BaseActionT>(device_buffers);
+#ifdef HAVE_LIBCUDF
+    auto cudf_table  = output_to_cudf<BaseActionT>(device_buffers);
+#endif // defined(HAVE_LIBCUDF)
 	cudaEventRecord(gpu_stop, stream);
     cudaMemGetInfo(&free_gpu_mem_stop, &total_gpu_mem);
 	cudaEventSynchronize(gpu_stop);
 	cpu_stop = chrono::high_resolution_clock::now();
 	print_results();
-	if (!g_args.output_csv.empty())
-		to_csv<BaseActionT>(host_output);
+#ifndef HAVE_LIBCUDF
+    if (!g_args.output_csv.empty())
+        to_csv<BaseActionT>(host_output);
+#else /* defined(HAVE_LIBCUDF) */
+	if (!g_args.output_csv.empty()) {
+        to_csv<BaseActionT>(host_output);
+        // TODO: choose which to use based on command line arguments
+        // NOTE: the table is empty, so it wouldn't work anyway
+        //to_csv_libcudf(g_args.output_csv, cudf_table);
+    }
+    if (g_args.show_cudf_table_structure)
+        describe_table(cudf_table);
+#endif /* defined(HAVE_LIBCUDF) */
 }
 
 template<template<class, int> class StrFun>
@@ -640,8 +679,7 @@ cudf::io::table_with_metadata parse_json_libcudf(cudf::io::json_reader_options c
 //template<class BaseActionT>
 //ParserOutputHost<BaseActionT> copy_output_libcudf(cudf::io::table_with_metadata const& table_with_metadata);
 void print_results_libcudf();
-void to_csv_libcudf(std::string& filename, cudf::io::table_with_metadata const& table_with_metadata);
-void to_csv_libcudf(std::string& filename, cudf::table const& cudf_table);
+
 
 /**
  * Parse JSON file using `cudf::io::read_json()` from the libcudf library
@@ -855,6 +893,9 @@ void init_gpu()
 	cudaEventCreate(&gpu_post_hooks_checkpoint);
 	cudaEventCreate(&gpu_output_checkpoint);
 	cudaEventCreate(&gpu_error_checkpoint);
+#ifdef HAVE_LIBCUDF
+	cudaEventCreate(&gpu_convert_checkpoint);
+#endif // defined(HAVE_LIBCUDF)
 	cudaEventCreate(&gpu_stop);
 	cudaStreamCreate(&stream);
 }
@@ -880,6 +921,7 @@ void print_results()
 	int64_t cpu_ns = (cpu_stop - cpu_start).count();
 	cudaEventElapsedTime(&ms, gpu_start, gpu_stop);
 	int64_t gpu_total = static_cast<int64_t>(ms * 1'000'000.0);
+	// TODO: properly checkpoint gpu_convert_checkpoint, if present
 	cudaEventElapsedTime(&ms, gpu_start, gpu_memory_checkpoint);
 	int64_t gpu_init = static_cast<int64_t>(ms * 1'000'000.0);
 	cudaEventElapsedTime(&ms, gpu_memory_checkpoint, gpu_preprocessing_checkpoint);
@@ -920,9 +962,14 @@ void print_results()
 		<< setw(c2) << right << gpu_output << " ns\n"
 		;
 	if (g_args.error_check)
+	    cout
+		    << setw(c1) << left  << "+ Checking parsing errors: "
+		    << setw(c2) << right << gpu_error << " ns\n";
+#ifdef HAVE_LIBCUDF
 	cout
-		<< setw(c1) << left  << "+ Checking parsing errors: "
-		<< setw(c2) << right << gpu_error << " ns\n";
+		<< setw(c1) << left  << "+ Converting to cuDF format: "
+		<< setw(c2) << right << "(not implemented yet)\n";
+#endif // defined(HAVE_LIBCUDF)
 	cout
 		<< setw(c1 + c2 + 4) << setfill('-') << "\n" << setfill(' ')
 		<< setw(c1) << left  << "Total time measured by GPU: "
