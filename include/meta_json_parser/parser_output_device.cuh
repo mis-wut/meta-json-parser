@@ -89,6 +89,32 @@ struct CudfNumericColumn {
 	}
 };
 
+template<class T>
+struct CudfBoolColumn {
+	using OT = T;
+
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 size_t n_elements, size_t total_size)
+	{
+		void* data_ptr = (void *)(output.template Pointer<TagT>());
+
+		std::cout << "converting column " << i << " (bool)\n";
+
+		rmm_device_buffer_union u;
+		u.data.move_into(data_ptr, total_size); //< data pointer and size in bytes
+
+		auto column = std::make_unique<cudf::column>(
+			cudf::data_type{cudf::type_id::BOOL8}, //< The element type: boolean using one byte per value
+			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
+			u.rmm //< The column's data, as rmm::device_buffer or something convertible
+		);
+
+		columns.emplace_back(column.release());
+	}
+};
+
 // to be used when we don't know how to convert to cudf::column
 template<class T>
 struct CudfUnknownColumnType {
