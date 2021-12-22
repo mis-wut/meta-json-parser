@@ -56,14 +56,33 @@ using DynamicV3CopyFun = JStringDynamicCopyV3<Key>;
 
 #include "data_def.cuh"
 
+// NOTE: unix is not an identifier reserved by the Standard.
+// However, it is common to find 'unix' #defined on Unix systems
+// see https://stackoverflow.com/questions/3770322/is-unix-restricted-keyword-in-c
+#ifdef unix
+// NOTE: for some reason this still does not work
+#undef unix
+#endif
 
-enum workgroup_size { W32, W16, W8, W4 };
-enum end_of_line { unknown, unix, win };
-enum dynamic_version { v1, v2, v3 };
-enum dictionary_assumption { none, const_order };
+enum class workgroup_size { W32, W16, W8, W4 };
+enum class end_of_line {
+	unknown,
+	uniks, //< LF, or "\n": end-of-line convention used by Unix
+	win   //< CRLF, or "\r\n": end-of-line convention used by MS Windows
+};
+enum class dynamic_version {
+	v1, //< old version with double copying
+	v2, //< new version with single copying
+	v3  //< new version with double copying and double buffer
+};
+enum class dictionary_assumption {
+	none, //< no assumptions
+	const_order //< keys in a constant order in JSON
+};
+
 
 // TODO: move to debug_helpers, maybe
-const char* workgroup_size_desc(enum workgroup_size ws)
+const char* workgroup_size_desc(workgroup_size ws)
 {
 	switch (ws) {
 	case workgroup_size::W32:
@@ -380,7 +399,7 @@ benchmark_device_buffers<BaseActionT> initialize_buffers(benchmark_input& input,
 
 	switch (input.eol)
 	{
-	case end_of_line::unix:
+	case end_of_line::uniks:
 		find_newlines<EndOfLine::Unix>
 			(result.input_buffer, input.data.size(), result.indices_buffer, input.count);
 		break;
@@ -573,7 +592,8 @@ void main_templated(benchmark_input& input)
     cudaEventRecord(gpu_start, stream);
 	KernelLaunchConfiguration conf = prepare_dynamic_config<BaseActionT>(input);
 	benchmark_device_buffers<BaseActionT> device_buffers = initialize_buffers_dynamic<BaseActionT>(input, &conf);
-	cout << "Workgroup size: " << workgroup_size_desc(input.wg_size) << " [" << input.wg_size << "]\n";
+	cout << "Workgroup size: " << workgroup_size_desc(input.wg_size)
+			<< " [" << static_cast<int>(input.wg_size) << "]\n";
 	launch_kernel_dynamic<BaseActionT>(device_buffers, input.wg_size);
 	auto host_output = copy_output<BaseActionT>(device_buffers);
 #ifdef HAVE_LIBCUDF
@@ -883,7 +903,7 @@ end_of_line detect_eol(benchmark_input& input)
 	if (found == input.data.end())
 		return end_of_line::unknown;
 	if (*found == '\n')
-		return end_of_line::unix;
+		return end_of_line::uniks;
 	// *found == '\r'
 	if ((found + 1) == input.data.end() || *(found + 1) != '\n')
 		return end_of_line::unknown;
