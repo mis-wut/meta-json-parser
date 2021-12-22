@@ -108,6 +108,10 @@ struct JStringDynamicCopy
 	using OutputRequests = boost::mp11::mp_list<LengthRequest, DynamicStringRequest>;
 	using MemoryRequests = JsonParse::StringRequests;
 
+#ifdef HAVE_LIBCUDF
+	using CudfColumnConverter = CudfDynamicStringColumn<type>;
+#endif
+
 	//excpect ParserKernel
 	template<class PK>
 	static void PostKernelHook(
@@ -370,6 +374,10 @@ struct JStringDynamicCopyV2
 	using MemoryRequests = JsonParse::StringRequests;
 	using ParserRequirements = boost::mp11::mp_list<ParserRequirement::KeepDistance>;
 
+#ifdef HAVE_LIBCUDF
+	using CudfColumnConverter = CudfDynamicStringColumn<type>;
+#endif
+
 	//excpect ParserKernel
 	template<class PK>
 	static void PostKernelHook(
@@ -511,6 +519,10 @@ struct JStringDynamicCopyV3
 	using Printer = DynamicStringPrinter<type>;
 	using OutputRequests = boost::mp11::mp_list<LengthRequest, DynamicStringRequest, DynamicStringInternalRequest>;
 	using MemoryRequests = JsonParse::StringRequests;
+
+#ifdef HAVE_LIBCUDF
+	using CudfColumnConverter = CudfDynamicStringColumn<type>;
+#endif
 
 	//excpect ParserKernel
 	template<class PK>

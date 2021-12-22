@@ -21,6 +21,8 @@
 #include <memory>
 
 #include <cudf/utilities/type_dispatcher.hpp> //< type_to_id<Type>()
+#include <cudf/column/column_factories.hpp> //< make_strings_column(...)
+#include <cudf/null_mask.hpp> //< create_null_mask(...)
 #include <cudf/column/column.hpp>
 #include <cudf/table/table.hpp>
 
@@ -115,6 +117,114 @@ struct CudfBoolColumn {
 	}
 };
 
+template<class T>
+struct CudfDynamicStringColumn {
+	using OT = T;
+	using LengthRequestTag = typename OT::LengthRequestTag;
+	using DynamicStringRequestTag = typename OT::DynamicStringRequestTag;
+	using LengthRequestType = typename OT::LengthRequest::OutputType;
+
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 size_t n_elements, size_t total_size)
+	{
+		std::cout
+			<< "converting column " << i << " (dynamic string: "
+			<< n_elements << " elements, " << total_size << " total size)\n";
+		std::cout
+			<< "- original type is " << boost::core::demangle(typeid(OT).name()) << "\n";
+
+		// - construct child columns
+		void* offsets_ptr = (void *)(output.template Pointer<LengthRequestTag>());
+		void* strdata_ptr = (void *)(output.template Pointer<DynamicStringRequestTag>());
+
+		rmm_device_buffer_union offsets_u, strdata_u;
+		offsets_u.data.move_into(offsets_ptr, n_elements+1);
+		strdata_u.data.move_into(strdata_ptr, total_size);
+
+		// DEBUG:
+		std::cout
+			<< "  - offsets_u.data._size = " << offsets_u.data._size << "\n"
+			<< "  - offsets_u.data._capacity = " << offsets_u.data._capacity << "\n"
+			<< "  - offsets_u.data._data = " << offsets_u.data._data << "\n"
+			<< "  + offsets_u.rmm.size() = " << offsets_u.rmm.size() << "\n"
+			<< "  + offsets_u.rmm.capacity() = " << offsets_u.rmm.capacity() << "\n"
+			<< "  + offsets_u.rmm.data() = " << offsets_u.rmm.data() << "\n";
+
+		auto offsets_column = std::make_unique<cudf::column>(
+			// hopefully cudf::type_id::UINT32 would work as well as cudf::type_id::INT32
+			cudf::data_type{cudf::type_to_id<LengthRequestType>()}, //< The element type of offsets
+			static_cast<cudf::size_type>(offsets_u.data._size), //< The number of elements in the column
+			offsets_u.rmm //< The column's data, as rmm::device_buffer or something convertible
+		);
+		auto strdata_column = std::make_unique<cudf::column>(
+			// NOTE: cudf::type_to_id<char>() returns cudf::type_id::EMPTY, not cudf::type_id::INT8 (???)
+			cudf::data_type{cudf::type_id::INT8}, //< The element type of `char`
+			static_cast<cudf::size_type>(strdata_u.data._size), //< The number of elements in the column
+			strdata_u.rmm //< The column's data, as rmm::device_buffer or something convertible
+		);
+
+		// DEBUG:
+		std::cout << "- 'offsets_column' is " << boost::core::demangle(typeid(offsets_column).name()) << "\n";
+		std::cout << "- 'offsets_column.get()' is " << boost::core::demangle(typeid(offsets_column.get()).name())
+		          << " = " << offsets_column.get()
+				  << " is " << memory_desc(offsets_column.get())
+				  << "\n";
+		std::cout << "  - data type = " << type_id_to_name(offsets_column.get()->type().id()) << "\n";
+		std::cout << "  - elements in column = " << offsets_column.get()->size() << "\n";
+		std::cout << "  - can contain null values = " << (offsets_column.get()->nullable() ? "true" : "false") << "\n";
+		std::cout << "  - number of children (directly) = " << offsets_column.get()->num_children()  << "\n";
+
+		std::cout << "- 'strdata_column' is " << boost::core::demangle(typeid(strdata_column).name()) << "\n";
+		std::cout << "- 'strdata_column.get()' is " << boost::core::demangle(typeid(strdata_column.get()).name())
+		          << " = " << strdata_column.get() << "\n";
+		std::cout << "  - data type = " << type_id_to_name(strdata_column.get()->type().id()) << "\n";
+		std::cout << "  - elements in column = " << strdata_column.get()->size() << "\n";
+		std::cout << "  - can contain null values = " << (strdata_column.get()->nullable() ? "true" : "false") << "\n";
+		std::cout << "  - number of children (directly) = " << strdata_column.get()->num_children()  << "\n";
+
+		// - make strings column
+		auto column = cudf::make_strings_column(
+			n_elements, //< number of elements (number of strings)
+			std::move(offsets_column), //< column of offsets into chars data
+			std::move(strdata_column), //< column of characters
+			0,  //< null count
+			//{}, //< null mask
+			cudf::create_null_mask(n_elements, cudf::mask_state::UNALLOCATED) //< null mask
+		);
+
+		// DEBUG:
+		std::cout << "- 'column' is " << boost::core::demangle(typeid(column).name()) << "\n";
+		std::cout << "- 'column.get()' is " << boost::core::demangle(typeid(column.get()).name())
+		          << " = " << column.get()
+				  << " is " << memory_desc(column.get())
+				  << "\n";
+		std::cout << "  - data type = " << type_id_to_name(column.get()->type().id()) << "\n";
+		std::cout << "  - elements in column = " << column.get()->size() << "\n";
+		std::cout << "  - can contain null values = " << (column.get()->nullable() ? "true" : "false") << "\n";
+		std::cout << "  - number of children (directly) = " << column.get()->num_children()  << "\n";
+		auto num_children = column.get()->num_children();
+		for (int child_idx = 0; child_idx < num_children; child_idx++) {
+			std::cout
+				<< "    * child " << child_idx << "\n"
+				<< "      - type = " << type_id_to_name(column.get()->child(child_idx).type().id()) << "\n"
+				<< "      - size = " << column.get()->child(child_idx).size() << " elements\n";
+		}
+		std::cout << "getting view: column.get()->view()...\n";
+		auto view = column.get()->view();
+		std::cout << "- 'column.get()->view() is "
+		          << boost::core::demangle(typeid(view).name())
+				  << "\n";
+		std::cout << "  - number of children (via view) = "
+		          << view.num_children()
+				  << "\n";
+
+		// - add it to columns
+		columns.emplace_back(column.release());
+	}
+};
+
 // to be used when we don't know how to convert to cudf::column
 template<class T>
 struct CudfUnknownColumnType {
@@ -128,7 +238,8 @@ struct CudfUnknownColumnType {
 		std::cout
 			<< "skipping column " << std::setw(2) << i << " (no convert); "
 		    << "n_elements=" << n_elements << "; "
-			<< "total_size=" << total_size << "\n";
+			<< "total_size=" << total_size << "\n"
+			<< "- for " << boost::core::demangle(typeid(OT).name()) << "\n";
 	}
 };
 
