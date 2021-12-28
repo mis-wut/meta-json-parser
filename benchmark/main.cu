@@ -37,6 +37,7 @@
 #endif /* HAVE_LIBCUDF */
 
 #include <meta_json_parser/debug_helpers.h>
+#include "checkpoint_results.h"
 
 
 using namespace boost::mp11;
@@ -308,6 +309,7 @@ template<class EndOfLineT>
 void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count)
 {
 	cudaEventRecord(gpu_preprocessing_checkpoint, stream);
+	checkpoint_event(gpu_preprocessing_checkpoint, stream, "Finding newlines offsets (indices)");
 	InputIndex just_zero = 0;
 	cudaMemcpyAsync(d_indices, &just_zero, sizeof(InputIndex), cudaMemcpyHostToDevice, stream);
 	
@@ -375,6 +377,7 @@ benchmark_device_buffers<BaseActionT> initialize_buffers(benchmark_input& input,
 	constexpr size_t REQUEST_COUNT = boost::mp11::mp_size<typename OutputConfiguration<BaseAction>::RequestList>::value;
 
 	cudaEventRecord(gpu_memory_checkpoint, stream);
+	checkpoint_event(gpu_memory_checkpoint, stream, "Memory allocation and copying");
 	benchmark_device_buffers<BaseAction> result;
 	result.count = input.count;
 	result.parser_output_buffers = ParserOutputDevice<BaseAction>(conf, result.count);
@@ -538,6 +541,7 @@ ParserOutputHost<BaseActionT> copy_output(benchmark_device_buffers<BaseActionT>&
 {
 	using BaseAction = BaseActionT;
 	cudaEventRecord(gpu_output_checkpoint, stream);
+	checkpoint_event(gpu_output_checkpoint, stream, "Copying output");
 	vector<ParsingError> temp_err(device_buffers.count);
 	cudaMemcpyAsync(temp_err.data(), device_buffers.err_buffer, sizeof(ParsingError) * device_buffers.count, cudaMemcpyDeviceToHost, stream);
 	ParserOutputHost<BaseAction> output = device_buffers.parser_output_buffers.CopyToHost(stream);
@@ -545,6 +549,7 @@ ParserOutputHost<BaseActionT> copy_output(benchmark_device_buffers<BaseActionT>&
 	if (g_args.error_check)
 	{
 		cudaEventRecord(gpu_error_checkpoint, stream);
+		checkpoint_event(gpu_error_checkpoint, stream, "Checking parsing errors");
 		bool correct = thrust::all_of(
 			thrust::cuda::par.on(stream),
 			device_buffers.err_buffer,
@@ -581,6 +586,7 @@ template<class BaseActionT>
 cudf::table output_to_cudf(benchmark_device_buffers<BaseActionT>& device_buffers)
 {
     cudaEventRecord(gpu_convert_checkpoint, stream);
+	checkpoint_event(gpu_convert_checkpoint, stream, "Converting to cudf::table");
     return device_buffers.parser_output_buffers.ToCudf(stream);
 }
 #endif /* defined(HAVE_LIBCUDF) */
@@ -590,6 +596,7 @@ void main_templated(benchmark_input& input)
 {
 	cudaMemGetInfo(&free_gpu_mem_start, &total_gpu_mem);
     cudaEventRecord(gpu_start, stream);
+	checkpoint_event(gpu_start, stream, "Initialization");
 	KernelLaunchConfiguration conf = prepare_dynamic_config<BaseActionT>(input);
 	benchmark_device_buffers<BaseActionT> device_buffers = initialize_buffers_dynamic<BaseActionT>(input, &conf);
 	cout << "Workgroup size: " << workgroup_size_desc(input.wg_size)
@@ -600,6 +607,7 @@ void main_templated(benchmark_input& input)
     auto cudf_table  = output_to_cudf<BaseActionT>(device_buffers);
 #endif // defined(HAVE_LIBCUDF)
 	cudaEventRecord(gpu_stop, stream);
+	checkpoint_event(gpu_stop, stream, "Total time measured by GPU");
     cudaMemGetInfo(&free_gpu_mem_stop, &total_gpu_mem);
 	cudaEventSynchronize(gpu_stop);
 	cpu_stop = chrono::high_resolution_clock::now();
@@ -696,10 +704,12 @@ void main_libcudf(benchmark_input& input)
 
     cudaMemGetInfo(&free_gpu_mem_start, &total_gpu_mem);
     cudaEventRecord(gpu_start, stream);
+	checkpoint_event(gpu_start, stream, "Initialization");
     auto json_reader_options = prepare_libcudf(input);
     auto libcudf_result = parse_json_libcudf(json_reader_options);
     //TODO: auto host_output = copy_output_libcudf(libcudf_result);
     cudaEventRecord(gpu_stop, stream);
+	checkpoint_event(gpu_stop, stream, "Total time measured by GPU");
     cudaMemGetInfo(&free_gpu_mem_stop, &total_gpu_mem);
     cudaEventSynchronize(gpu_stop);
     cpu_stop = chrono::high_resolution_clock::now();
@@ -989,6 +999,8 @@ void print_results()
         << setw(12) << right << total_gpu_mem << " bytes\n"
         << setw(c1) << left  << "Used GPU memory: "
         << setw(12) << right << used_gpu_mem << " bytes\n";
+
+	print_checkpoint_events();
 }
 
 #ifdef HAVE_LIBCUDF
@@ -1007,6 +1019,7 @@ void init_libcudf()
 cudf::io::json_reader_options prepare_libcudf(benchmark_input& input)
 {
     cudaEventRecord(gpu_memory_checkpoint, stream);
+	checkpoint_event(gpu_memory_checkpoint, stream, "Building input options");
 
     cudf::io::source_info json_in_info =
         cudf::io::source_info{
@@ -1062,6 +1075,7 @@ void to_csv_libcudf(std::string& filename, cudf::table const& cudf_table)
 cudf::io::table_with_metadata parse_json_libcudf(cudf::io::json_reader_options const& json_in_opts)
 {
     cudaEventRecord(gpu_parsing_checkpoint, stream);
+	checkpoint_event(gpu_parsing_checkpoint, stream, "Parsing json");
 
     auto result = cudf::io::read_json(json_in_opts);
     return result;
@@ -1120,5 +1134,7 @@ void print_results_libcudf()
         << setw(12) << right << total_gpu_mem << " bytes\n"
         << setw(c1) << left  << "Used GPU memory: "
         << setw(12) << right << used_gpu_mem << " bytes\n";
+
+	print_checkpoint_events();
 }
 #endif /* defined(HAVE_LIBCUDF) */

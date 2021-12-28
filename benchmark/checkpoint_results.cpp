@@ -1,0 +1,40 @@
+//
+// Created by Jakub Narębski <jnareb@mat.umk.pl> on 22.12.2021.
+//
+#include <vector>
+#include <utility>
+#include <string>
+#include <iostream>
+
+#include <cuda_runtime_api.h>
+
+#include "checkpoint_results.h"
+
+static std::vector<checkpoint_event_t> checkpoints;
+
+void init_checkpoints(size_t reserve)
+{
+	checkpoints.reserve(reserve);
+}
+
+void checkpoint_event(cudaEvent_t event, cudaStream_t stream, std::string description)
+{
+	// TODO: uncomment the following line after the conversion to using this module
+	//cudaEventRecord(event, stream);
+	checkpoints.push_back(std::make_pair(event, description));
+}
+
+cudaEvent_t find_next_checkpoint_event(decltype(checkpoints)::iterator it) {}
+
+void print_checkpoint_events()
+{
+	std::cout << "\nprint_checkpoint_events():\n";
+
+	for (const auto &pair : checkpoints) {
+		std::cout << "+ " << pair.second << "\n";
+	}
+
+	std::cout << "\n";
+}
+
+void print_checkpoint_results() {}
