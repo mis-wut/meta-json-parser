@@ -1001,6 +1001,7 @@ void print_results()
         << setw(12) << right << used_gpu_mem << " bytes\n";
 
 	print_checkpoint_events();
+	print_checkpoint_results();
 }
 
 #ifdef HAVE_LIBCUDF

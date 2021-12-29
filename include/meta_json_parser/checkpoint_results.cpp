@@ -25,7 +25,6 @@ void checkpoint_event(cudaEvent_t event, cudaStream_t stream, std::string descri
 	checkpoints.push_back(std::make_pair(event, description));
 }
 
-cudaEvent_t find_next_checkpoint_event(decltype(checkpoints)::iterator it) {}
 static bool is_subevent(checkpoint_event_t pair)
 {
 	return !pair.second.compare(0, 2, "- ");
@@ -63,4 +62,47 @@ void print_checkpoint_events()
 	std::cout << "\n";
 }
 
-void print_checkpoint_results() {}
+void print_checkpoint_results()
+{
+	// TODO: make it automatic by finding the maximal length of descriptions
+	//       and finding the length of decimal representation of total time
+	const int c1 = 40-2;
+	const int c2 = 10;
+
+	float dt_ms = -1.0f;
+
+	std::cout << "\nTime measured by GPU:\n";
+
+	auto curr = std::cbegin(checkpoints);
+	auto last = std::cend(checkpoints);
+	if (curr == last) return;
+
+	auto next = curr;
+	++next;
+	while (next != last) {
+		bool curr_is_subevent = is_subevent(*curr);
+		bool next_is_subevent = is_subevent(*next);
+
+		if (curr_is_subevent) {
+			std::cout << "  ";
+		} else {
+			std::cout << "+ ";
+		}
+		std::cout << std::setw(c1) << std::left;
+		if (!curr_is_subevent && next_is_subevent) {
+			std::cout << (*curr).second + " (sum of the following): ";
+		} else {
+			std::cout << (*curr).second + ": ";
+			cudaEventElapsedTime(&dt_ms, (*curr).first, (*next).first);
+			std::cout
+				<< std::setw(c2) << std::right << std::noshowpos
+				<< static_cast<int64_t>(dt_ms * 1'000'000.0)
+				<< " ns";
+		}
+
+		std::cout << "\n";
+
+		next = ++curr;
+		++next;
+	}
+}
