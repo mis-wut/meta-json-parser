@@ -5,6 +5,7 @@
 #include <utility>
 #include <string>
 #include <iostream>
+#include <iomanip>
 
 #include <cuda_runtime_api.h>
 
@@ -32,14 +33,31 @@ static bool is_subevent(checkpoint_event_t pair)
 
 void print_checkpoint_events()
 {
-	std::cout << "\nprint_checkpoint_events():\n";
+	// TODO: make it automatic by finding the maximal length of descriptions
+	//       and finding the length of decimal representation of total time
+	const int c1 = 40-2;
+	const int c2 = 10+1;
 
+	float acc_ms;
+
+	std::cout << "\nTotal accumulated time measured by GPU:\n";
+
+	cudaEvent_t first_event = checkpoints[0].first;
 	for (const auto &pair : checkpoints) {
 		if (is_subevent(pair)) {
-			std::cout << "  " << pair.second << "\n";
+			std::cout << "  ";
 		} else {
-			std::cout << "+ " << pair.second << "\n";
+			std::cout << "+ ";
 		}
+		std::cout
+			<< std::setw(c1) << std::left
+			<< pair.second + ": ";
+
+		cudaEventElapsedTime(&acc_ms, first_event, pair.first);
+		std::cout
+			<< std::setw(c2) << std::right << std::showpos
+			<< static_cast<int64_t>(acc_ms * 1'000'000.0)
+			<< " ns\n";
 	}
 
 	std::cout << "\n";
