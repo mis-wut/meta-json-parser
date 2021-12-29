@@ -104,7 +104,7 @@ struct ParserKernel
 
 		if (kernel_event) {
 			cudaEventRecord(kernel_event, m_stream);
-			// NOTE: the third parameter should probably be not hardcoded, but passed to pk.Run
+			checkpoint_event(kernel_event, m_stream, "Parsing total");
 			checkpoint_event(kernel_event, m_stream, "- JSON processing");
 		}
 

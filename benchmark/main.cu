@@ -146,7 +146,6 @@ chrono::high_resolution_clock::time_point cpu_stop;
 cudaEvent_t gpu_start;
 cudaEvent_t gpu_memory_checkpoint;
 cudaEvent_t gpu_preprocessing_checkpoint;
-cudaEvent_t gpu_parsing_start_checkpoint;
 cudaEvent_t gpu_parsing_checkpoint;
 cudaEvent_t gpu_post_hooks_checkpoint;
 cudaEvent_t gpu_output_checkpoint;
@@ -453,7 +452,6 @@ void launch_kernel(benchmark_device_buffers<BaseActionT>& device_buffers)
 
 	PK pk(device_buffers.parser_output_buffers.m_launch_config, stream);
 
-	checkpoint_event(gpu_parsing_start_checkpoint, stream, "Parsing total");
 	pk.Run(
 		device_buffers.input_buffer,
 		device_buffers.indices_buffer,
@@ -896,7 +894,6 @@ void init_gpu()
 	cudaEventCreate(&gpu_start);
 	cudaEventCreate(&gpu_memory_checkpoint);
 	cudaEventCreate(&gpu_preprocessing_checkpoint);
-	cudaEventCreate(&gpu_parsing_start_checkpoint);
 	cudaEventCreate(&gpu_parsing_checkpoint);
 	cudaEventCreate(&gpu_post_hooks_checkpoint);
 	cudaEventCreate(&gpu_output_checkpoint);
