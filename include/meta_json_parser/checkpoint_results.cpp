@@ -25,13 +25,21 @@ void checkpoint_event(cudaEvent_t event, cudaStream_t stream, std::string descri
 }
 
 cudaEvent_t find_next_checkpoint_event(decltype(checkpoints)::iterator it) {}
+static bool is_subevent(checkpoint_event_t pair)
+{
+	return !pair.second.compare(0, 2, "- ");
+}
 
 void print_checkpoint_events()
 {
 	std::cout << "\nprint_checkpoint_events():\n";
 
 	for (const auto &pair : checkpoints) {
-		std::cout << "+ " << pair.second << "\n";
+		if (is_subevent(pair)) {
+			std::cout << "  " << pair.second << "\n";
+		} else {
+			std::cout << "+ " << pair.second << "\n";
+		}
 	}
 
 	std::cout << "\n";
