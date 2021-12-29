@@ -135,8 +135,8 @@ endif()
 
 target_sources(meta-json-parser-benchmark PRIVATE
 	benchmark/main.cu
-    include/meta_json_parser/debug_helpers.cpp
-    benchmark/checkpoint_results.cpp benchmark/checkpoint_results.h
+	include/meta_json_parser/debug_helpers.cpp
+	include/meta_json_parser/checkpoint_results.cpp include/meta_json_parser/checkpoint_results.h
 )
 
 target_compile_features(meta-json-parser-benchmark INTERFACE cxx_std_17 cuda_std_17)

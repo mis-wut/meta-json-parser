@@ -37,7 +37,7 @@
 #endif /* HAVE_LIBCUDF */
 
 #include <meta_json_parser/debug_helpers.h>
-#include "checkpoint_results.h"
+#include <meta_json_parser/checkpoint_results.h>
 
 
 using namespace boost::mp11;
