@@ -30,6 +30,19 @@ static bool is_subevent(checkpoint_event_t pair)
 	return !pair.second.compare(0, 2, "- ");
 }
 
+// it is template only because iterator types are difficult;
+// let compiler figure that one out instead.
+template <typename IteratorT>
+static IteratorT find_next_main_event(IteratorT &next, IteratorT &last)
+{
+	while (next++ != last) {
+		if (!is_subevent(*next))
+			return next;
+	}
+
+	return next;
+}
+
 void print_checkpoint_events()
 {
 	// TODO: make it automatic by finding the maximal length of descriptions
@@ -91,8 +104,12 @@ void print_checkpoint_results()
 		std::cout << std::setw(c1) << std::left;
 		if (!curr_is_subevent && next_is_subevent) {
 			std::cout << (*curr).second + " (sum of the following): ";
+			next = find_next_main_event(next, last);
 		} else {
 			std::cout << (*curr).second + ": ";
+		}
+
+		if (next != last) {
 			cudaEventElapsedTime(&dt_ms, (*curr).first, (*next).first);
 			std::cout
 				<< std::setw(c2) << std::right << std::noshowpos
