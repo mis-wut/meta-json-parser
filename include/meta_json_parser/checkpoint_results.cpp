@@ -122,4 +122,14 @@ void print_checkpoint_results()
 		next = ++curr;
 		++next;
 	}
+
+	cudaEventElapsedTime(&dt_ms, checkpoints.front().first,
+	                             checkpoints.back().first);
+	std::cout
+		<< "= "
+		<< std::setw(c1) << std::left
+		<< checkpoints.back().second + ": "
+		<< std::setw(c2) << std::right
+		<< static_cast<int64_t>(dt_ms * 1'000'000.0)
+		<< " ns\n\n";
 }
