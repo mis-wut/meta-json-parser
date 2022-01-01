@@ -82,6 +82,7 @@ struct CudfNumericColumn {
 				  << 8*sizeof(OutputType) << " bits)\n";
 		perf_clock::time_point cpu_beg, cpu_end;
 		cpu_beg = perf_clock::now();
+		cudaEventRecord(gpu_beg, stream);
 #endif /* !defined(NDEBUG) */
 
 		//const uint8_t* data_ptr = output.m_d_outputs[idx++].data().get();
@@ -99,9 +100,17 @@ struct CudfNumericColumn {
 		columns.emplace_back(column.release());
 
 #ifndef NDEBUG
+		cudaEventRecord(gpu_end, stream);
 		cpu_end = perf_clock::now();
+
 		int64_t cpu_ns = (cpu_end - cpu_beg).count();
 		std::cout << "- time on CPU: " << cpu_ns << " ns\n";
+
+		float ms;
+		cudaEventSynchronize(gpu_end);
+		cudaEventElapsedTime(&ms, gpu_beg, gpu_end);
+		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
+		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
 #endif /* !defined(NDEBUG) */
 	}
 };
@@ -119,6 +128,7 @@ struct CudfBoolColumn {
 		std::cout << "converting column " << i << " (bool)\n";
 		perf_clock::time_point cpu_beg, cpu_end;
 		cpu_beg = perf_clock::now();
+		cudaEventRecord(gpu_beg, stream);
 #endif /* !defined(NDEBUG) */
 
 		void* data_ptr = (void *)(output.template Pointer<TagT>());
@@ -135,9 +145,17 @@ struct CudfBoolColumn {
 		columns.emplace_back(column.release());
 
 #ifndef NDEBUG
+		cudaEventRecord(gpu_end, stream);
 		cpu_end = perf_clock::now();
+
 		int64_t cpu_ns = (cpu_end - cpu_beg).count();
 		std::cout << "- time on CPU: " << cpu_ns << " ns\n";
+
+		float ms;
+		cudaEventSynchronize(gpu_end);
+		cudaEventElapsedTime(&ms, gpu_beg, gpu_end);
+		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
+		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
 #endif /* !defined(NDEBUG) */
 	}
 };
@@ -159,7 +177,9 @@ struct CudfDynamicStringColumn {
 			<< "converting column " << i << " (dynamic string: "
 			<< n_elements << " strings, " << total_size << " characters)\n";
 		perf_clock::time_point cpu_beg, cpu_end;
+
 		cpu_beg = perf_clock::now();
+		cudaEventRecord(gpu_beg, stream);
 #endif /* !defined(NDEBUG) */
 
 		// - construct child columns
@@ -196,9 +216,17 @@ struct CudfDynamicStringColumn {
 		columns.emplace_back(column.release());
 
 #ifndef NDEBUG
+		cudaEventRecord(gpu_end, stream);
 		cpu_end = perf_clock::now();
+
 		int64_t cpu_ns = (cpu_end - cpu_beg).count();
 		std::cout << "- time on CPU: " << cpu_ns << " ns\n";
+
+		float ms;
+		cudaEventSynchronize(gpu_end);
+		cudaEventElapsedTime(&ms, gpu_beg, gpu_end);
+		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
+		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
 #endif /* !defined(NDEBUG) */
 	}
 };

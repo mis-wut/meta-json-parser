@@ -13,6 +13,12 @@
 #include <boost/mp11/set.hpp>
 #include <boost/mp11/list.hpp>
 #include <boost/mp11/algorithm.hpp>
+
+// used also for benchmarking individual methods
+cudaStream_t stream;
+// for benchmarking individual functions and methods
+cudaEvent_t gpu_beg, gpu_end;
+
 #include <meta_json_parser/parser_output_device.cuh>
 #include <meta_json_parser/output_printer.cuh>
 #include <meta_json_parser/memory_configuration.h>
@@ -156,7 +162,7 @@ cudaEvent_t gpu_stop;
 size_t total_gpu_mem;
 size_t free_gpu_mem_start;
 size_t free_gpu_mem_stop;
-cudaStream_t stream;
+//cudaStream_t stream; // declaration moved earlier
 
 void init_gpu();
 void parse_args(int argc, char** argv);
@@ -893,6 +899,11 @@ void init_gpu()
 #endif // defined(HAVE_LIBCUDF)
 	cudaEventCreate(&gpu_stop);
 	cudaStreamCreate(&stream);
+
+	// for benchmarking individual functions and methods,
+	// created here to avoid putting creation cost in measured unit.
+	cudaEventCreate(&gpu_beg);
+	cudaEventCreate(&gpu_end);
 }
 
 end_of_line detect_eol(benchmark_input& input)
