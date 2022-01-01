@@ -30,8 +30,11 @@
 
 // TODO: DEBUG !!!
 #include <boost/core/demangle.hpp> //< boost::core::demangle()
+#ifndef NDEBUG
 #include <iostream>
+#include <chrono>
 #include <meta_json_parser/debug_helpers.h>
+#endif
 #endif
 
 #ifdef HAVE_LIBCUDF
@@ -61,6 +64,8 @@ union rmm_device_buffer_union {
 	~rmm_device_buffer_union() {}
 };
 
+using perf_clock = std::chrono::high_resolution_clock;
+
 template<class T, typename OutputType>
 struct CudfNumericColumn {
 	using OT = T;
@@ -70,15 +75,17 @@ struct CudfNumericColumn {
 	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 size_t n_elements, size_t total_size)
 	{
-		//const uint8_t* data_ptr = output.m_d_outputs[idx++].data().get();
-		void* data_ptr = (void *)(output.template Pointer<TagT>());
-
 #ifndef NDEBUG
 		std::cout << "converting column " << i << " (numeric: "
 				  << boost::core::demangle(typeid(OutputType).name()) << ", "
 				  << sizeof(OutputType) << " bytes, "
 				  << 8*sizeof(OutputType) << " bits)\n";
+		perf_clock::time_point cpu_beg, cpu_end;
+		cpu_beg = perf_clock::now();
 #endif /* !defined(NDEBUG) */
+
+		//const uint8_t* data_ptr = output.m_d_outputs[idx++].data().get();
+		void* data_ptr = (void *)(output.template Pointer<TagT>());
 
 		rmm_device_buffer_union u;
 		u.data.move_into(data_ptr, total_size); //< data pointer and size in bytes
@@ -90,6 +97,12 @@ struct CudfNumericColumn {
 		);
 
 		columns.emplace_back(column.release());
+
+#ifndef NDEBUG
+		cpu_end = perf_clock::now();
+		int64_t cpu_ns = (cpu_end - cpu_beg).count();
+		std::cout << "- time on CPU: " << cpu_ns << " ns\n";
+#endif /* !defined(NDEBUG) */
 	}
 };
 
@@ -102,11 +115,13 @@ struct CudfBoolColumn {
 	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 size_t n_elements, size_t total_size)
 	{
-		void* data_ptr = (void *)(output.template Pointer<TagT>());
-
 #ifndef NDEBUG
 		std::cout << "converting column " << i << " (bool)\n";
+		perf_clock::time_point cpu_beg, cpu_end;
+		cpu_beg = perf_clock::now();
 #endif /* !defined(NDEBUG) */
+
+		void* data_ptr = (void *)(output.template Pointer<TagT>());
 
 		rmm_device_buffer_union u;
 		u.data.move_into(data_ptr, total_size); //< data pointer and size in bytes
@@ -118,6 +133,12 @@ struct CudfBoolColumn {
 		);
 
 		columns.emplace_back(column.release());
+
+#ifndef NDEBUG
+		cpu_end = perf_clock::now();
+		int64_t cpu_ns = (cpu_end - cpu_beg).count();
+		std::cout << "- time on CPU: " << cpu_ns << " ns\n";
+#endif /* !defined(NDEBUG) */
 	}
 };
 
@@ -137,6 +158,8 @@ struct CudfDynamicStringColumn {
 		std::cout
 			<< "converting column " << i << " (dynamic string: "
 			<< n_elements << " strings, " << total_size << " characters)\n";
+		perf_clock::time_point cpu_beg, cpu_end;
+		cpu_beg = perf_clock::now();
 #endif /* !defined(NDEBUG) */
 
 		// - construct child columns
@@ -171,6 +194,12 @@ struct CudfDynamicStringColumn {
 
 		// - add it to list of columns to be composed into cudf::table
 		columns.emplace_back(column.release());
+
+#ifndef NDEBUG
+		cpu_end = perf_clock::now();
+		int64_t cpu_ns = (cpu_end - cpu_beg).count();
+		std::cout << "- time on CPU: " << cpu_ns << " ns\n";
+#endif /* !defined(NDEBUG) */
 	}
 };
 
