@@ -2,6 +2,9 @@
 #include <cuda_runtime_api.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
+#include <thrust/device_ptr.h>
+#include <thrust/functional.h>
+#include <thrust/transform.h>
 #include <boost/mp11/list.hpp>
 #include <fstream>
 #include <meta_json_parser/config.h>
@@ -62,6 +65,82 @@ union rmm_device_buffer_union {
 
 	rmm_device_buffer_union() : rmm() {}
 	~rmm_device_buffer_union() {}
+};
+
+
+// https://github.com/jbenner-radham/libsafec-strnlen_s/blob/master/strnlen_s.h
+/**
+ * The `my_strnlen_s` function computes the length of the C string pointed to by `s`.
+ *
+ * Specified in: ISO/IEC TR 24731-1 §6.7.4.3, Programming languages, environments
+ * and system software interfaces, Extensions to the C Library, Part I:
+ * Bounds-checking interfaces.
+ *
+ * Modified to be __host__ __device__ function, capable to be run on GPU.
+ *
+ * @param [in] s       pointer to C string
+ * @param [in] maxsize restricted maximum length
+ *
+ * @return If `s` is a null pointer, then the `my_strnlen_s` function returns zero.
+ * Otherwise, the `my_strnlen_s` function returns the number of characters that precede
+ * the terminating null character. If there is no null character in the first `maxsize`
+ * characters of `s`, then `my_strnlen_s` returns `maxsize`. At most the first `maxsize`
+ * characters of `s` shall be accessed by `my_strnlen_s`.
+ *
+ * @url https://github.com/jbenner-radham/libsafec-strnlen_s
+ *
+ * @author Bo Berry
+ * @author James Benner <james.benner@gmail.com>
+ * @copyright The MIT License (MIT)
+ *
+ * @todo Move to a separate module or at least separate header (?)
+ */
+__host__ __device__
+size_t my_strnlen_s(const char *s, size_t maxsize)
+{
+	if (s == NULL)
+		return 0;
+
+	size_t count = 0;
+	while (*s++ && maxsize--) {
+		count++;
+	}
+
+	return count;
+}
+
+/**
+ * to_str_pair is a function object. Specifically, it is an Adaptable Unary Function.
+ *
+ * If `f` is an object of class `to_str_pair<maxCharacters>`, and `x` is a character
+ * which is a part of collection of C-strings, each of maximum length of `maxCharacters`,
+ * then `f(x)` returns `thrust::pair<str, str_length>`, where `str` is C-string beginning
+ * at `x`, and `str_length` is its length (up to `maxCharacters`).
+ *
+ * This operator uses the `my_strlen_s` CPU / GPU function defined earlier.
+ *
+ * @see unary_function
+ *
+ * @todo Move to a separate header (this is a template class)
+ */
+template<int maxCharacters>
+struct to_str_pair : public thrust::unary_function<
+	const char,
+	thrust::pair<const char*, cudf::size_type>
+>
+{
+	using str_pair_t = thrust::pair<const char*, cudf::size_type>;
+	using c_str_t = const char*;
+
+	/**
+	 * Function call operator. The return value is `thrust::pair<str, str_length>`.
+	 */
+	__host__ __device__ str_pair_t operator()(const char & x) const
+	{
+		const char *str = &x;
+		const cudf::size_type str_length = my_strnlen_s(str, maxCharacters);
+		return std::make_pair(str, str_length);
+	}
 };
 
 using perf_clock = std::chrono::high_resolution_clock;
