@@ -57,9 +57,9 @@ void print_checkpoint_events()
 	cudaEvent_t first_event = checkpoints[0].first;
 	for (const auto &pair : checkpoints) {
 		if (is_subevent(pair)) {
-			std::cout << "  ";
+			std::cout << "--";
 		} else {
-			std::cout << "+ ";
+			std::cout << "* ";
 		}
 		std::cout
 			<< std::setw(c1) << std::left
