@@ -31,6 +31,8 @@
 
 #include <rmm/device_buffer.hpp>
 
+#include <meta_json_parser/strided_range.cuh>
+
 // TODO: DEBUG !!!
 #include <boost/core/demangle.hpp> //< boost::core::demangle()
 #ifndef NDEBUG
@@ -220,6 +222,61 @@ struct CudfBoolColumn {
 			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
 			u.rmm //< The column's data, as rmm::device_buffer or something convertible
 		);
+
+		columns.emplace_back(column.release());
+
+#ifndef NDEBUG
+		cudaEventRecord(gpu_end, stream);
+		cpu_end = perf_clock::now();
+
+		int64_t cpu_ns = (cpu_end - cpu_beg).count();
+		std::cout << "- time on CPU: " << cpu_ns << " ns\n";
+
+		float ms;
+		cudaEventSynchronize(gpu_end);
+		cudaEventElapsedTime(&ms, gpu_beg, gpu_end);
+		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
+		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
+#endif /* !defined(NDEBUG) */
+	}
+};
+
+template<class T, int maxCharacters>
+struct CudfStaticStringColumn {
+	using OT = T;
+
+	using str_pair_t = thrust::pair<const char*, cudf::size_type>;
+	using c_str_t = const char*;
+
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 size_t n_elements, size_t total_size)
+	{
+#ifndef NDEBUG
+		std::cout
+			<< "converting column " << i
+			<< " (static string: "
+				<< n_elements << " strings, "
+				<< maxCharacters << " max length, "
+				<< total_size << " characters"
+			<< ")\n";
+		perf_clock::time_point cpu_beg, cpu_end;
+		cpu_beg = perf_clock::now();
+		cudaEventRecord(gpu_beg, stream);
+#endif /* !defined(NDEBUG) */
+
+		void* data_ptr = (void *)(output.template Pointer<TagT>());
+
+		thrust::device_vector<str_pair_t> strings_info(n_elements);
+		thrust::device_ptr<const char> char_ptr = thrust::device_pointer_cast(data_ptr);
+		auto char_iterator = strided_range(char_ptr, char_ptr + n_elements*maxCharacters, maxCharacters);
+
+		thrust::transform(char_iterator.begin(), char_iterator.end(),
+		                  strings_info.begin(),
+		                  to_str_pair<maxCharacters>());
+
+		auto column = cudf::make_strings_column(strings_info);
 
 		columns.emplace_back(column.release());
 
