@@ -131,5 +131,5 @@ void print_checkpoint_results()
 		<< checkpoints.back().second + ": "
 		<< std::setw(c2) << std::right
 		<< static_cast<int64_t>(dt_ms * 1'000'000.0)
-		<< " ns\n\n";
+		<< " ns\n";
 }

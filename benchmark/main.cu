@@ -937,55 +937,11 @@ void print_results()
 	int64_t cpu_ns = (cpu_stop - cpu_start).count();
 	cudaEventElapsedTime(&ms, gpu_start, gpu_stop);
 	int64_t gpu_total = static_cast<int64_t>(ms * 1'000'000.0);
-	// TODO: properly checkpoint gpu_convert_checkpoint, if present
-	cudaEventElapsedTime(&ms, gpu_start, gpu_memory_checkpoint);
-	int64_t gpu_init = static_cast<int64_t>(ms * 1'000'000.0);
-	cudaEventElapsedTime(&ms, gpu_memory_checkpoint, gpu_preprocessing_checkpoint);
-	int64_t gpu_memory = static_cast<int64_t>(ms * 1'000'000.0);
-	cudaEventElapsedTime(&ms, gpu_preprocessing_checkpoint, gpu_parsing_checkpoint);
-	int64_t gpu_preproc = static_cast<int64_t>(ms * 1'000'000.0);
-	cudaEventElapsedTime(&ms, gpu_parsing_checkpoint, gpu_post_hooks_checkpoint);
-	int64_t gpu_parsing = static_cast<int64_t>(ms * 1'000'000.0);
-	cudaEventElapsedTime(&ms, gpu_post_hooks_checkpoint, gpu_output_checkpoint);
-	int64_t gpu_post_hooks = static_cast<int64_t>(ms * 1'000'000.0);
-	if (!g_args.error_check)
-		cudaEventElapsedTime(&ms, gpu_output_checkpoint, gpu_stop);
-	else
-		cudaEventElapsedTime(&ms, gpu_output_checkpoint, gpu_error_checkpoint);
-	int64_t gpu_output = static_cast<int64_t>(ms * 1'000'000.0);
-	if (g_args.error_check)
-		cudaEventElapsedTime(&ms, gpu_error_checkpoint, gpu_stop);
-	int64_t gpu_error = static_cast<int64_t>(ms * 1'000'000.0);
 
 	const int c1 = 40;
 	const int c2 = 10;
 
-	cout
-		<< "Time measured by GPU:\n"
-		<< setw(c1) << left  << "+ Initialization: "
-		<< setw(c2) << right << gpu_init << " ns\n"
-		<< setw(c1) << left  << "+ Memory allocation and copying: "
-		<< setw(c2) << right << gpu_memory << " ns\n"
-		<< setw(c1) << left  << "+ Finding newlines offsets (indices): "
-		<< setw(c2) << right << gpu_preproc << " ns\n"
-		<< setw(c1) << left  << "+ Parsing total (sum of the following): "
-		<< setw(c2) << right << gpu_parsing + gpu_post_hooks << " ns\n"
-		<< setw(c1) << left  << "  - JSON processing: "
-		<< setw(c2) << right << gpu_parsing << " ns\n"
-		<< setw(c1) << left  << "  - Post kernel hooks: "
-		<< setw(c2) << right << gpu_post_hooks << " ns\n"
-		<< setw(c1) << left  << "+ Copying output: "
-		<< setw(c2) << right << gpu_output << " ns\n"
-		;
-	if (g_args.error_check)
-	    cout
-		    << setw(c1) << left  << "+ Checking parsing errors: "
-		    << setw(c2) << right << gpu_error << " ns\n";
-#ifdef HAVE_LIBCUDF
-	cout
-		<< setw(c1) << left  << "+ Converting to cuDF format: "
-		<< setw(c2) << right << "(not implemented yet)\n";
-#endif // defined(HAVE_LIBCUDF)
+	print_checkpoint_results();
 	cout
 		<< setw(c1 + c2 + 4) << setfill('-') << "\n" << setfill(' ')
 		<< setw(c1) << left  << "Total time measured by GPU: "
@@ -1012,7 +968,6 @@ void print_results()
         << setw(12) << right << used_gpu_mem << " bytes\n";
 
 	print_checkpoint_events();
-	print_checkpoint_results();
 }
 
 #ifdef HAVE_LIBCUDF
@@ -1099,28 +1054,11 @@ void print_results_libcudf()
     int64_t cpu_ns = (cpu_stop - cpu_start).count();
     cudaEventElapsedTime(&ms, gpu_start, gpu_stop);
     int64_t gpu_total = static_cast<int64_t>(ms * 1'000'000.0);
-    cudaEventElapsedTime(&ms, gpu_start, gpu_memory_checkpoint);
-    int64_t gpu_init = static_cast<int64_t>(ms * 1'000'000.0);
-    cudaEventElapsedTime(&ms, gpu_memory_checkpoint, gpu_parsing_checkpoint);
-    int64_t gpu_prep = static_cast<int64_t>(ms * 1'000'000.0);
-    cudaEventElapsedTime(&ms, gpu_parsing_checkpoint, gpu_stop);
-    int64_t gpu_parsing = static_cast<int64_t>(ms * 1'000'000.0);
 
     const int c1 = 40; // description width
     const int c2 = 10; // results width
 
-    cout
-            << "Time measured by GPU:\n"
-            << setw(c1) << left  << "+ Initialization: "
-            << setw(c2) << right << gpu_init << " ns\n"
-            << setw(c1) << left  << "+ Building input options: "
-            << setw(c2) << right << gpu_prep << " ns\n"
-            << setw(c1) << left  << "+ Parsing json: "
-            << setw(c2) << right << gpu_parsing << " ns\n"
-            //<< setw(c1) << left  << "+ Copying output: "
-            //<< setw(c2) << right << gpu_output << " ns\n"
-            ;
-
+	print_checkpoint_results();
     cout
         << setw(c1 + c2 + 4) << setfill('-') << "\n" << setfill(' ')
         << setw(c1) << left  << "Total time measured by GPU: "
