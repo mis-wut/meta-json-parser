@@ -11,6 +11,7 @@
 #include <meta_json_parser/kernel_launcher.cuh>
 #include <meta_json_parser/kernel_launch_configuration.cuh>
 #include <meta_json_parser/action_iterator.h>
+#include <meta_json_parser/checkpoint_results.h>
 #include <cstdint>
 #include <type_traits>
 
@@ -101,8 +102,11 @@ struct ParserKernel
 		constexpr auto kernel_ptr = &_parser_kernel<PC>;
 		Launcher l(kernel_ptr);
 
-		if (kernel_event)
+		if (kernel_event) {
 			cudaEventRecord(kernel_event, m_stream);
+			checkpoint_event(kernel_event, m_stream, "Parsing total");
+			checkpoint_event(kernel_event, m_stream, "- JSON processing");
+		}
 
 		l(BLOCKS_COUNT, m_stream)(
 			m_d_rob,
@@ -120,8 +124,10 @@ struct ParserKernel
 			Actions
 		>;
 
-		if (post_hooks_event)
+		if (post_hooks_event) {
 			cudaEventRecord(post_hooks_event, m_stream);
+			checkpoint_event(post_hooks_event, m_stream, "- Post kernel hooks");
+		}
 
 		boost::mp11::mp_for_each<PostKernelHooks>([&](auto action) {
 			decltype(action)::PostKernelHook(*this, input, indices, errors, count, h_outputs);
@@ -179,4 +185,3 @@ __global__ void __launch_bounds__(1024, 2)
 	if (RT::WorkerId() == 0)
 		err[RT::InputId()] = e;
 }
-

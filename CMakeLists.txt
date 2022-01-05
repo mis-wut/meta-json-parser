@@ -109,6 +109,7 @@ gtest_discover_tests(meta-json-parser-test)
 # benchmarks
 add_subdirectory(third_parties/CLI11)
 
+#add_executable(meta-json-parser-benchmark benchmark/checkpoint_results.cpp benchmark/checkpoint_results.h)
 add_executable(meta-json-parser-benchmark)
 
 target_link_libraries(meta-json-parser-benchmark PRIVATE lib-meta-json-parser CLI11)
@@ -134,7 +135,8 @@ endif()
 
 target_sources(meta-json-parser-benchmark PRIVATE
 	benchmark/main.cu
-    include/meta_json_parser/debug_helpers.cpp
+	include/meta_json_parser/debug_helpers.cpp
+	include/meta_json_parser/checkpoint_results.cpp include/meta_json_parser/checkpoint_results.h
 )
 
 target_compile_features(meta-json-parser-benchmark INTERFACE cxx_std_17 cuda_std_17)

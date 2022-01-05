@@ -35,12 +35,14 @@
 
 // TODO: DEBUG !!!
 #include <boost/core/demangle.hpp> //< boost::core::demangle()
+// note: boost::core::demangle() is needed in CudfUnknownColumnType, without NDEBUG
 #ifndef NDEBUG
 #include <iostream>
 #include <chrono>
 #include <meta_json_parser/debug_helpers.h>
-#endif
-#endif
+#endif /* !defined(NDEBUG) */
+#endif /* defined(HAVE_LIBCUDF) */
+
 
 #ifdef HAVE_LIBCUDF
 struct rmm_device_buffer_data {
@@ -68,7 +70,6 @@ union rmm_device_buffer_union {
 	rmm_device_buffer_union() : rmm() {}
 	~rmm_device_buffer_union() {}
 };
-
 
 // https://github.com/jbenner-radham/libsafec-strnlen_s/blob/master/strnlen_s.h
 /**
@@ -161,6 +162,7 @@ struct CudfNumericColumn {
 				  << boost::core::demangle(typeid(OutputType).name()) << ", "
 				  << sizeof(OutputType) << " bytes, "
 				  << 8*sizeof(OutputType) << " bits)\n";
+
 		perf_clock::time_point cpu_beg, cpu_end;
 		cpu_beg = perf_clock::now();
 		cudaEventRecord(gpu_beg, stream);
