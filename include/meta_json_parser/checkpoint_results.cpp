@@ -20,8 +20,7 @@ void init_checkpoints(size_t reserve)
 
 void checkpoint_event(cudaEvent_t event, cudaStream_t stream, std::string description)
 {
-	// TODO: uncomment the following line after the conversion to using this module
-	//cudaEventRecord(event, stream);
+	cudaEventRecord(event, stream);
 	checkpoints.push_back(std::make_pair(event, description));
 }
 

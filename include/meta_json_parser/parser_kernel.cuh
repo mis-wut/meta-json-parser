@@ -103,7 +103,6 @@ struct ParserKernel
 		Launcher l(kernel_ptr);
 
 		if (kernel_event) {
-			cudaEventRecord(kernel_event, m_stream);
 			checkpoint_event(kernel_event, m_stream, "Parsing total");
 			checkpoint_event(kernel_event, m_stream, "- JSON processing");
 		}
@@ -125,7 +124,6 @@ struct ParserKernel
 		>;
 
 		if (post_hooks_event) {
-			cudaEventRecord(post_hooks_event, m_stream);
 			checkpoint_event(post_hooks_event, m_stream, "- Post kernel hooks");
 		}
 

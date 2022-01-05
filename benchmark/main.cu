@@ -314,7 +314,6 @@ struct NoError
 template<class EndOfLineT>
 void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count)
 {
-	cudaEventRecord(gpu_preprocessing_checkpoint, stream);
 	checkpoint_event(gpu_preprocessing_checkpoint, stream, "Finding newlines offsets (indices)");
 	InputIndex just_zero = 0;
 	cudaMemcpyAsync(d_indices, &just_zero, sizeof(InputIndex), cudaMemcpyHostToDevice, stream);
@@ -382,7 +381,6 @@ benchmark_device_buffers<BaseActionT> initialize_buffers(benchmark_input& input,
 	using OM = typename KC::OM;
 	constexpr size_t REQUEST_COUNT = boost::mp11::mp_size<typename OutputConfiguration<BaseAction>::RequestList>::value;
 
-	cudaEventRecord(gpu_memory_checkpoint, stream);
 	checkpoint_event(gpu_memory_checkpoint, stream, "Memory allocation and copying");
 	benchmark_device_buffers<BaseAction> result;
 	result.count = input.count;
@@ -546,7 +544,7 @@ template<class BaseActionT>
 ParserOutputHost<BaseActionT> copy_output(benchmark_device_buffers<BaseActionT>& device_buffers)
 {
 	using BaseAction = BaseActionT;
-	cudaEventRecord(gpu_output_checkpoint, stream);
+
 	checkpoint_event(gpu_output_checkpoint, stream, "Copying output");
 	vector<ParsingError> temp_err(device_buffers.count);
 	cudaMemcpyAsync(temp_err.data(), device_buffers.err_buffer, sizeof(ParsingError) * device_buffers.count, cudaMemcpyDeviceToHost, stream);
@@ -554,7 +552,6 @@ ParserOutputHost<BaseActionT> copy_output(benchmark_device_buffers<BaseActionT>&
 
 	if (g_args.error_check)
 	{
-		cudaEventRecord(gpu_error_checkpoint, stream);
 		checkpoint_event(gpu_error_checkpoint, stream, "Checking parsing errors");
 		bool correct = thrust::all_of(
 			thrust::cuda::par.on(stream),
@@ -591,7 +588,6 @@ void to_csv_libcudf(std::string& filename, cudf::table const& cudf_table);
 template<class BaseActionT>
 cudf::table output_to_cudf(benchmark_device_buffers<BaseActionT>& device_buffers)
 {
-    cudaEventRecord(gpu_convert_checkpoint, stream);
     checkpoint_event(gpu_convert_checkpoint, stream, "Converting to cuDF format");
     return device_buffers.parser_output_buffers.ToCudf(stream);
 }
@@ -601,7 +597,6 @@ template<class BaseActionT>
 void main_templated(benchmark_input& input)
 {
 	cudaMemGetInfo(&free_gpu_mem_start, &total_gpu_mem);
-    cudaEventRecord(gpu_start, stream);
 	checkpoint_event(gpu_start, stream, "Initialization");
 	KernelLaunchConfiguration conf = prepare_dynamic_config<BaseActionT>(input);
 	benchmark_device_buffers<BaseActionT> device_buffers = initialize_buffers_dynamic<BaseActionT>(input, &conf);
@@ -612,7 +607,6 @@ void main_templated(benchmark_input& input)
 #ifdef HAVE_LIBCUDF
     auto cudf_table  = output_to_cudf<BaseActionT>(device_buffers);
 #endif // defined(HAVE_LIBCUDF)
-	cudaEventRecord(gpu_stop, stream);
 	checkpoint_event(gpu_stop, stream, "Total time measured by GPU");
     cudaMemGetInfo(&free_gpu_mem_stop, &total_gpu_mem);
 	cudaEventSynchronize(gpu_stop);
@@ -709,12 +703,10 @@ void main_libcudf(benchmark_input& input)
     init_libcudf();
 
     cudaMemGetInfo(&free_gpu_mem_start, &total_gpu_mem);
-    cudaEventRecord(gpu_start, stream);
 	checkpoint_event(gpu_start, stream, "Initialization");
     auto json_reader_options = prepare_libcudf(input);
     auto libcudf_result = parse_json_libcudf(json_reader_options);
     //TODO: auto host_output = copy_output_libcudf(libcudf_result);
-    cudaEventRecord(gpu_stop, stream);
 	checkpoint_event(gpu_stop, stream, "Total time measured by GPU");
     cudaMemGetInfo(&free_gpu_mem_stop, &total_gpu_mem);
     cudaEventSynchronize(gpu_stop);
@@ -985,7 +977,6 @@ void init_libcudf()
 
 cudf::io::json_reader_options prepare_libcudf(benchmark_input& input)
 {
-    cudaEventRecord(gpu_memory_checkpoint, stream);
 	checkpoint_event(gpu_memory_checkpoint, stream, "Building input options");
 
     cudf::io::source_info json_in_info =
@@ -1041,7 +1032,6 @@ void to_csv_libcudf(std::string& filename, cudf::table const& cudf_table)
 
 cudf::io::table_with_metadata parse_json_libcudf(cudf::io::json_reader_options const& json_in_opts)
 {
-    cudaEventRecord(gpu_parsing_checkpoint, stream);
 	checkpoint_event(gpu_parsing_checkpoint, stream, "Parsing json");
 
     auto result = cudf::io::read_json(json_in_opts);
