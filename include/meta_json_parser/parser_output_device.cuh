@@ -40,6 +40,7 @@
 #include <iostream>
 #include <chrono>
 #include <meta_json_parser/debug_helpers.h>
+#include <nvToolsExt.h>  // to help with using profiler
 #endif /* !defined(NDEBUG) */
 #endif /* defined(HAVE_LIBCUDF) */
 
@@ -158,6 +159,7 @@ struct CudfNumericColumn {
 					 size_t n_elements, size_t total_size)
 	{
 #ifndef NDEBUG
+		nvtxRangePushA("toCudf: numeric");
 		std::cout << "converting column " << i << " (numeric: "
 				  << boost::core::demangle(typeid(OutputType).name()) << ", "
 				  << sizeof(OutputType) << " bytes, "
@@ -194,6 +196,7 @@ struct CudfNumericColumn {
 		cudaEventElapsedTime(&ms, gpu_beg, gpu_end);
 		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
 		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
+		nvtxRangePop();
 #endif /* !defined(NDEBUG) */
 	}
 };
@@ -208,6 +211,7 @@ struct CudfBoolColumn {
 					 size_t n_elements, size_t total_size)
 	{
 #ifndef NDEBUG
+		nvtxRangePushA("toCudf: bool");
 		std::cout << "converting column " << i << " (bool)\n";
 		perf_clock::time_point cpu_beg, cpu_end;
 		cpu_beg = perf_clock::now();
@@ -239,6 +243,7 @@ struct CudfBoolColumn {
 		cudaEventElapsedTime(&ms, gpu_beg, gpu_end);
 		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
 		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
+		nvtxRangePop();
 #endif /* !defined(NDEBUG) */
 	}
 };
@@ -256,6 +261,7 @@ struct CudfStaticStringColumn {
 					 size_t n_elements, size_t total_size)
 	{
 #ifndef NDEBUG
+		nvtxRangePushA("toCudf: static string");
 		std::cout
 			<< "converting column " << i
 			<< " (static string: "
@@ -294,6 +300,7 @@ struct CudfStaticStringColumn {
 		cudaEventElapsedTime(&ms, gpu_beg, gpu_end);
 		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
 		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
+		nvtxRangePop();
 #endif /* !defined(NDEBUG) */
 	}
 };
@@ -311,6 +318,7 @@ struct CudfDynamicStringColumn {
 					 size_t n_elements, size_t total_size)
 	{
 #ifndef NDEBUG
+		nvtxRangePushA("toCudf: dynamic string");
 		std::cout
 			<< "converting column " << i << " (dynamic string: "
 			<< n_elements << " strings, " << total_size << " characters)\n";
@@ -365,6 +373,7 @@ struct CudfDynamicStringColumn {
 		cudaEventElapsedTime(&ms, gpu_beg, gpu_end);
 		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
 		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
+		nvtxRangePop();
 #endif /* !defined(NDEBUG) */
 	}
 };
