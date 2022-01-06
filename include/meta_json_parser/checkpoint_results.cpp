@@ -8,6 +8,9 @@
 #include <iomanip>
 
 #include <cuda_runtime_api.h>
+#ifndef NDEBUG
+#include <nvToolsExt.h>
+#endif
 
 #include "checkpoint_results.h"
 
@@ -20,6 +23,10 @@ void init_checkpoints(size_t reserve)
 
 void checkpoint_event(cudaEvent_t event, cudaStream_t stream, std::string description)
 {
+#ifndef NDEBUG
+	nvtxMarkA(description.c_str());
+#endif
+
 	cudaEventRecord(event, stream);
 	checkpoints.push_back(std::make_pair(event, description));
 }

@@ -142,3 +142,6 @@ target_sources(meta-json-parser-benchmark PRIVATE
 target_compile_features(meta-json-parser-benchmark INTERFACE cxx_std_17 cuda_std_17)
 
 target_compile_options(meta-json-parser-benchmark PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr> $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+target_link_libraries(meta-json-parser-benchmark PRIVATE
+                      nvToolsExt  # for easier profiling of meta-json-parser-benchmark executable
+)
