@@ -350,12 +350,16 @@ struct CudfDynamicStringColumn {
 		);
 
 		// - make strings column
+		rmm::device_buffer null_mask_no_nulls{}; // default for other overloads of cudf::make_strings_column
+#if 0
+		auto null_mask_no_nulls = cudf::create_null_mask(n_elements, cudf::mask_state::UNALLOCATED); //< empty null mask, unallocated
+#endif
 		auto column = cudf::make_strings_column(
 			n_elements, //< number of elements (number of strings)
 			std::move(offsets_column), //< column of offsets into chars data
 			std::move(strdata_column), //< column of characters
 			0,  //< null count
-			cudf::create_null_mask(n_elements, cudf::mask_state::UNALLOCATED) //< empty null mask
+			std::move(null_mask_no_nulls) //< null mask for no null values
 		);
 
 		// - add it to list of columns to be composed into cudf::table
