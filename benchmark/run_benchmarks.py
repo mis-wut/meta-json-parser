@@ -84,7 +84,7 @@ def time_ns(s):
 			  default='1', show_default=True)
 def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
          ws, const_order, version, str_size, samples):
-    ### run as script
+	### run as script
 
 	click.echo(f"Using '{click.format_filename(exec_path)}' executable")
 	click.echo(f"('{exec_path.resolve()}')")
@@ -192,9 +192,10 @@ def parse_run_output(lines, result = {}):
 	re_parsing_total   = re.compile('\\+ Parsing total \\(sum of the following\\):\\s*([0-9.]*) ns')
 	re_json_processing = re.compile('  - JSON processing:\\s*([0-9.]*) ns')
 	re_post_processing = re.compile('  - Post kernel hooks:\\s*([0-9.]*) ns')
-	re_copyig_output   = re.compile('\\+ Copying output:\\s*([0-9.]*) ns')
-	re_gpu_total       = re.compile('Total time measured by GPU:\\s*([0-9.]*) ns')
-	re_cpu_total       = re.compile('Total time measured by CPU:\\s*([0-9.]*) ns')
+	re_copying_output  = re.compile('\\+ Copying output:\\s*([0-9.]*) ns')
+	re_to_cudf         = re.compile('\\+ Converting to cuDF format:\\s*([0-9.]*) ns')
+	re_gpu_total       = re.compile('^Total time measured by GPU:\\s*([0-9.]*) ns')
+	re_cpu_total       = re.compile('^Total time measured by CPU:\\s*([0-9.]*) ns')
 
 	for line in lines:
 		match = re_string_handling.match(line)
@@ -233,9 +234,13 @@ def parse_run_output(lines, result = {}):
 		if match:
 			result['Post kernel hooks [ns]'] = time_ns(match.group(1))
 
-		match = re_copyig_output.match(line)
+		match = re_copying_output.match(line)
 		if match:
 			result['Copying output [ns]'] = time_ns(match.group(1))
+
+		match = re_to_cudf.match(line)
+		if match:
+			result['Converting to cuDF format [ns]'] = time_ns(match.group(1))
 
 		match = re_gpu_total.match(line)
 		if match:
