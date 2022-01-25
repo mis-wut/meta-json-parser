@@ -72,7 +72,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/work_group_reader.cuh
 )
 
-target_link_libraries(lib-meta-json-parser INTERFACE Boost::boost CUDA::cudart)
+target_link_libraries(lib-meta-json-parser INTERFACE Boost::boost CUDA::cudart nvToolsExt)
 
 add_executable(meta-json-parser-test)
 
@@ -94,6 +94,9 @@ target_sources(meta-json-parser-test PRIVATE
     test/test_memory_config.cu
     test/uint_test_context.cuh
     test/work_group_reader_test.cu
+    include/meta_json_parser/debug_helpers.cpp
+    include/meta_json_parser/checkpoint_results.cpp
+    include/meta_json_parser/checkpoint_results.h
 )
 
 #set_target_properties(lib-meta-json-parser meta-json-parser-test PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE CUDA_SEPARABLE_COMPILATION OFF CUDA_ARCHITECTURES 52)

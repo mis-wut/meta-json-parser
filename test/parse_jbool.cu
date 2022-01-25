@@ -27,7 +27,7 @@ struct no_error {
 template <class T>
 struct as_bool : public thrust::unary_function<T, bool>
 {
-	__host__ __device__ bool operator()(T& x) const
+	__host__ __device__ bool operator()(T x)
 	{
 		return static_cast<bool>(x);
 	}
