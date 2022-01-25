@@ -37,6 +37,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/action/jdict.cuh
     include/meta_json_parser/action/jnumber.cuh
     include/meta_json_parser/action/jstring.cuh
+    include/meta_json_parser/action/jstring_custom.cuh
     include/meta_json_parser/action/void_action.cuh
     include/meta_json_parser/action_iterator.h
     include/meta_json_parser/byte_algorithms.h
@@ -88,6 +89,7 @@ target_sources(meta-json-parser-test PRIVATE
     test/parse_jdict.cu
     test/parse_jnumber.cu
     test/parse_jstring.cu
+    test/parse_jstring_custom.cu
     test/parse_uint_test.cu
     test/read_only_buffer_test.cu
     test/test_helper.h
