@@ -176,8 +176,6 @@ void templated_ParseStringValidation(ParseJStringTest &test)
 	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
 	using GroupCount = boost::mp11::mp_int<GROUP_COUNT>;
 	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-	using _Zero = boost::mp11::mp_int<0>;
-	using _One = boost::mp11::mp_int<1>;
 	using BA = JString;
 	using PC = ParserConfiguration<RT, BA>;
 	using PK = ParserKernel<PC>;
@@ -211,8 +209,6 @@ void templated_ParseStringStaticCopy(ParseJStringTest &test)
 	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
 	using GroupCount = boost::mp11::mp_int<GROUP_COUNT>;
 	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-	using _Zero = boost::mp11::mp_int<0>;
-	using _One = boost::mp11::mp_int<1>;
 	using BA = JStringStaticCopy<boost::mp11::mp_int<CopyBytes>, char>;
 	using PC = ParserConfiguration<RT, BA>;
 	using PK = ParserKernel<PC>;
