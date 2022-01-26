@@ -60,6 +60,10 @@ def time_ns(s):
               default="benchmark.csv", show_default=True)
 @click.option('--append/--no-append', default=False,
               help="Append to output file (no header)")
+@click.option('--samples', metavar='REPETITIONS',
+              help='Number of samples (repetitions) with the same values of parameters',
+              type=click.IntRange(min=1),
+              default='1', show_default=True)
 ## These arguments should follow arguments of the benchmark executable
 @click.option('--ws', '--workspace-size',
               help='Workgroup size.',
@@ -78,10 +82,6 @@ def time_ns(s):
               metavar='BYTES',
               help='Bytes allocated per dynamic string.  Turns on dynamic strings.',
               type=click.IntRange(min=1))
-@click.option('--samples', metavar='REPETITIONS',
-              help='Number of samples (repetitions) with the same values of parameters',
-			  type=click.IntRange(min=1),
-			  default='1', show_default=True)
 def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
          ws, const_order, version, str_size, samples):
 	### run as script
