@@ -65,6 +65,9 @@ def time_ns(s):
               type=click.IntRange(min=1),
               default='1', show_default=True)
 ## These arguments should follow arguments of the benchmark executable
+@click.option('--use-libcudf-parser', '--use-libcudf', is_flag=True,
+              help='Use libcudf JSON parser.',
+              default=False, show_default=True)
 @click.option('--ws', '--workspace-size',
               help='Workgroup size.',
               type=click.Choice(['32','16','8','4']), show_choices=True,
@@ -83,18 +86,24 @@ def time_ns(s):
               help='Bytes allocated per dynamic string.  Turns on dynamic strings.',
               type=click.IntRange(min=1))
 def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
-         ws, const_order, version, str_size, samples):
+         ws, const_order, version, str_size,
+         samples, use_libcudf_parser):
 	### run as script
 
 	click.echo(f"Using '{click.format_filename(exec_path)}' executable")
 	click.echo(f"('{exec_path.resolve()}')")
-	click.echo(f"  --workspace-size={ws}")
-	click.echo(f"  --const-order={const_order}")
-	if str_size is not None:
-		click.echo(f"  --max-string-size={str_size}")
-		click.echo(f"  --version={version}")
+	if not use_libcudf_parser:
+		click.echo(f"  --workspace-size={ws}")
+		click.echo(f"  --const-order={const_order}")
+		if str_size is not None:
+			click.echo(f"  --max-string-size={str_size}")
+			click.echo(f"  --version={version}")
+		else:
+			click.echo(f"  --version={version} (ignored without --max-string-size=SIZE)")
 	else:
-		click.echo(f"  --version={version} (ignored without --max-string-size=SIZE)")
+		# if using libcudf parser, most options do not matter are is unused
+		click.echo(f"  --use-libcudf-parser (assumes executable build with USE_LIBCUDF=1)")
+
 	if samples > 1:
 		click.echo(f"  --samples={samples}")
 
@@ -125,22 +134,33 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 	for size in tqdm(sizes, desc='size'):
 		json_file = json_dir / pattern.format(n=size)
 		exec_args = [
-			exec_path, json_file, str(size),
-			f"--workspace-size={ws}",
-			f"--const-order={const_order}",
-			f"--version={version}",
+			exec_path, json_file, str(size)
 		]
-		if str_size is not None:
-			exec_args.append(f"--max-string-size={str_size}")
+		if use_libcudf_parser:
+			exec_args.append(f"--use-libcudf-parser")
+		else:
+			exec_args.extend([
+				f"--workspace-size={ws}",
+				f"--const-order={const_order}",
+				f"--version={version}"
+			])
+			if str_size is not None:
+				exec_args.append(f"--max-string-size={str_size}")
 
 		result = {
 			'json file': json_file.name,
 			'file size [bytes]': json_file.stat().st_size,
 			'number of objects': size,
-			# those options/parameters are not printed by meta-json-parser-benchmark
-			# and you cannot find them in the command output with parse_run_output()
-			'max string size': str_size,
 		}
+		if not use_libcudf_parser:
+			result.update({
+				# those options/parameters are not printed by meta-json-parser-benchmark
+				# and you cannot find them in the command output with parse_run_output()
+				'max string size': str_size,
+			})
+
+		# DEBUG
+		#print(f"exec_args = {exec_args}")
 
 		for _ in trange(samples, desc='samples', leave=None):
 			process = subprocess.Popen(
@@ -197,6 +217,10 @@ def parse_run_output(lines, result = {}):
 	re_gpu_total       = re.compile('^Total time measured by GPU:\\s*([0-9.]*) ns')
 	re_cpu_total       = re.compile('^Total time measured by CPU:\\s*([0-9.]*) ns')
 
+	# --use-libcudf-parser
+	re_build_input_opt = re.compile('\\+ Building input options:\\s*([0-9.]*) ns')
+	re_parsing_json    = re.compile('\\+ Parsing json:\\s*([0-9.]*) ns')
+
 	for line in lines:
 		match = re_string_handling.match(line)
 		if match:
@@ -242,6 +266,16 @@ def parse_run_output(lines, result = {}):
 		if match:
 			result['Converting to cuDF format [ns]'] = time_ns(match.group(1))
 
+		# --use-libcudf-parser
+		match = re_build_input_opt.match(line)
+		if match:
+			result['Building input options [ns]'] = time_ns(match.group(1))
+
+		match = re_parsing_json.match(line)
+		if match:
+			result['Parsing json with libcudf [ns]'] = time_ns(match.group(1))
+
+		# back to generic results
 		match = re_gpu_total.match(line)
 		if match:
 			result['TOTAL time measured by GPU [ns]'] = time_ns(match.group(1))
