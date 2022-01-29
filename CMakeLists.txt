@@ -25,7 +25,7 @@ ENDIF()
 
 include(GoogleTest)
 
-add_library(lib-meta-json-parser INTERFACE)
+add_library(lib-meta-json-parser INTERFACE include/meta_json_parser/action/string_functors/to_upper.cuh)
 
 target_compile_features(lib-meta-json-parser INTERFACE cxx_std_17 cuda_std_17)
 
@@ -80,6 +80,9 @@ add_executable(meta-json-parser-test)
 target_link_libraries(meta-json-parser-test PRIVATE lib-meta-json-parser GTest::gtest GTest::gmock)
 
 target_sources(meta-json-parser-test PRIVATE
+    include/meta_json_parser/checkpoint_results.cpp
+    include/meta_json_parser/checkpoint_results.h
+    include/meta_json_parser/debug_helpers.cpp
     test/book_json.cu
     test/keywriter_tests.cu
     test/main.cu
@@ -92,13 +95,20 @@ target_sources(meta-json-parser-test PRIVATE
     test/parse_jstring_custom.cu
     test/parse_uint_test.cu
     test/read_only_buffer_test.cu
+    test/test_configuration.h
     test/test_helper.h
     test/test_memory_config.cu
+    test/test_utility/contexts/static_string_test_context.cu
+    test/test_utility/contexts/static_string_test_context.cuh
+    test/test_utility/contexts/string_test_context.cu
+    test/test_utility/contexts/string_test_context.cuh
+    test/test_utility/contexts/test_context.cu
+    test/test_utility/contexts/test_context.cuh
+    test/test_utility/operators.cuh
+    test/test_utility/test_launcher.cu
+    test/test_utility/test_launcher.cuh
     test/uint_test_context.cuh
     test/work_group_reader_test.cu
-    include/meta_json_parser/debug_helpers.cpp
-    include/meta_json_parser/checkpoint_results.cpp
-    include/meta_json_parser/checkpoint_results.h
 )
 
 #set_target_properties(lib-meta-json-parser meta-json-parser-test PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE CUDA_SEPARABLE_COMPILATION OFF CUDA_ARCHITECTURES 52)

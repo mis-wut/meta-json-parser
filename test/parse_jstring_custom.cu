@@ -6,7 +6,6 @@
 #include <thrust/device_vector.h>
 #include <thrust/logical.h>
 #include <cub/thread/thread_operators.cuh>
-
 #include <meta_json_parser/config.h>
 #include <meta_json_parser/parser_kernel.cuh>
 #include <meta_json_parser/runtime_configuration.cuh>

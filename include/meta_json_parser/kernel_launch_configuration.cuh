@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <vector>
+#include <boost/mp11/mpl_list.hpp>
 
 template<class BaseActionT>
 struct OutputManager;
