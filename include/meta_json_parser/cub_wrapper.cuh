@@ -44,18 +44,19 @@ struct Reduce_impl
 	}
 };
 
-template<class OperationT, class RT>
-using ReduceRequestSize = boost::mp11::mp_int<
-	sizeof(
-		typename cub::
-			template WarpReduce<OperationT, RT::WorkGroupSize::value>
-				::TempStorage
-		)
->;
+template<class OperationT>
+struct ReduceRequestSize {
+    template<class RT>
+    using fn = boost::mp11::mp_int<
+        sizeof(
+            typename cub::template WarpReduce<OperationT, RT::WorkGroupSize::value>::TempStorage
+        )
+    >;
+};
 
 template<class OperationT>
-using ReduceRequest = MemoryRequestRT<
-	boost::mp11::mp_bind_q<boost::mp11::mp_quote<ReduceRequestSize>, OperationT, boost::mp11::_1>::fn,
+using ReduceRequest = MemoryRequestRT_q<
+    ReduceRequestSize<OperationT>,
 	MemoryUsage::AtomicUsage
 >;
 
@@ -84,19 +85,20 @@ struct Scan_impl
 	}
 };
 
-template<class OperationT, class RT>
-using ScanRequestSize = boost::mp11::mp_int<
-	sizeof(
-		typename cub::
-			WarpScan<OperationT, RT::WorkGroupSize::value>
-				::TempStorage
-		)
->;
+template<class OperationT>
+struct ScanRequestSize {
+    template<class RT>
+    using fn = boost::mp11::mp_int<
+        sizeof(
+            typename cub::template WarpScan<OperationT, RT::WorkGroupSize::value>::TempStorage
+        )
+    >;
+};
 
 template<class OperationT>
-using ScanRequest = MemoryRequestRT<
-	boost::mp11::mp_bind_q<boost::mp11::mp_quote<ScanRequestSize>, OperationT, boost::mp11::_1>::fn,
-	MemoryUsage::AtomicUsage
+using ScanRequest = MemoryRequestRT_q<
+    ScanRequestSize<OperationT>,
+    MemoryUsage::AtomicUsage
 >;
 
 template<class OperationT, class WorkGroupSizeT, class KernelContextT>

@@ -23,16 +23,17 @@ struct JStringOptions {
 
 private:
 	template<class OptionsT>
-	using __GetCharTransformer = boost::mp11::mp_map_find<OptionsT, JStringOptions::JStringCharTransformer>;
+	using _impl_GetCharTransformer = boost::mp11::mp_map_find<OptionsT, JStringOptions::JStringCharTransformer>;
 public:
 	template<class OptionsT>
-	using GetCharTransformer = boost::mp11::mp_if<
+	using GetCharTransformer = boost::mp11::mp_eval_if<
 		boost::mp11::mp_same<
-			__GetCharTransformer<OptionsT>,
+			_impl_GetCharTransformer<OptionsT>,
 			void
 		>,
 		JStringOptions::JStringCharTransformer::DefaultCharTransformer,
-		__GetCharTransformer<OptionsT>
+		boost::mp11::mp_second,
+		_impl_GetCharTransformer<OptionsT>
 	>;
 };
 

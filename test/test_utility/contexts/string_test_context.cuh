@@ -2,6 +2,7 @@
 #define META_JSON_PARSER_STRING_TEST_CONTEXT_CUH
 #include <vector>
 #include <numeric>
+#include <string_view>
 #include "test_context.cuh"
 
 class StringTestContext : public TestContext {
@@ -10,8 +11,9 @@ class StringTestContext : public TestContext {
     uint32_t m_min_length;
     uint32_t m_max_length;
     uint32_t m_max_escaped;
+
 protected:
-    virtual void InsertedWordCallback(const std::vector<char>& word);
+    virtual void InsertedWordCallback(size_t index, std::string_view word);
 
     void OutputValidate() override;
 public:

@@ -25,7 +25,7 @@ ENDIF()
 
 include(GoogleTest)
 
-add_library(lib-meta-json-parser INTERFACE include/meta_json_parser/action/string_functors/to_upper.cuh)
+add_library(lib-meta-json-parser INTERFACE)
 
 target_compile_features(lib-meta-json-parser INTERFACE cxx_std_17 cuda_std_17)
 
@@ -38,6 +38,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/action/jnumber.cuh
     include/meta_json_parser/action/jstring.cuh
     include/meta_json_parser/action/jstring_custom.cuh
+    include/meta_json_parser/action/string_functors/letter_case_functors.cuh
     include/meta_json_parser/action/void_action.cuh
     include/meta_json_parser/action_iterator.h
     include/meta_json_parser/byte_algorithms.h
@@ -93,6 +94,7 @@ target_sources(meta-json-parser-test PRIVATE
     test/parse_jnumber.cu
     test/parse_jstring.cu
     test/parse_jstring_custom.cu
+    test/parse_jstring_transform.cu
     test/parse_uint_test.cu
     test/read_only_buffer_test.cu
     test/test_configuration.h
@@ -151,7 +153,8 @@ endif()
 target_sources(meta-json-parser-benchmark PRIVATE
 	benchmark/main.cu
 	include/meta_json_parser/debug_helpers.cpp
-	include/meta_json_parser/checkpoint_results.cpp include/meta_json_parser/checkpoint_results.h
+	include/meta_json_parser/checkpoint_results.cpp
+	include/meta_json_parser/checkpoint_results.h
 )
 
 target_compile_features(meta-json-parser-benchmark INTERFACE cxx_std_17 cuda_std_17)

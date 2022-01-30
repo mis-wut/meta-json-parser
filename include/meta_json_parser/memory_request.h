@@ -22,7 +22,7 @@ template<class RequestT>
 using GetRequestSizeV = typename RequestT::Size;
 
 template<class RequestT, class RT>
-using GetRequestSizeF = typename RequestT::SizeF::fn<RT>;
+using GetRequestSizeF = typename RequestT::SizeF::template fn<RT>;
 
 template<class RequestT, class RT>
 using GetRequestSize = typename boost::mp11::mp_cond<
@@ -34,7 +34,7 @@ template<class RequestT>
 using GetRequestBufferV = typename RequestT::Buffer;
 
 template<class RequestT, class RT>
-using GetRequestBufferF = typename RequestT::BufferF::fn<RT>;
+using GetRequestBufferF = typename RequestT::BufferF::template fn<RT>;
 
 template<class RequestT, class RT>
 using GetRequestBuffer = typename boost::mp11::mp_cond<

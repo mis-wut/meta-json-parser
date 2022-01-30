@@ -52,7 +52,7 @@ void StringTestContext::Initialize() {
                 used_pos.insert(slash + 1);
             }
         }
-        InsertedWordCallback(word);
+        InsertedWordCallback(i, std::string_view(word.data(), len));
         inp_it += snprintf(inp_it, max_str_len, "\"%s\"", word.data());
         *ind_it = (inp_it - m_h_input.data());
         ++ind_it;
@@ -100,7 +100,7 @@ void StringTestContext::SetMaximumEscapedCharacters(uint32_t max_escaped) {
     m_max_escaped = max_escaped;
 }
 
-void StringTestContext::InsertedWordCallback(const std::vector<char> &word) {
+void StringTestContext::InsertedWordCallback(size_t index, std::string_view word) {
     // Nothing
 }
 

@@ -4,23 +4,21 @@
 
 
 class StaticStringTestContext : public StringTestContext {
-    uint32_t m_it;
 protected:
+    thrust::host_vector<char> m_h_correct;
+    thrust::device_vector<char> m_d_correct;
+    thrust::device_vector<char> m_d_result;
+
     uint32_t m_static_string_size;
 
-    void InsertedWordCallback(const std::vector<char>& word) override;
+    void InsertedWordCallback(size_t index, std::string_view word) override;
 
     void OutputValidate() override;
 
 public:
-    thrust::host_vector<char> m_h_correct;
-    thrust::device_vector<char> m_d_result;
-
     void Initialize() override;
 
     thrust::host_vector<void *> OutputBuffers() override;
-
-    thrust::device_vector<char> m_d_correct;
 
     StaticStringTestContext(
             size_t test_size, size_t group_size, TestContext::SeedType seed, uint32_t static_string_size
