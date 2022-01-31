@@ -21,7 +21,7 @@ using namespace boost::mp11;
 
 class ReadOnlyBufferTest : public ::testing::Test {
 public:
-#if _DEBUG
+#if defined _DEBUG || !defined NDEBUG
 	static constexpr size_t TEST_SIZE = 0x11;
 #else
 	static constexpr size_t TEST_SIZE = 0x8001;

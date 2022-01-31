@@ -61,6 +61,7 @@ void LaunchTest(TestContext& context) {
         context.TestSize(),
         h_output_buffers.data()
     );
+    cudaDeviceSynchronize();
 
     context.Validate();
 }

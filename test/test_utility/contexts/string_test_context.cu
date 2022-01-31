@@ -28,10 +28,10 @@ void StringTestContext::Initialize() {
     const size_t max_len = GetMaximumLength();
     const size_t max_str_len = max_len + 3; //" + " + \0
     std::uniform_int_distribution<uint32_t> r_len(min_len, max_len);
-    m_h_input = thrust::host_vector<char>(m_test_size * max_str_len);
-    m_h_indices = thrust::host_vector<InputIndex>(m_test_size + 1);
-    auto inp_it = m_h_input.data();
-    auto ind_it = m_h_indices.begin();
+    m_h_input = std::make_unique<thrust::host_vector<char>>(m_test_size * max_str_len);
+    m_h_indices = std::make_unique<thrust::host_vector<InputIndex>>(m_test_size + 1);
+    auto inp_it = m_h_input->data();
+    auto ind_it = m_h_indices->begin();
     *ind_it = 0;
     ++ind_it;
     std::vector<char> escapable = GetAllowedEscapedChars();
@@ -54,12 +54,12 @@ void StringTestContext::Initialize() {
         }
         InsertedWordCallback(i, std::string_view(word.data(), len));
         inp_it += snprintf(inp_it, max_str_len, "\"%s\"", word.data());
-        *ind_it = (inp_it - m_h_input.data());
+        *ind_it = (inp_it - m_h_input->data());
         ++ind_it;
     }
-    m_d_input = thrust::device_vector<char>(m_h_input.size() + 256); //256 to allow batch loading
-    thrust::copy(m_h_input.begin(), m_h_input.end(), m_d_input.begin());
-    m_d_indices = thrust::device_vector<InputIndex>(m_h_indices);
+    m_d_input = std::make_unique<thrust::device_vector<char>>(m_h_input->size() + 256); //256 to allow batch loading
+    thrust::copy(m_h_input->begin(), m_h_input->end(), m_d_input->begin());
+    m_d_indices = std::make_unique<thrust::device_vector<InputIndex>>(*m_h_indices);
 }
 
 StringTestContext::StringTestContext(size_t test_size, size_t group_size, TestContext::SeedType seed)

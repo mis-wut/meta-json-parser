@@ -80,7 +80,7 @@ void templated_ParseUnsignedInterger(ParseUnsignedIntegerTest &test)
 	constexpr int GROUP_SIZE = GroupSizeT;
 	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
 	const size_t INPUT_T = ParseUnsignedIntegerTest::TEST_SIZE;
-	TestContext<OutTypeT> context(INPUT_T, GROUP_SIZE);
+	TestContext_u<OutTypeT> context(INPUT_T, GROUP_SIZE);
 	const unsigned int BLOCKS_COUNT = (INPUT_T + GROUP_COUNT - 1) / GROUP_COUNT;
 	thrust::device_vector<ParsingError> d_err(INPUT_T);
 	thrust::device_vector<OutTypeT> d_result(INPUT_T);

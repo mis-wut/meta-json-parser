@@ -2,6 +2,7 @@
 #define META_JSON_PARSER_TEST_CONTEXT_CUH
 #pragma once
 #include <random>
+#include <memory>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 #include <meta_json_parser/config.h>
@@ -13,11 +14,11 @@ protected:
     size_t m_test_size;
     size_t m_group_size;
 
-    thrust::host_vector<char> m_h_input;
-    thrust::host_vector<InputIndex> m_h_indices;
-    thrust::device_vector<char> m_d_input;
-    thrust::device_vector<InputIndex> m_d_indices;
-    thrust::device_vector<ParsingError> m_d_errors;
+    std::unique_ptr<thrust::host_vector<char>> m_h_input;
+    std::unique_ptr<thrust::host_vector<InputIndex>> m_h_indices;
+    std::unique_ptr<thrust::device_vector<char>> m_d_input;
+    std::unique_ptr<thrust::device_vector<InputIndex>> m_d_indices;
+    std::unique_ptr<thrust::device_vector<ParsingError>> m_d_errors;
 
     using RandomGenerator = std::minstd_rand;
     using SeedType = RandomGenerator::result_type;
@@ -44,6 +45,8 @@ public:
     size_t TestSize() const;
 
     size_t GroupSize() const;
+
+    virtual ~TestContext() = default;
 };
 
 #endif //META_JSON_PARSER_TEST_CONTEXT_CUH

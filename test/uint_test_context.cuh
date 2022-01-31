@@ -7,7 +7,7 @@
 #include <limits>
 
 template<class OutTypeT>
-struct TestContext {
+struct TestContext_u {
 	thrust::host_vector<OutTypeT> h_correct;
 	thrust::host_vector<char> h_input;
 	thrust::host_vector<InputIndex> h_indices;
@@ -15,7 +15,7 @@ struct TestContext {
 	thrust::device_vector<char> d_input;
 	thrust::device_vector<InputIndex> d_indices;
 
-	TestContext(size_t testSize, size_t group_size)
+    TestContext_u(size_t testSize, size_t group_size)
 	{
 		using GenerateT = boost::mp11::mp_if_c<sizeof(OutTypeT) == 1, uint16_t, OutTypeT>;
 		GenerateT MAX_VAL = std::numeric_limits<OutTypeT>::max() - 1;
