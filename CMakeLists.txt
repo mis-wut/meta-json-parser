@@ -140,10 +140,12 @@ if (USE_LIBCUDF)
     target_include_directories(meta-json-parser-benchmark PUBLIC
                                /usr/local/include
                                /usr/local/include/libcudf/libcudacxx
+                               /opt/conda/envs/rapids/include
     )
     target_link_libraries(meta-json-parser-benchmark PRIVATE
                           cudf
                           -L/usr/local/cuda/lib64 -L/usr/local/lib
+                          -L/opt/conda/envs/rapids/lib
     )
     target_compile_definitions(meta-json-parser-benchmark PRIVATE
                                HAVE_LIBCUDF=1
