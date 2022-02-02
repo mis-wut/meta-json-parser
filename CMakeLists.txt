@@ -5,7 +5,7 @@ project(meta-json-parser VERSION 0.1 LANGUAGES CXX CUDA)
 find_package(CUDAToolkit 10.0 REQUIRED)
 
 IF(NOT LOCAL_LIB)
-find_package(Boost 1.66)
+find_package(Boost 1.73)  # version 1.73 is required to use boost::mp11::mp_flatten
 ENDIF()
 
 IF(NOT Boost_FOUND)
