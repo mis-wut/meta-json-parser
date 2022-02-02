@@ -1,6 +1,8 @@
 #pragma once
 #include <cuda_runtime_api.h>
 #include <utility>
+#include <boost/mp11/list.hpp>
+#include <boost/mp11/map.hpp>
 #include <thrust/transform.h>
 #include <thrust/functional.h>
 #include <thrust/execution_policy.h>
@@ -12,6 +14,29 @@
 #include <meta_json_parser/intelisense_silencer.h>
 #include <cub/cub.cuh>
 
+struct JStringOptions {
+	struct JStringCharTransformer {
+		struct DefaultCharTransformer {
+			inline __device__ char operator()(char c) const { return c; }
+		};
+	};
+
+private:
+	template<class OptionsT>
+	using _impl_GetCharTransformer = boost::mp11::mp_map_find<OptionsT, JStringOptions::JStringCharTransformer>;
+public:
+	template<class OptionsT>
+	using GetCharTransformer = boost::mp11::mp_eval_if<
+		boost::mp11::mp_same<
+			_impl_GetCharTransformer<OptionsT>,
+			void
+		>,
+		JStringOptions::JStringCharTransformer::DefaultCharTransformer,
+		boost::mp11::mp_second,
+		_impl_GetCharTransformer<OptionsT>
+	>;
+};
+
 //Only parsing/validation
 struct JString
 {
@@ -20,21 +45,30 @@ struct JString
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
-        using KC = KernelContextT;
+		using KC = KernelContextT;
 		return JsonParse::String(kc, [](bool&, int&){ return ParsingError::None; });
 	}
 };
 
-template<class BytesT, class TagT>
+/**
+ * Action that validates string and copies up to \p BytesT bytes. Exactly \p BytesT * input_size bytes will be allocated
+ * for the output.
+ * @tparam BytesT Upper limit of copied bytes.
+ * @tparam TagT Output tag.
+ * @tparam OptionsT Map of JString options.
+ */
+template<class BytesT, class TagT, class OptionsT = boost::mp11::mp_list<>>
 struct JStringStaticCopy
 {
 	static_assert(BytesT::value > 0, "BytesT must be at greater than 0");
 
 	using type = JStringStaticCopy<BytesT, TagT>;
+	using Options = OptionsT;
 	using Tag = TagT;
 	using Printer = AsCharsPrinter<type>;
 	using OutputRequests = boost::mp11::mp_list<OutputRequest<TagT, StaticBuffer_c<BytesT::value>>>;
 	using MemoryRequests = JsonParse::StringRequests;
+	using CharTransformer = JStringOptions::GetCharTransformer<Options>;
 
 #ifdef HAVE_LIBCUDF
 	using CudfColumnConverter = CudfStaticStringColumn<type, BytesT::value>;
@@ -43,15 +77,16 @@ struct JStringStaticCopy
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
-        using KC = KernelContextT;
+		using KC = KernelContextT;
 		using RT = typename KC::RT;
+		CharTransformer transformer;
 		char (&result)[BytesT::value] = kc.om.template Get<KernelContextT, TagT>().template Alias<char[BytesT::value]>();
 		uint32_t offset = 0;
 		ParsingError err = JsonParse::String(kc, [&](bool& isEscaped, int& activeThreads) {
 			uint32_t worker_offset = offset + RT::WorkerId();
 			char c = RT::WorkerId() < activeThreads ? kc.wgr.CurrentChar() : '\0';
 			if (worker_offset < BytesT::value)
-				result[worker_offset] = c;
+				result[worker_offset] = transformer(c);
 			offset += RT::GroupSize();
 			return ParsingError::None;
 		});
@@ -93,10 +128,11 @@ struct DynamicStringPrinter
 	}
 };
 
-template<class TagT>
+template<class TagT, class OptionsT = boost::mp11::mp_list<>>
 struct JStringDynamicCopy
 {
 	using type = JStringDynamicCopy<TagT>;
+	using Options = OptionsT;
 	using Tag = TagT;
 	using LengthRequestTag = std::pair<TagT, boost::mp11::mp_int<0>>;
 	using LengthRequest = OutputRequest<
@@ -111,6 +147,7 @@ struct JStringDynamicCopy
 	using Printer = DynamicStringPrinter<type>;
 	using OutputRequests = boost::mp11::mp_list<LengthRequest, DynamicStringRequest>;
 	using MemoryRequests = JsonParse::StringRequests;
+	using CharTransformer = JStringOptions::GetCharTransformer<Options>;
 
 #ifdef HAVE_LIBCUDF
 	using CudfColumnConverter = CudfDynamicStringColumn<type>;
@@ -200,8 +237,9 @@ struct JStringDynamicCopy
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
-        using KC = KernelContextT;
+		using KC = KernelContextT;
 		using RT = typename KC::RT;
+		CharTransformer transformer;
 		char* result = kc.om.template Pointer<KernelContextT, DynamicStringRequestTag>();
 		const uint32_t max_offset = kc.om.template DynamicSize<KernelContextT, DynamicStringRequestTag>();
 		uint32_t offset = 0;
@@ -209,7 +247,7 @@ struct JStringDynamicCopy
 			uint32_t worker_offset = offset + RT::WorkerId();
 			char c = RT::WorkerId() < activeThreads ? kc.wgr.CurrentChar() : '\0';
 			if (worker_offset < max_offset)
-				result[worker_offset] = c;
+				result[worker_offset] = transformer(c);
 			offset += activeThreads;
 			return ParsingError::None;
 		});
@@ -253,7 +291,7 @@ __global__ void __launch_bounds__(1024, 2)
 		*out_ptr = *in_ptr;
 }
 
-template<class ParserConfigurationT>
+template<class ParserConfigurationT, class OptionsT>
 __global__ void __launch_bounds__(1024, 2)
 	g_gather_strings_v2(
 		const uint8_t* input,
@@ -263,6 +301,8 @@ __global__ void __launch_bounds__(1024, 2)
 		const uint32_t count
 	)
 {
+	using CharTransformer = JStringOptions::GetCharTransformer<OptionsT>;
+	CharTransformer transformer;
 	const uint32_t id = threadIdx.y + blockDim.y * blockIdx.x;
 	if (id >= count)
 		return;
@@ -278,7 +318,7 @@ __global__ void __launch_bounds__(1024, 2)
 	in_ptr += threadIdx.x;
 	out_ptr += threadIdx.x;
 	for (int i = threadIdx.x; i < length; i += 32, in_ptr += 32, out_ptr += 32)
-		*out_ptr = *in_ptr;
+		*reinterpret_cast<char*>(out_ptr) = transformer(*reinterpret_cast<const char*>(in_ptr));
 }
 
 template<class ParserConfigurationT>
@@ -320,7 +360,7 @@ __global__ void __launch_bounds__(1024, 2)
 		in_ptr += 8;
 		copied += 8 - in_misalignment;
 	}
-	
+
 	while (copied < length)
 	{
 		uint32_t valid_data = 128 - (4 - in_misalignment);
@@ -356,10 +396,11 @@ __global__ void __launch_bounds__(1024, 2)
 	*/
 }
 
-template<class TagT>
+template<class TagT, class OptionsT = boost::mp11::mp_list<>>
 struct JStringDynamicCopyV2
 {
 	using type = JStringDynamicCopyV2<TagT>;
+	using Options = OptionsT;
 	using Tag = TagT;
 	using LengthRequestTag = std::pair<TagT, boost::mp11::mp_int<0>>;
 	using LengthRequest = OutputRequest<
@@ -451,7 +492,7 @@ struct JStringDynamicCopyV2
 		//  (reinterpret_cast<const uint8_t*>(input), offsets, lengths, reinterpret_cast<uint8_t*>(content), count);
 
 		const int group = 32;
-		makeKernelLauncher(&g_gather_strings_v2<typename PK::PC>)
+		makeKernelLauncher(&g_gather_strings_v2<typename PK::PC, Options>)
 		  ((count * group + 1024) / 1024, { group, block / group, 1 }, 0, pk.m_stream)
 		  (reinterpret_cast<const uint8_t*>(input), offsets, lengths, reinterpret_cast<uint8_t*>(content), count);
 	}
@@ -459,7 +500,7 @@ struct JStringDynamicCopyV2
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
-        using KC = KernelContextT;
+		using KC = KernelContextT;
 		using RT = typename KC::RT;
 		const uint32_t max_offset = kc.om.template DynamicSize<KernelContextT, DynamicStringRequestTag>();
 		uint32_t offset = 0;
@@ -502,10 +543,11 @@ __global__ void __launch_bounds__(1024, 2)
 		*out_ptr = *in_ptr;
 }
 
-template<class TagT>
+template<class TagT, class OptionsT = boost::mp11::mp_list<>>
 struct JStringDynamicCopyV3
 {
 	using type = JStringDynamicCopyV3<TagT>;
+	using Options = OptionsT;
 	using Tag = TagT;
 	using LengthRequestTag = std::pair<TagT, boost::mp11::mp_int<0>>;
 	using LengthRequest = OutputRequest<
@@ -523,6 +565,7 @@ struct JStringDynamicCopyV3
 	using Printer = DynamicStringPrinter<type>;
 	using OutputRequests = boost::mp11::mp_list<LengthRequest, DynamicStringRequest, DynamicStringInternalRequest>;
 	using MemoryRequests = JsonParse::StringRequests;
+	using CharTransformer = JStringOptions::GetCharTransformer<Options>;
 
 #ifdef HAVE_LIBCUDF
 	using CudfColumnConverter = CudfDynamicStringColumn<type>;
@@ -593,8 +636,9 @@ struct JStringDynamicCopyV3
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
-        using KC = KernelContextT;
+		using KC = KernelContextT;
 		using RT = typename KC::RT;
+		CharTransformer transformer;
 		char* result = kc.om.template Pointer<KernelContextT, DynamicStringInternalRequestTag>();
 		const uint32_t max_offset = kc.om.template DynamicSize<KernelContextT, DynamicStringInternalRequestTag>();
 		uint32_t offset = 0;
@@ -602,7 +646,7 @@ struct JStringDynamicCopyV3
 			uint32_t worker_offset = offset + RT::WorkerId();
 			char c = RT::WorkerId() < activeThreads ? kc.wgr.CurrentChar() : '\0';
 			if (worker_offset < max_offset)
-				result[worker_offset] = c;
+				result[worker_offset] = transformer(c);
 			offset += activeThreads;
 			return ParsingError::None;
 		});
