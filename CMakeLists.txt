@@ -140,6 +140,10 @@ if (USE_LIBCUDF)
     target_include_directories(meta-json-parser-benchmark PUBLIC
                                /usr/local/include
                                /usr/local/include/libcudf/libcudacxx
+    )
+    # NOTE: needs to be added as the last directory to be checked, because
+    # it can contain outdated Boost library (which in Ubuntu 20.04 is Boost 1.72)
+    target_include_directories(meta-json-parser-benchmark AFTER PUBLIC
                                /opt/conda/envs/rapids/include
     )
     target_link_libraries(meta-json-parser-benchmark PRIVATE
