@@ -179,7 +179,7 @@ struct CudfNumericColumn {
 		auto column = std::make_unique<cudf::column>(
 			cudf::data_type{cudf::type_to_id<OutputType>()}, //< The element type
 			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
-			u.rmm //< The column's data, as rmm::device_buffer or something convertible
+			std::move(u.rmm) //< The column's data, as rmm::device_buffer or something convertible
 		);
 
 		columns.emplace_back(column.release());
@@ -226,7 +226,7 @@ struct CudfBoolColumn {
 		auto column = std::make_unique<cudf::column>(
 			cudf::data_type{cudf::type_id::BOOL8}, //< The element type: boolean using one byte per value
 			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
-			u.rmm //< The column's data, as rmm::device_buffer or something convertible
+			std::move(u.rmm) //< The column's data, as rmm::device_buffer or something convertible
 		);
 
 		columns.emplace_back(column.release());
@@ -340,13 +340,13 @@ struct CudfDynamicStringColumn {
 			// hopefully cudf::type_id::UINT32 would work as well as cudf::type_id::INT32
 			cudf::data_type{cudf::type_to_id<LengthRequestType>()}, //< The element type of offsets
 			static_cast<cudf::size_type>(offsets_u.data._size), //< The number of elements in the column
-			offsets_u.rmm //< The column's data, as rmm::device_buffer or something convertible
+			std::move(offsets_u.rmm) //< The column's data, as rmm::device_buffer or something convertible
 		);
 		auto strdata_column = std::make_unique<cudf::column>(
 			// NOTE: cudf::type_to_id<char>() returns cudf::type_id::EMPTY, not cudf::type_id::INT8 (???)
 			cudf::data_type{cudf::type_id::INT8}, //< The element type of `char`
 			static_cast<cudf::size_type>(strdata_u.data._size), //< The number of elements in the column
-			strdata_u.rmm //< The column's data, as rmm::device_buffer or something convertible
+			std::move(strdata_u.rmm) //< The column's data, as rmm::device_buffer or something convertible
 		);
 
 		// - make strings column
