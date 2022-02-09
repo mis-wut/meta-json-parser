@@ -408,6 +408,7 @@ $ sudo docker run --gpus all --rm -it \
    --device /dev/nvidia-uvm --device /dev/nvidia-uvm-tools \
    -p 8888:8888 -p 8787:8787 -p 8786:8786 \
    -v ${HOME}/GPU-IDUB/meta-json-parser:/meta-json-parser \
+   -v ${HOME}/GPU-IDUB/data:/data \
    rapidsai/rapidsai-core-dev:21.12-cuda11.5-devel-ubuntu20.04-py3.8
 ```
 Then you just need to change the directory in the container:
@@ -424,9 +425,23 @@ with the libcudf support, use:
 (rapids) root@8c8501d8b358:/meta-json-parser/build# cmake -DUSE_LIBCUDF=1 ..
 ```
 
+Note that Boost installed in a RAPIDS Docker contained might be too old:
+```
+-- Could NOT find Boost: Found unsuitable version "1.72.0", but required is at least "1.73" (found /opt/conda/envs/rapids/include, )
+```
+
 **Workaround** for `cmake`/`make`/`g++` using system-installed Boost:
 ```shell
 (rapids) root@ccefed838be5:/meta-json-parser/build# cd /opt/conda/envs/rapids/include/boost
 (rapids) root@ccefed838be5:/opt/conda/envs/rapids/include/boost# mv mp11 mp11_do_not_use
 (rapids) root@ccefed838be5:/opt/conda/envs/rapids/include/boost# cd -
+```
+or simply
+```
+( cd /opt/conda/envs/rapids/include/boost ;  mv mp11 mp11_do_not_use )
+```
+
+You need to also use local libraries from `third_parties/` with
+```shell
+cmake -DUSE_LIBCUDF=1 -DLOCAL_LIB=1 ..
 ```
