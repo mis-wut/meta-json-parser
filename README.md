@@ -16,7 +16,7 @@ Meta-JSON-Parser also requires the following libraries to be either
 installed locally or system-wide, or fetched as submodules into
 the `third_party/` subdirectory:
 
-- [Boost.Mp11][mp11]: A C++11 metaprogramming library
+- [Boost.Mp11][mp11]: A C++11 metaprogramming library (minimum 1.73)
 - [GoogleTest][GTest]: Google's C++ testing and mocking framework<br />
   (only for `meta-json-parser-test` binary)
 - [CLI11][]: Command line parser for C++11<br />
