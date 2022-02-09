@@ -56,9 +56,12 @@ cmake -DUSE_LIBCUDF=1 ..
 
 ## Installing and using libcudf library
 
-[RAPIDS](https://rapids.ai/start.html) is available as [conda](https://conda.io)
-packages, docker images, and [from source builds][cudf-source].
+[RAPIDS](https://rapids.ai/start.html) is available as
+[conda](https://conda.io) packages,
+[docker images][dockerhub-rapidsai],
+and [from source builds][cudf-source].
 
+[dockerhub-rapidsai]: https://hub.docker.com/r/rapidsai/rapidsai
 [cudf-source]: https://github.com/rapidsai/cudf/blob/main/CONTRIBUTING.md#script-to-build-cudf-from-source
 
 ### Installing libcudf using conda (and using it)
@@ -172,3 +175,258 @@ section of the [Conda User's Guide](https://docs.conda.io/projects/conda/en/late
    ```
 
 [ldd]: https://man7.org/linux/man-pages/man1/ldd.1.html "ldd(1) - Linux manual page"
+
+### Installing libcudf as Docker image (and using it)
+
+The RAPIDS images are based on [nvidia/cuda][], and are intended to be
+drop-in replacements for the corresponding CUDA images
+in order to make it easy to add RAPIDS libraries
+while maintaining support for existing CUDA applications.
+
+RAPIDS images come in three types, distributed in two different repos:
+- `base` - contains a RAPIDS environment ready for use.
+- `runtime` - extends the base image by adding a notebook server
+  (JupyterLab) and example notebooks.
+- **`devel`** - contains the full RAPIDS source tree,
+  pre-built with all artifacts in place, and the compiler toolchain,
+  the debugging tools, the headers and the static libraries for RAPIDS development.
+
+[nvidia/cuda]: https://hub.docker.com/r/nvidia/cuda
+
+#### Prerequisites
+
+- NVIDIA Pascal GPU architecture (compute capability 6.1) or better
+- CUDA 10.1+ with a compatible NVIDIA driver
+- Ubuntu 18.04/20.04 or CentOS 7/8
+- [Docker](https://www.docker.com/) CE v18+
+- [nvidia-container-toolkit][]
+
+[nvidia-container-toolkit]: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker
+
+#### Installing Docker Engine
+
+Docker Engine is an open source containerization technology
+for building and containerizing your applications.  To install
+it on Linux, follow distribution-specific [documentation][docker-docs]
+
+[docker-docs]: https://docs.docker.com/engine/install/#server
+
+For example on [Debian](https://docs.docker.com/engine/install/debian/)
+installing Docker CE takes the following steps:
+
+1. Uninstall old versions (that were not working correctly):
+   ```shell
+   $ sudo apt-get remove docker docker-engine docker.io containerd runc
+   ```
+
+2. Update the `apt` package index and install packages
+   to allow `apt` to use a repository over HTTPS:
+   ```shell
+   $ sudo apt-get update
+   $ sudo apt-get install \
+      ca-certificates \
+      curl \
+      gnupg \
+      lsb-release
+   ```
+
+3. Add Docker’s official GPG key for signing Debian packages:
+   ```shell
+   $ curl -fsSL https://download.docker.com/linux/debian/gpg | 
+      sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+   ```
+
+4. Set up the stable package repository for Docker
+   ```shell
+   $ echo \
+     "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | 
+     sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+   ```
+   Note that for Debian unstable you might need to explicitly use the
+   latest stable version instead (bullseye):
+   ```shell
+   $ echo \
+     "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable" | 
+     sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+   ```
+
+5. Update the `apt` package index again,
+   ```shell
+   $ sudo apt-get update
+   ```
+   checking that proper repository is used:
+   ```
+   Get:6 https://download.docker.com/linux/debian bullseye InRelease
+   Get:7 https://download.docker.com/linux/debian bullseye/stable amd64
+   Reading package lists... Done
+   ```
+
+6. Install the _latest version_ of Docker Engine and containerd:
+   ```shell
+   $ sudo apt-get install docker-ce docker-ce-cli containerd.io
+   ```
+   You can check that the correct version of Docker was installed with
+   ```shell
+   $ apt-cache madison docker-ce
+   ```
+   which should return results from https://download.docker.com/linux/debian
+
+You can check that Docker Engine is installed and runs correctly with
+```
+$ sudo docker run hello-world
+```
+You can also use
+```
+$ sudo docker ps -a
+```
+to see what Docker images are running and what images are installed.
+
+As an optional post-installation step on Linux, you can
+[configure Docker for use as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user).
+
+#### Installing NVIDIA Docker Engine
+
+The NVIDIA Container Toolkit allows users to build and run GPU accelerated containers.
+The toolkit includes a container runtime [library](https://github.com/NVIDIA/libnvidia-container)
+and utilities to automatically configure containers to leverage NVIDIA GPUs.
+
+See [NVIDIA Container Toolkit Installation Guide][nvidia-container] or
+[NVIDIA Docker Engine wrapper repository][nvidia-docker] for details.
+  
+[nvidia-container]: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+[nvidia-docker]: https://nvidia.github.io/nvidia-docker/
+
+1. Add NVIDIA’s official GPG key for signing packages:
+   ```shell
+   $ curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey |
+      sudo apt-key add -
+   ```
+
+2. Setup the `stable` repository
+   ```shell
+   $ distribution=$(. /etc/os-release; echo $ID$VERSION_ID) \
+      && curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list |
+      sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+   ```
+   If this did not work, you may need to set up Linux distribution
+   and its version manually, for example:
+   ```shell
+   $ curl -s -L https://nvidia.github.io/nvidia-docker/debian11/nvidia-docker.list |
+      sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+   ```
+   (which, as you can see, returns incorrect URLs?).
+
+3. Update the `apt` package index,
+   ```shell
+   $ sudo apt-get update
+   ```
+   checking that NVIDIA container repository is listed among repositories
+   (https://nvidia.github.io/).
+
+4. Install the `nvidia-docker2` package (and dependencies):
+   ```shell
+   $ sudo apt-get install nvidia-docker2
+   ```
+
+5. Restart the Docker daemon to complete the installation,
+   and check that it works correctly:
+   ```shell
+   $ sudo systemctl restart docker
+   $ sudo systemctl status docker
+   ```
+
+At this point, a working setup can be tested by running a base CUDA container:
+```shell
+$ sudo docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
+```
+
+#### Workaround for cgroups bug
+
+If running a CUDA container fails with the following error message
+```
+docker: Error response from daemon: OCI runtime create failed: container_linux.go:380: starting container process caused:
+process_linux.go:545: container init caused:
+Running hook #0:: error running hook: exit status 1, stdout: , stderr: nvidia-container-cli:
+container error: cgroup subsystem devices not found: unknown.
+```
+this might mean that the hierarchical v2 cgroups are used.
+
+There are [two possible solutions][issues/1447]:
+- turn off hierarchical cgroups by using 
+  `systemd.unified_cgroup_hierarchy=false` kernel command line parameter, or
+- turn off using cgroups by setting `no-cgroups = true` in
+  `/etc/nvidia-container-runtime/config.toml`, and adding NVIDIA devices
+  manually to the container
+  ```shell
+  $ sudo docker run --rm --gpus all \
+     --device /dev/nvidia0 --device /dev/nvidia-modeset  \
+     --device /dev/nvidia-uvm --device /dev/nvidia-uvm-tools \
+     --device /dev/nvidiactl \
+     nvidia/cuda:11.0-base nvidia-smi
+  ```
+
+[issues/1447]: https://github.com/NVIDIA/nvidia-docker/issues/1447
+
+#### Start RAPIDS container and notebook server
+
+Use the [RAPIDS Release Selector](https://rapids.ai/start.html#get-rapids),
+choose "_Docker + Dev Env_", and appropriate switches, to find the correct
+invocation:
+```shell
+$ docker pull rapidsai/rapidsai-core-dev:22.02-cuda11.5-devel-ubuntu20.04-py3.9
+$ docker run --gpus all --rm -it -p 8888:8888 -p 8787:8787 -p 8786:8786 \
+    rapidsai/rapidsai-core-dev:22.02-cuda11.5-devel-ubuntu20.04-py3.9
+```
+
+**Note** that running `docker` might require using `sudo`, and that with
+the cgroups2 workaround (cgroups disabled) one also needs to add appropriate
+`--device` options, see above.
+
+The following ports are used by the `runtime` and `core-dev` containers only
+(not `base` containers):
+
+- 8888 - exposes a [JupyterLab][] notebook server
+- 8786 - exposes a [Dask] scheduler
+- 8787 - exposes a [Dask diagnostic web server][dask-diag]
+
+Read more at [RAPIDS at DockerHub][dockerhub-rapidsai].
+
+[JupyterLab]: https://jupyterlab.readthedocs.io/en/stable/
+[Dask]: https://docs.dask.org/en/latest/
+[dask-diag]: https://docs.dask.org/en/latest/setup/cli.html#diagnostic-web-servers
+
+#### Start RAPIDS container for meta-json-parser
+
+To have access to the `meta-json-parser` project in the RAPIDS Docker container,
+you can mount the directory on host with this project to specific location
+within container (using bind mount).
+
+Running the container can be done like this:
+```shell
+$ sudo docker run --gpus all --rm -it \
+   --device /dev/nvidia0 --device /dev/nvidiactl \
+   --device /dev/nvidia-uvm --device /dev/nvidia-uvm-tools \
+   -p 8888:8888 -p 8787:8787 -p 8786:8786 \
+   -v ${HOME}/GPU-IDUB/meta-json-parser:/meta-json-parser \
+   rapidsai/rapidsai-core-dev:21.12-cuda11.5-devel-ubuntu20.04-py3.8
+```
+Then you just need to change the directory in the container:
+```
+(rapids) root@8c8501d8b358:/rapids/notebooks# cd /meta-json-parser/build/
+```
+Before running `cmake` you might need to remove its cache; simplest
+solution is to clean the `build` directory; it might be enough to
+just remove `CMakeCache.txt`.
+
+To configure the build system to compile `meta-json-parser-benchmark`
+with the libcudf support, use:
+```shell
+(rapids) root@8c8501d8b358:/meta-json-parser/build# cmake -DUSE_LIBCUDF=1 ..
+```
+
+**Workaround** for `cmake`/`make`/`g++` using system-installed Boost:
+```shell
+(rapids) root@ccefed838be5:/meta-json-parser/build# cd /opt/conda/envs/rapids/include/boost
+(rapids) root@ccefed838be5:/opt/conda/envs/rapids/include/boost# mv mp11 mp11_do_not_use
+(rapids) root@ccefed838be5:/opt/conda/envs/rapids/include/boost# cd -
+```
