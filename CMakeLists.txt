@@ -39,6 +39,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/action/jstring.cuh
     include/meta_json_parser/action/jstring_custom.cuh
     include/meta_json_parser/action/string_functors/letter_case.cuh
+    include/meta_json_parser/action/string_transform_functors/polynomial_rolling_hash_matcher.cuh
     include/meta_json_parser/action/void_action.cuh
     include/meta_json_parser/action_iterator.h
     include/meta_json_parser/byte_algorithms.h
@@ -57,6 +58,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/memory_request.h
     include/meta_json_parser/meta_math.h
     include/meta_json_parser/meta_memory_manager.cuh
+    include/meta_json_parser/meta_utility/safe_drop.h
     include/meta_json_parser/meta_utils.h
     include/meta_json_parser/mp_string.h
     include/meta_json_parser/output_manager.cuh
@@ -96,6 +98,7 @@ target_sources(meta-json-parser-test PRIVATE
     test/parse_jnumber.cu
     test/parse_jstring.cu
     test/parse_jstring_custom.cu
+    test/parse_jstring_hash_matcher.cu
     test/parse_jstring_transform.cu
     test/parse_uint_test.cu
     test/read_only_buffer_test.cu

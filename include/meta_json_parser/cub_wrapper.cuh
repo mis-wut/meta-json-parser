@@ -3,6 +3,7 @@
 #include <cub/warp/warp_reduce.cuh>
 #include <cuda_runtime_api.h>
 #include <meta_json_parser/memory_request.h>
+#include <meta_json_parser/config.h>
 
 struct BitOr
 {
