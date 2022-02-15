@@ -6,7 +6,7 @@
 #include <meta_json_parser/config.h>
 #include <meta_json_parser/cub_wrapper.cuh>
 #include <meta_json_parser/action/jstring_custom.cuh>
-#include <meta_json_parser/action/string_functors/letter_case_functors.cuh>
+#include <meta_json_parser/action/string_functors/letter_case.cuh>
 #include "test_helper.h"
 #include "test_utility/contexts/string_test_context.cuh"
 #include "test_configuration.h"
