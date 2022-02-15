@@ -189,7 +189,8 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 		for _ in trange(samples, desc='samples', leave=None):
 			process = subprocess.Popen(
 				exec_args,
-				stdout=subprocess.PIPE
+				stdout=subprocess.PIPE,
+				stderr=subprocess.DEVNULL,
 			)
 			lines = process.stdout.read().decode('utf-8').split('\n')
 
