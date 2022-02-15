@@ -171,22 +171,24 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 			if str_size is not None:
 				exec_args.append(f"--max-string-size={str_size}")
 
-		result = {
-			'json file': json_file.name,
-			'file size [bytes]': json_file.stat().st_size,
-			'number of objects': size,
-		}
-		if not use_libcudf_parser:
-			result.update({
-				# those options/parameters are not printed by meta-json-parser-benchmark
-				# and you cannot find them in the command output with parse_run_output()
-				'max string size': str_size,
-			})
-
 		# DEBUG
 		#print(f"exec_args = {exec_args}")
 
 		for _ in trange(samples, desc='samples', leave=None):
+			# each sample should use their own separate `result` variable,
+			# otherwise the latest result will be repeated `samples` times
+			result = {
+				'json file': json_file.name,
+				'file size [bytes]': json_file.stat().st_size,
+				'number of objects': size,
+			}
+			if not use_libcudf_parser:
+				result.update({
+					# those options/parameters are not printed by meta-json-parser-benchmark
+					# and you cannot find them in the command output with parse_run_output()
+					'max string size': str_size,
+				})
+
 			process = subprocess.Popen(
 				exec_args,
 				stdout=subprocess.PIPE,
