@@ -38,6 +38,15 @@ def time_ns(s):
 	return int(s, base=10)
 
 
+def ensure_path(arg):
+	"""Ensure that the argument is converted to pathlib.Path, if necessary"""
+	if type(arg) is bytes:
+		arg = arg.decode("utf-8")
+	if not isinstance(arg, pathlib.Path):
+		arg = pathlib.Path(arg)
+	return arg
+
+
 @click.command()
 @click.option('--exec', '--executable', 'exec_path',
               type=click.Path(exists=True, dir_okay=False, path_type=pathlib.Path),
@@ -90,7 +99,23 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
          samples, use_libcudf_parser):
 	### run as script
 
+	## Debuging
+	#click.echo(f"exec_path={exec_path} is of {type(exec_path)} type")
+	#click.echo(f"json_dir={json_dir} is of {type(json_dir)} type")
+	#click.echo(f"output_csv={output_csv} is of {type(output_csv)} type")
+
+	# in click 7.x, as opposed to 8.x, if the argument to click.format_filename()
+	# is pathlib.Path, it does not work, as it stupidly tries to decode it
 	click.echo(f"Using '{click.format_filename(exec_path)}' executable")
+	click.echo(f"Taking JSON files from '{click.format_filename(json_dir)}' directory")
+	click.echo(f"Writing results to '{click.format_filename(output_csv)}' file")
+	# click 7.x (even when pathlib is installed) somehow does not convert `exec_path`
+	# to pathlib.Path as it should (according to type=click.Path(..., path_type=pathlib.Path))
+	# maybe because for some strange reason exec_path is 'bytes', not 'str'
+	exec_path  = ensure_path(exec_path)
+	json_dir   = ensure_path(json_dir)
+	output_csv = ensure_path(output_csv)
+
 	click.echo(f"('{exec_path.resolve()}')")
 	if not use_libcudf_parser:
 		click.echo(f"  --workspace-size={ws}")
@@ -108,7 +133,6 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 		click.echo(f"  --samples={samples}")
 
 	check_exec(exec_path)
-	click.echo(f"JSON files from '{click.format_filename(json_dir)}' directory")
 	check_json_dir(json_dir)
 	
 	if size_arg.isdigit():
