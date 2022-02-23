@@ -725,6 +725,16 @@ int main(int argc, char** argv)
 	parse_args(argc, argv);
 	benchmark_input input = get_input();
 
+	// TODO: this hack (turning off buffering for stdout) is a workaround for double free
+	// meta-json-parser-benchmark crashes at exit, and its output might not be catched
+	// when redirecting it otherwise; alternative would be to flush stdout at the end
+	/*
+	 terminate called after throwing an instance of 'thrust::system::system_error'
+	    what():  CUDA free failed: cudaErrorInvalidValue: invalid argument
+	 Aborted (core dumped)
+	 */
+	setbuf(stdout, NULL);
+
 #ifdef HAVE_LIBCUDF
 	if (g_args.use_libcudf_parser) {
 		cout << "Using libcudf's cudf::io::read_json\n";
@@ -962,6 +972,9 @@ void print_results()
         << setw(12) << right << used_gpu_mem << " bytes\n";
 
 	print_checkpoint_events();
+
+	// flush output, just in case
+	cout.flush();
 }
 
 #ifdef HAVE_LIBCUDF
