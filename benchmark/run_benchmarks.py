@@ -189,14 +189,30 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 					'max string size': str_size,
 				})
 
+			#lines = []
 			process = subprocess.Popen(
 				exec_args,
 				stdout=subprocess.PIPE,
 				stderr=subprocess.DEVNULL,
+				# read results line by line
+				#bufsize=1, universal_newlines=True,
 			)
+			#for line in process.stdout:
+			#	#print(line, end='') # process line here
+			#	lines.append(line)
+			#process.wait()
+
+			#lines = iter(process.stdout.readline, "")
+			#if lines:
+			#	#lines = [line.decode("utf-8") for line in lines]
+			#	print(lines)
+			#else:
+			#	print("!!! output empty !!!")
+
 			lines = process.stdout.read().decode('utf-8').split('\n')
 
-			results.append(parse_run_output(lines, result))
+			if len(lines) > 0:
+				results.append(parse_run_output(lines, result))
 
 	no_header = False
 	if output_csv.exists() and append:
