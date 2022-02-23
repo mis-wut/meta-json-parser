@@ -22,28 +22,29 @@ using K_L1_3_is_checked = mp_string<'3', '_', 'i', 's', '_', 'c', 'h', 'e', 'c',
 using K_L1_3_name = mp_string<'3', '_', 'n', 'a', 'm', 'e'>;
 
 // DICT
+#define STATIC_STRING_SIZE 32
 template<template<class, int> class StringFun, class DictOpts>
 using DictCreator = JDict < mp_list <
-        mp_list<K_L1_date, StringFun<K_L1_date, 32>>,
+        mp_list<K_L1_date, StringFun<K_L1_date, STATIC_STRING_SIZE>>,
         mp_list<K_L1_lat, JNumber<uint32_t, K_L1_lat>>,
         mp_list<K_L1_lon, JNumber<uint32_t, K_L1_lon>>,
         mp_list<K_L1_is_checked, JBool<uint8_t, K_L1_is_checked>>,
-        mp_list<K_L1_name, StringFun<K_L1_name, 32>>,
-        mp_list<K_L1_1_date, StringFun<K_L1_1_date, 32>>,
+        mp_list<K_L1_name, StringFun<K_L1_name, STATIC_STRING_SIZE>>,
+        mp_list<K_L1_1_date, StringFun<K_L1_1_date, STATIC_STRING_SIZE>>,
         mp_list<K_L1_1_lat, JNumber<uint32_t, K_L1_1_lat>>,
         mp_list<K_L1_1_lon, JNumber<uint32_t, K_L1_1_lon>>,
         mp_list<K_L1_1_is_checked, JBool<uint8_t, K_L1_1_is_checked>>,
-        mp_list<K_L1_1_name, StringFun<K_L1_1_name, 32>>,
-        mp_list<K_L1_2_date, StringFun<K_L1_2_date, 32>>,
+        mp_list<K_L1_1_name, StringFun<K_L1_1_name, STATIC_STRING_SIZE>>,
+        mp_list<K_L1_2_date, StringFun<K_L1_2_date, STATIC_STRING_SIZE>>,
         mp_list<K_L1_2_lat, JNumber<uint32_t, K_L1_2_lat>>,
         mp_list<K_L1_2_lon, JNumber<uint32_t, K_L1_2_lon>>,
         mp_list<K_L1_2_is_checked, JBool<uint8_t, K_L1_2_is_checked>>,
-        mp_list<K_L1_2_name, StringFun<K_L1_2_name, 32>>,
-        mp_list<K_L1_3_date, StringFun<K_L1_3_date, 32>>,
+        mp_list<K_L1_2_name, StringFun<K_L1_2_name, STATIC_STRING_SIZE>>,
+        mp_list<K_L1_3_date, StringFun<K_L1_3_date, STATIC_STRING_SIZE>>,
         mp_list<K_L1_3_lat, JNumber<uint32_t, K_L1_3_lat>>,
         mp_list<K_L1_3_lon, JNumber<uint32_t, K_L1_3_lon>>,
         mp_list<K_L1_3_is_checked, JBool<uint8_t, K_L1_3_is_checked>>,
-        mp_list<K_L1_3_name, StringFun<K_L1_3_name, 32>>
+        mp_list<K_L1_3_name, StringFun<K_L1_3_name, STATIC_STRING_SIZE>>
 >,
         DictOpts
 > ;

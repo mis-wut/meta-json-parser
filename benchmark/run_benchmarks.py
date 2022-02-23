@@ -246,6 +246,7 @@ def parse_run_output(lines, result = {}):
 		values and benchmark results (the latter stores time in nanoseconds it took
 		for specific part of the runtime (or totals, or subtotals)).
 	"""
+	re_max_characters  = re.compile('Maximum number of characters per string[^:]*: ([0-9]*)')
 	re_string_handling = re.compile('Using (.*) string copy')
 	re_assumptions     = re.compile('Assumptions: (.*)')
 	re_workgroup_size  = re.compile('Workgroup size: W([0-9]*)')
@@ -265,6 +266,10 @@ def parse_run_output(lines, result = {}):
 	re_parsing_json    = re.compile('\\+ Parsing json:\\s*([0-9.]*) ns')
 
 	for line in lines:
+		match = re_max_characters.match(line)
+		if match:
+			result['max string size'] = int(match.group(1), base=10)
+
 		match = re_string_handling.match(line)
 		if match:
 			result['string handling'] = match.group(1)

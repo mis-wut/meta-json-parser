@@ -648,11 +648,15 @@ void select_dict_opts(benchmark_input& input) {
 void select_string_function(benchmark_input& input) {
 	if (input.bytes_per_string == 0)
 	{
+		cout << "Maximum number of characters per string (built-in): "
+		     << STATIC_STRING_SIZE << "\n";
 		cout << "Using STATIC string copy.\n";
 		select_dict_opts<StaticCopyFun>(input);
 	}
 	else
 	{
+		cout << "Maximum number of characters per string (runtime): "
+		     << input.bytes_per_string << "\n";
 		switch (g_args.version)
 		{
 		case dynamic_version::v1:
