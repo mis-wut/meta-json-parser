@@ -875,6 +875,8 @@ benchmark_input get_input()
 	vector<char> data(file.tellg());
 	file.seekg(0);
 	//Start measuring CPU time with reading data form disk
+	cout << "Reading JSON file: '"  << g_args.filename << "'\n";
+	cout << "Expected objects:  " << g_args.count << "\n";
 	cpu_start = chrono::high_resolution_clock::now();
 	file.read(data.data(), data.size());
 	return benchmark_input
