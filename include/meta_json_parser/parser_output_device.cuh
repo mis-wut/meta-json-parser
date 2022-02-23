@@ -35,13 +35,13 @@
 
 // TODO: DEBUG !!!
 #include <boost/core/demangle.hpp> //< boost::core::demangle()
-// note: boost::core::demangle() is needed in CudfUnknownColumnType, without NDEBUG
-#ifndef NDEBUG
+// note: boost::core::demangle() is needed in CudfUnknownColumnType, with NDEBUG / without PROFILE_CUDF_CONVERSION
+#ifdef PROFILE_CUDF_CONVERSION
 #include <iostream>
 #include <chrono>
 #include <meta_json_parser/debug_helpers.h>
 #include <nvToolsExt.h>  // to help with using profiler
-#endif /* !defined(NDEBUG) */
+#endif /* defined(PROFILE_CUDF_CONVERSION) */
 #endif /* defined(HAVE_LIBCUDF) */
 
 
@@ -158,7 +158,7 @@ struct CudfNumericColumn {
 	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 size_t n_elements, size_t total_size)
 	{
-#ifndef NDEBUG
+#ifdef PROFILE_CUDF_CONVERSION
 		nvtxRangePushA("toCudf: numeric");
 		std::cout << "converting column " << i << " (numeric: "
 				  << boost::core::demangle(typeid(OutputType).name()) << ", "
@@ -168,7 +168,7 @@ struct CudfNumericColumn {
 		perf_clock::time_point cpu_beg, cpu_end;
 		cpu_beg = perf_clock::now();
 		cudaEventRecord(gpu_beg, stream);
-#endif /* !defined(NDEBUG) */
+#endif
 
 		//const uint8_t* data_ptr = output.m_d_outputs[idx++].data().get();
 		void* data_ptr = (void *)(output.template Pointer<TagT>());
@@ -184,7 +184,7 @@ struct CudfNumericColumn {
 
 		columns.emplace_back(column.release());
 
-#ifndef NDEBUG
+#ifdef PROFILE_CUDF_CONVERSION
 		cudaEventRecord(gpu_end, stream);
 		cpu_end = perf_clock::now();
 
@@ -197,7 +197,7 @@ struct CudfNumericColumn {
 		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
 		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
 		nvtxRangePop();
-#endif /* !defined(NDEBUG) */
+#endif
 	}
 };
 
@@ -210,13 +210,13 @@ struct CudfBoolColumn {
 	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 size_t n_elements, size_t total_size)
 	{
-#ifndef NDEBUG
+#ifdef PROFILE_CUDF_CONVERSION
 		nvtxRangePushA("toCudf: bool");
 		std::cout << "converting column " << i << " (bool)\n";
 		perf_clock::time_point cpu_beg, cpu_end;
 		cpu_beg = perf_clock::now();
 		cudaEventRecord(gpu_beg, stream);
-#endif /* !defined(NDEBUG) */
+#endif
 
 		void* data_ptr = (void *)(output.template Pointer<TagT>());
 
@@ -231,7 +231,7 @@ struct CudfBoolColumn {
 
 		columns.emplace_back(column.release());
 
-#ifndef NDEBUG
+#ifdef PROFILE_CUDF_CONVERSION
 		cudaEventRecord(gpu_end, stream);
 		cpu_end = perf_clock::now();
 
@@ -244,7 +244,7 @@ struct CudfBoolColumn {
 		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
 		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
 		nvtxRangePop();
-#endif /* !defined(NDEBUG) */
+#endif
 	}
 };
 
@@ -260,7 +260,7 @@ struct CudfStaticStringColumn {
 	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 size_t n_elements, size_t total_size)
 	{
-#ifndef NDEBUG
+#ifdef PROFILE_CUDF_CONVERSION
 		nvtxRangePushA("toCudf: static string");
 		std::cout
 			<< "converting column " << i
@@ -272,7 +272,7 @@ struct CudfStaticStringColumn {
 		perf_clock::time_point cpu_beg, cpu_end;
 		cpu_beg = perf_clock::now();
 		cudaEventRecord(gpu_beg, stream);
-#endif /* !defined(NDEBUG) */
+#endif
 
 		void* data_ptr = (void *)(output.template Pointer<TagT>());
 
@@ -288,7 +288,7 @@ struct CudfStaticStringColumn {
 
 		columns.emplace_back(column.release());
 
-#ifndef NDEBUG
+#ifdef PROFILE_CUDF_CONVERSION
 		cudaEventRecord(gpu_end, stream);
 		cpu_end = perf_clock::now();
 
@@ -301,7 +301,7 @@ struct CudfStaticStringColumn {
 		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
 		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
 		nvtxRangePop();
-#endif /* !defined(NDEBUG) */
+#endif
 	}
 };
 
@@ -317,7 +317,7 @@ struct CudfDynamicStringColumn {
 	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 size_t n_elements, size_t total_size)
 	{
-#ifndef NDEBUG
+#ifdef PROFILE_CUDF_CONVERSION
 		nvtxRangePushA("toCudf: dynamic string");
 		std::cout
 			<< "converting column " << i << " (dynamic string: "
@@ -326,7 +326,7 @@ struct CudfDynamicStringColumn {
 
 		cpu_beg = perf_clock::now();
 		cudaEventRecord(gpu_beg, stream);
-#endif /* !defined(NDEBUG) */
+#endif
 
 		// - construct child columns
 		void* offsets_ptr = (void *)(output.template Pointer<LengthRequestTag>());
@@ -365,7 +365,7 @@ struct CudfDynamicStringColumn {
 		// - add it to list of columns to be composed into cudf::table
 		columns.emplace_back(column.release());
 
-#ifndef NDEBUG
+#ifdef PROFILE_CUDF_CONVERSION
 		cudaEventRecord(gpu_end, stream);
 		cpu_end = perf_clock::now();
 
@@ -378,7 +378,7 @@ struct CudfDynamicStringColumn {
 		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
 		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
 		nvtxRangePop();
-#endif /* !defined(NDEBUG) */
+#endif
 	}
 };
 
