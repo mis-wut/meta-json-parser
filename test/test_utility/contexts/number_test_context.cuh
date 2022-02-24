@@ -66,7 +66,14 @@ protected:
     Generate m_max_val;
     size_t m_max_precision;
 
-    using RepresentType = std::common_type_t<Generate, uint64_t>;
+    using RepresentType = std::common_type_t<
+        Generate,
+        boost::mp11::mp_if<
+            std::is_unsigned<Generate>,
+            uint64_t,
+            int64_t
+        >
+    >;
 
     using IntegralDistribution = boost::mp11::mp_eval_if_not<
         std::is_integral<Generate>,
@@ -147,6 +154,11 @@ public:
             std::stringstream stream;
             stream << std::setprecision(m_max_precision) << val;
             auto str = stream.str();
+            // Check to faster detect issues with generation
+            if (str.length() > max_len) {
+                std::cout << '"' << str << "\" longer than max len " << max_len << "!\n";
+                FAIL();
+            }
             inp_it += snprintf(inp_it, max_len + 1, "%s", str.c_str());
             InsertedNumberCallback(i, val);
             *ind_it = (inp_it - m_h_input->data());
