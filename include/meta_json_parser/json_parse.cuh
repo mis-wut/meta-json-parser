@@ -325,6 +325,46 @@ namespace JsonParse
 		return ParsingError::None;
 	}
 
+    template<class OutTypeT, class KernelContextT, class CallbackFnT>
+    __device__ INLINE_METHOD ParsingError SignedInteger(KernelContextT& _kc, CallbackFnT&& fn)
+    {
+        static_assert(std::is_arithmetic_v<OutTypeT>, "OutTypeT must be arithmetic.");
+        using KC = KernelContextT;
+        using R = UnsignedIntegerRequests<OutTypeT>;
+        using RT = typename KC::RT;
+        using WorkGroupSize = typename RT::WorkGroupSize;
+        using OP = UnsignedIntegerOperationType<OutTypeT>;
+        static_assert(WorkGroupSize::value >= 2, "WorkGroup must have a size of at least 2.");
+
+        bool minus = false;
+        if (_kc.wgr.PeekChar(0) == '-') {
+            minus = true;
+            _kc.wgr.AdvanceBy(1);
+        }
+        return UnsignedInteger<OutTypeT>(_kc, [&minus, &fn](auto result) { return fn(minus ? -result : result); } );
+    }
+
+    template<bool Signed = true>
+    struct IntegerFunctionDispatch {
+        template<class OutTypeT, class KernelContextT, class CallbackFnT>
+        static __device__ __forceinline__ ParsingError function(KernelContextT& _kc, CallbackFnT&& fn) {
+            return SignedInteger<OutTypeT>(_kc, fn);
+        }
+    };
+
+    template<>
+    struct IntegerFunctionDispatch<false> {
+        template<class OutTypeT, class KernelContextT, class CallbackFnT>
+        static __device__ __forceinline__ ParsingError function(KernelContextT& _kc, CallbackFnT&& fn) {
+            return UnsignedInteger<OutTypeT>(_kc, fn);
+        }
+    };
+
+    template<class SignedT, class OutTypeT, class KernelContextT, class CallbackFnT>
+    __device__ INLINE_METHOD ParsingError Integer(KernelContextT& _kc, CallbackFnT&& fn) {
+        return IntegerFunctionDispatch<SignedT::value>::template function<OutTypeT>(_kc, fn);
+    }
+
 	template<class OutTypeT, class KernelContextT, class CallbackFnT>
 	__device__ INLINE_METHOD ParsingError UnsignedIntegerFitsWorkgroup(KernelContextT& _kc, CallbackFnT&& fn)
 	{

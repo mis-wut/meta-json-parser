@@ -17,9 +17,18 @@ struct JNumberOptions {
         };
     };
 
+    struct JNumberSign {
+        using Signed = std::true_type;
+        using Unsigned = std::false_type;
+        using DefaultSign = Unsigned;
+    };
+
 private:
     template<class OptionsT>
     using _impl_GetNumberTransformer = boost::mp11::mp_map_find<OptionsT, JNumberOptions::JNumberTransformer>;
+
+    template<class OptionsT>
+    using _impl_GetNumberSign = boost::mp11::mp_map_find<OptionsT, JNumberOptions::JNumberSign>;
 public:
     template<class OptionsT>
     using GetNumberTransformer = boost::mp11::mp_eval_if<
@@ -31,6 +40,17 @@ public:
             boost::mp11::mp_second,
             _impl_GetNumberTransformer<OptionsT>
     >;
+
+    template<class OptionsT>
+    using GetNumberSign = boost::mp11::mp_eval_if<
+            boost::mp11::mp_same<
+                    _impl_GetNumberSign<OptionsT>,
+                    void
+            >,
+            JNumberOptions::JNumberSign::DefaultSign,
+            boost::mp11::mp_second,
+            _impl_GetNumberSign<OptionsT>
+    >;
 };
 
 template<class OutT, class TagT, class OptionsT = boost::mp11::mp_list<>>
@@ -40,12 +60,12 @@ struct JNumber
     using ParsingType = OutT;
     using Options = OptionsT;
     using NumberTransformer = JNumberOptions::GetNumberTransformer<Options>;
+    using NumberSign = JNumberOptions::GetNumberSign<Options>;
     using Out = decltype(std::declval<NumberTransformer>()(std::declval<ParsingType>()));
     using Tag = TagT;
     using OutputRequests = boost::mp11::mp_list<OutputRequest<TagT, Out>>;
     using MemoryRequests = JsonParse::UnsignedIntegerRequests<ParsingType>;
     static_assert(std::is_integral_v<ParsingType>, "OutT must be integral.");
-    static_assert(std::is_unsigned_v<ParsingType>, "OutT must be unsigned.");
 
 #ifdef HAVE_LIBCUDF
     using CudfColumnConverter = CudfNumericColumn<JNumber, OutT>;
@@ -55,7 +75,7 @@ struct JNumber
     static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
     {
         NumberTransformer transformer;
-        return JsonParse::UnsignedInteger<ParsingType>(kc, [&](auto&& result) {
+        return JsonParse::Integer<NumberSign, ParsingType>(kc, [&](auto&& result) {
             kc.om.template Get<KernelContextT, TagT>() = transformer(result);
         });
     }
