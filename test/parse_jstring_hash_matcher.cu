@@ -58,7 +58,7 @@ protected:
             thrust::host_vector<CategoryT> h_result(m_d_result);
             auto mismatch = thrust::mismatch(m_h_correct.begin(), m_h_correct.end(), h_result.begin());
             size_t input_id = mismatch.first - m_h_correct.begin();
-            std::string_view word(m_h_input->data() + (*m_h_indices)[input_id], (*m_h_indices)[input_id + 1] - (*m_h_indices)[input_id]);
+            std::string_view word(m_h_input.data() + m_h_indices[input_id], m_h_indices[input_id + 1] - m_h_indices[input_id]);
             result = testing::AssertionFailure()
                     << "Mismatch output at " << input_id << " input value. "
                     << "Expected category \"" << *mismatch.first << "\", "
@@ -105,10 +105,10 @@ public:
         const size_t max_len = std::max(34ul, longest_key);
         const size_t max_str_len = max_len + 3; //" + " + \0
         std::uniform_int_distribution<uint32_t> r_len(min_len, max_len);
-        m_h_input = std::make_unique<thrust::host_vector<char>>(TestSize() * max_str_len);
-        m_h_indices = std::make_unique<thrust::host_vector<InputIndex>>(TestSize() + 1);
-        auto inp_it = m_h_input->data();
-        auto ind_it = m_h_indices->begin();
+        m_h_input = thrust::host_vector<char>(TestSize() * max_str_len);
+        m_h_indices = thrust::host_vector<InputIndex>(TestSize() + 1);
+        auto inp_it = m_h_input.data();
+        auto ind_it = m_h_indices.begin();
         *ind_it = 0;
         ++ind_it;
         std::vector<char> word(max_len + 1);
@@ -131,12 +131,12 @@ public:
                 m_h_correct[i] = result;
             }
             inp_it += snprintf(inp_it, max_str_len, "\"%s\"", word.data());
-            *ind_it = (inp_it - m_h_input->data());
+            *ind_it = (inp_it - m_h_input.data());
             ++ind_it;
         }
-        m_d_input = std::make_unique<thrust::device_vector<char>>(m_h_input->size() + 256); //256 to allow batch loading
-        thrust::copy(m_h_input->begin(), m_h_input->end(), m_d_input->begin());
-        m_d_indices = std::make_unique<thrust::device_vector<InputIndex>>(*m_h_indices);
+        m_d_input = thrust::device_vector<char>(m_h_input.size() + 256); //256 to allow batch loading
+        thrust::copy(m_h_input.begin(), m_h_input.end(), m_d_input.begin());
+        m_d_indices = thrust::device_vector<InputIndex>(m_h_indices);
         m_d_correct = thrust::device_vector<CategoryT>(m_h_correct);
     }
 };

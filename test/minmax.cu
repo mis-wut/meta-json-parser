@@ -28,7 +28,7 @@ public:
             val = Zero;
         else if (val > One)
             val = One;
-        (*Base::m_h_correct)[index] = val;
+        (Base::m_h_correct)[index] = val;
     }
 };
 

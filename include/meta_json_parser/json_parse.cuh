@@ -4,6 +4,7 @@
 #include <cuda_runtime_api.h>
 #include <type_traits>
 #include <meta_json_parser/config.h>
+#include <meta_json_parser/meta_utility/length_representation.h>
 #include <meta_json_parser/parsing_error.h>
 #include <meta_json_parser/byte_algorithms.h>
 #include <meta_json_parser/memory_request.h>
