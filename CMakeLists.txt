@@ -36,6 +36,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/action/jbool.cuh
     include/meta_json_parser/action/jdict.cuh
     include/meta_json_parser/action/jnumber.cuh
+    include/meta_json_parser/action/jrealnumber.cuh
     include/meta_json_parser/action/jstring.cuh
     include/meta_json_parser/action/jstring_custom.cuh
     include/meta_json_parser/action/string_functors/letter_case.cuh
@@ -45,8 +46,10 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/byte_algorithms.h
     include/meta_json_parser/config.h
     include/meta_json_parser/cub_wrapper.cuh
+    include/meta_json_parser/cuda_wrapper.cuh
     include/meta_json_parser/intelisense_silencer.h
     include/meta_json_parser/json_parse.cuh
+    include/meta_json_parser/json_parsers/float.cuh
     include/meta_json_parser/kernel_context.cuh
     include/meta_json_parser/kernel_launch_configuration.cuh
     include/meta_json_parser/kernel_launcher.cuh
@@ -58,6 +61,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/memory_request.h
     include/meta_json_parser/meta_math.h
     include/meta_json_parser/meta_memory_manager.cuh
+    include/meta_json_parser/meta_utility/length_representation.h
     include/meta_json_parser/meta_utility/safe_drop.h
     include/meta_json_parser/meta_utils.h
     include/meta_json_parser/mp_string.h
@@ -96,6 +100,7 @@ target_sources(meta-json-parser-test PRIVATE
     test/parse_jbool.cu
     test/parse_jdict.cu
     test/parse_jnumber.cu
+    test/parse_jrealnumber.cu
     test/parse_jstring.cu
     test/parse_jstring_custom.cu
     test/parse_jstring_hash_matcher.cu
@@ -105,6 +110,7 @@ target_sources(meta-json-parser-test PRIVATE
     test/test_configuration.h
     test/test_helper.h
     test/test_memory_config.cu
+    test/test_utility/contexts/floating_point_test_context.cuh
     test/test_utility/contexts/number_test_context.cuh
     test/test_utility/contexts/static_string_test_context.cu
     test/test_utility/contexts/static_string_test_context.cuh

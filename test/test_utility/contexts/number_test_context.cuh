@@ -59,9 +59,9 @@ protected:
             GenerateT
     >;
 
-    std::unique_ptr<thrust::host_vector<Calculation>> m_h_correct;
-    std::unique_ptr<thrust::device_vector<Calculation>> m_d_correct;
-    std::unique_ptr<thrust::device_vector<Calculation>> m_d_result;
+    thrust::host_vector<Calculation> m_h_correct;
+    thrust::device_vector<Calculation> m_d_correct;
+    thrust::device_vector<Calculation> m_d_result;
     Generate m_min_val;
     Generate m_max_val;
     size_t m_max_precision;
@@ -104,20 +104,22 @@ protected:
     >;
 
     virtual void InsertedNumberCallback(size_t index, Calculation value) {
-        (*m_h_correct)[index] = value;
+        m_h_correct[index] = value;
     }
 
     void OutputValidate() override {
         Comparator comparator;
         testing::AssertionResult result = testing::AssertionSuccess();
-        if (!thrust::equal(m_d_correct->begin(), m_d_correct->end(), m_d_result->begin(), comparator)) {
-            thrust::host_vector<Calculation> h_result(*m_d_result);
-            auto mismatch = thrust::mismatch(m_h_correct->begin(), m_h_correct->end(), h_result.begin(), comparator);
-            size_t input_id = mismatch.first - m_h_correct->begin();
+        if (!thrust::equal(m_d_correct.begin(), m_d_correct.end(), m_d_result.begin(), comparator)) {
+            thrust::host_vector<Calculation> h_result(m_d_result);
+            auto mismatch = thrust::mismatch(m_h_correct.begin(), m_h_correct.end(), h_result.begin(), comparator);
+            size_t input_id = mismatch.first - m_h_correct.begin();
+            size_t print_len = m_h_indices[input_id + 1] - m_h_indices[input_id];
             result = testing::AssertionFailure()
                     << "Mismatch output at " << input_id << " input value. "
                     << "Expected number \"" << static_cast<Calculation>(*mismatch.first) << "\", "
-                    << "result number \"" << static_cast<Calculation>(*mismatch.second) << "\".";
+                    << "result number \"" << static_cast<Calculation>(*mismatch.second) << "\"."
+                    << "Input was \"" << std::string_view(m_h_input.data() + m_h_indices[input_id], print_len);
         }
         ASSERT_TRUE(result);
     }
@@ -139,18 +141,18 @@ public:
             max_len += 1 + m_max_precision;
         }
         Distribution dist(m_min_val, m_max_val);
-        m_h_input = std::make_unique<thrust::host_vector<char>>(m_test_size * max_len + 1);
-        m_h_indices = std::make_unique<thrust::host_vector<InputIndex>>(m_test_size + 1);
-        m_h_correct = std::make_unique<thrust::host_vector<Calculation>>(m_test_size);
-        m_d_result = std::make_unique<thrust::device_vector<Calculation>>(m_test_size, 0);
-        std::generate(m_h_correct->begin(), m_h_correct->end(), [&]() { return static_cast<Calculation>(dist(this->m_rand)); });
-        auto inp_it = m_h_input->data();
-        auto ind_it = m_h_indices->begin();
+        m_h_input = thrust::host_vector<char>(m_test_size * max_len + 1);
+        m_h_indices = thrust::host_vector<InputIndex>(m_test_size + 1);
+        m_h_correct = thrust::host_vector<Calculation>(m_test_size);
+        m_d_result = thrust::device_vector<Calculation>(m_test_size, 0);
+        std::generate(m_h_correct.begin(), m_h_correct.end(), [&]() { return static_cast<Calculation>(dist(this->m_rand)); });
+        auto inp_it = m_h_input.data();
+        auto ind_it = m_h_indices.begin();
         *ind_it = 0;
         ++ind_it;
         for (size_t i = 0; i < m_test_size; ++i)
         {
-            RepresentType val = (*m_h_correct)[i];
+            RepresentType val = m_h_correct[i];
             std::stringstream stream;
             stream << std::setprecision(m_max_precision) << val;
             auto str = stream.str();
@@ -161,13 +163,13 @@ public:
             }
             inp_it += snprintf(inp_it, max_len + 1, "%s", str.c_str());
             InsertedNumberCallback(i, val);
-            *ind_it = (inp_it - m_h_input->data());
+            *ind_it = (inp_it - m_h_input.data());
             ++ind_it;
         }
-        m_d_input = std::make_unique<thrust::device_vector<char>>(m_h_input->size() + 256); //256 to allow batch loading
-        thrust::copy(m_h_input->begin(), m_h_input->end(), m_d_input->begin());
-        m_d_indices = std::make_unique<thrust::device_vector<InputIndex>>(*m_h_indices);
-        m_d_correct = std::make_unique<thrust::device_vector<Calculation>>(*m_h_correct);
+        m_d_input = thrust::device_vector<char>(m_h_input.size() + 256); //256 to allow batch loading
+        thrust::copy(m_h_input.begin(), m_h_input.end(), m_d_input.begin());
+        m_d_indices = thrust::device_vector<InputIndex>(m_h_indices);
+        m_d_correct = thrust::device_vector<Calculation>(m_h_correct);
     }
 
     Generate GetMinimumValue() const {
@@ -193,7 +195,7 @@ public:
 
     thrust::host_vector<void *> OutputBuffers() override {
         thrust::host_vector<void *> result(1);
-        result[0] = m_d_result->data().get();
+        result[0] = m_d_result.data().get();
         return result;
     }
 };
