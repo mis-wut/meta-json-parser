@@ -29,7 +29,10 @@ add_library(lib-meta-json-parser INTERFACE)
 
 target_compile_features(lib-meta-json-parser INTERFACE cxx_std_17 cuda_std_17)
 
-target_include_directories(lib-meta-json-parser INTERFACE "${PROJECT_SOURCE_DIR}/include")
+target_include_directories(lib-meta-json-parser INTERFACE
+    "${PROJECT_SOURCE_DIR}/include"
+    "${PROJECT_SOURCE_DIR}/third_parties/typestring/include"
+)
 
 target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/action/datetime/jdatetime.cuh
@@ -65,6 +68,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/meta_memory_manager.cuh
     include/meta_json_parser/meta_utility/is_base_of_template.h
     include/meta_json_parser/meta_utility/length_representation.h
+    include/meta_json_parser/meta_utility/metastring.h
     include/meta_json_parser/meta_utility/safe_drop.h
     include/meta_json_parser/meta_utils.h
     include/meta_json_parser/mp_string.h
