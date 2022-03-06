@@ -32,6 +32,7 @@ target_compile_features(lib-meta-json-parser INTERFACE cxx_std_17 cuda_std_17)
 target_include_directories(lib-meta-json-parser INTERFACE "${PROJECT_SOURCE_DIR}/include")
 
 target_sources(lib-meta-json-parser INTERFACE
+    include/meta_json_parser/action/datetime/jdatetime.cuh
     include/meta_json_parser/action/jarray.cuh
     include/meta_json_parser/action/jbool.cuh
     include/meta_json_parser/action/jdict.cuh
@@ -49,6 +50,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/cuda_wrapper.cuh
     include/meta_json_parser/intelisense_silencer.h
     include/meta_json_parser/json_parse.cuh
+    include/meta_json_parser/json_parsers/datetime.cuh
     include/meta_json_parser/json_parsers/float.cuh
     include/meta_json_parser/kernel_context.cuh
     include/meta_json_parser/kernel_launch_configuration.cuh
@@ -61,6 +63,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/memory_request.h
     include/meta_json_parser/meta_math.h
     include/meta_json_parser/meta_memory_manager.cuh
+    include/meta_json_parser/meta_utility/is_base_of_template.h
     include/meta_json_parser/meta_utility/length_representation.h
     include/meta_json_parser/meta_utility/safe_drop.h
     include/meta_json_parser/meta_utils.h
@@ -98,6 +101,7 @@ target_sources(meta-json-parser-test PRIVATE
     test/parse_dynamic_string.cu
     test/parse_jarray.cu
     test/parse_jbool.cu
+    test/parse_jdatetime.cu
     test/parse_jdict.cu
     test/parse_jnumber.cu
     test/parse_jrealnumber.cu
@@ -110,6 +114,7 @@ target_sources(meta-json-parser-test PRIVATE
     test/test_configuration.h
     test/test_helper.h
     test/test_memory_config.cu
+    test/test_utility/contexts/datetime_test_context.cuh
     test/test_utility/contexts/floating_point_test_context.cuh
     test/test_utility/contexts/number_test_context.cuh
     test/test_utility/contexts/static_string_test_context.cu
