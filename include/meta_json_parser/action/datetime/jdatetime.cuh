@@ -2,6 +2,7 @@
 #define META_JSON_PARSER_JDATETIME_CUH
 #include <utility>
 #include <meta_json_parser/json_parsers/datetime.cuh>
+#include <meta_json_parser/json_parsers/datetime_token_parser.h>
 
 struct JDatetimeOptions {
     struct JDatetimeTransformer {
@@ -48,8 +49,8 @@ public:
 };
 
 template<class TokensT, class TagT, class OptionsT = boost::mp11::mp_list<>>
-struct JDatetime {
-    using type = JDatetime<TokensT, TagT, OptionsT>;
+struct JDatetimeToken {
+    using type = JDatetimeToken<TokensT, TagT, OptionsT>;
 
     using Tokens = TokensT;
     using Options = OptionsT;
@@ -69,6 +70,10 @@ struct JDatetime {
             kc.om.template Get<KernelContextT, TagT>() = transformer(result);
         });
     }
+};
+
+template<class MetaString, class TagT, class OptionsT = boost::mp11::mp_list<>>
+struct JDatetime : public JDatetimeToken<JsonParsers::DatetimeTokenParser<MetaString>, TagT, OptionsT> {
 };
 
 #endif //META_JSON_PARSER_JDATETIME_CUH

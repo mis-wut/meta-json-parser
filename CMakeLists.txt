@@ -54,6 +54,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/intelisense_silencer.h
     include/meta_json_parser/json_parse.cuh
     include/meta_json_parser/json_parsers/datetime.cuh
+    include/meta_json_parser/json_parsers/datetime_token_parser.h
     include/meta_json_parser/json_parsers/float.cuh
     include/meta_json_parser/kernel_context.cuh
     include/meta_json_parser/kernel_launch_configuration.cuh

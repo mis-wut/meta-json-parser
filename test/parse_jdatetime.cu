@@ -6,24 +6,19 @@
 #include "test_utility/contexts/datetime_test_context.cuh"
 #include <meta_json_parser/action/datetime/jdatetime.cuh>
 #include <meta_json_parser/mp_string.h>
+#include <meta_json_parser/meta_utility/metastring.h>
 
 class ParseJDataTest : public ::testing::Test { };
 
 using namespace JsonParsers::DatetimeTokens;
 using namespace boost::mp11;
 
-template<class TimestampResolutionT, int GroupSizeT>
-void templated_ParseTimestampYYYYmmDD()
+template<class TimestampResolutionT, class Format, int GroupSizeT>
+void templated_ParseTimestamp()
 {
-    using Tokens = mp_list<
-        YearDigit_c<4>,
-        Text<mp_string<'-'>>,
-        MonthDigit_c<2>,
-        Text<mp_string<'-'>>,
-        DayDigit_c<2>
-    >;
+    using MetaString = typestring_to_metastring<Format>;
     DatetimeTestContext<TimestampResolutionT> context(TEST_SIZE, GroupSizeT, SEED);
-    context.SetDateFormat("%Y-%m-%d");
+    context.SetDateFormat(Format::data());
     context.Initialize();
     using Options = boost::mp11::mp_list<
         boost::mp11::mp_list<
@@ -31,54 +26,20 @@ void templated_ParseTimestampYYYYmmDD()
             TimestampResolutionT
         >
     >;
-    using BA = JDatetime<Tokens, void, Options>;
-    LaunchTest<BA, boost::mp11::mp_int<GroupSizeT>>(context);
-}
-
-template<class TimestampResolutionT, int GroupSizeT>
-void templated_ParseTimestampYYYYmmDDHHMMSS()
-{
-    using Tokens = mp_list<
-            YearDigit_c<4>,
-            Text<mp_string<'-'>>,
-            MonthDigit_c<2>,
-            Text<mp_string<'-'>>,
-            DayDigit_c<2>,
-            Text<mp_string<' '>>,
-            HourDigit_c<2>,
-            Text<mp_string<':'>>,
-            MinuteDigit_c<2>,
-            Text<mp_string<':'>>,
-            SecondDigit_c<2>
-    >;
-    DatetimeTestContext<TimestampResolutionT> context(TEST_SIZE, GroupSizeT, SEED);
-    context.SetDateFormat("%Y-%m-%d %H:%M:%S");
-    context.Initialize();
-    using Options = boost::mp11::mp_list<
-            boost::mp11::mp_list<
-                    JDatetimeOptions::TimestampResolution,
-                    TimestampResolutionT
-            >
-    >;
-    using BA = JDatetime<Tokens, void, Options>;
+    using BA = JDatetime<MetaString, void, Options>;
     LaunchTest<BA, boost::mp11::mp_int<GroupSizeT>>(context);
 }
 
 using Seconds = JDatetimeOptions::TimestampResolution::Seconds;
 using Milliseconds = JDatetimeOptions::TimestampResolution::Milliseconds;
 
-#define META_ParseJTimestampTestFixedYYYYmmDD(WS, TYPE)\
-TEST_F(ParseJDataTest, Timestamp_YYYYmmDD_##TYPE##_W##WS) {\
-	templated_ParseTimestampYYYYmmDD<TYPE, WS>();\
+#define META_ParseJTimestampTest(WS, TYPE, FMT, NAME)\
+TEST_F(ParseJDataTest, Timestamp_##NAME##_##TYPE##_W##WS) {\
+	templated_ParseTimestamp<TYPE, typestring_is(FMT), WS>();\
 }
 
-#define META_ParseJTimestampTestFixedYYYYmmDDHHMMSS(WS, TYPE)\
-TEST_F(ParseJDataTest, Timestamp_YYYYmmDDHHMMSS_##TYPE##_W##WS) {\
-	templated_ParseTimestampYYYYmmDDHHMMSS<TYPE, WS>();\
-}
-
-META_WS_4(META_ParseJTimestampTestFixedYYYYmmDD, Seconds)
-META_WS_4(META_ParseJTimestampTestFixedYYYYmmDD, Milliseconds)
-META_WS_4(META_ParseJTimestampTestFixedYYYYmmDDHHMMSS, Seconds)
-META_WS_4(META_ParseJTimestampTestFixedYYYYmmDDHHMMSS, Milliseconds)
+META_WS_4(META_ParseJTimestampTest, Seconds, "%Y-%m-%d", YYYYmmdd)
+META_WS_4(META_ParseJTimestampTest, Seconds, "%Y-%m-%d %H:%M:%S", YYYYmmddHHMMSS)
+META_WS_4(META_ParseJTimestampTest, Milliseconds, "%Y-%m-%d", YYYYmmdd)
+META_WS_4(META_ParseJTimestampTest, Milliseconds, "%Y-%m-%d %H:%M:%S", YYYYmmddHHMMSS)
 
