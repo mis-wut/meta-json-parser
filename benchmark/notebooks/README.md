@@ -1,7 +1,7 @@
 # Notebooks
 
 This directory holds various notebooks that are used to show and
-analyse benchmark results, and results of various tests.
+analyze benchmark results, and results of various tests.
 
 ## Contributing
 
