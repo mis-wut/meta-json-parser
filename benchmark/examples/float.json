@@ -1,0 +1,5 @@
+{ "generic": 0, "scientific": 0e0, "fixed": 0.0 }
+{ "generic": 1, "scientific": 1e0, "fixed": 1.0 }
+{ "generic": 1e-3, "scientific": 1e-3, "fixed": 0.001 }
+{ "generic": 3.14159265358979323846, "scientific": 7.07106781186547524401e-1, "fixed": 0.707106781186547524401 }
+{ "generic": -1e6, "scientific": -1.2345e2, "fixed": -12.2345 }
