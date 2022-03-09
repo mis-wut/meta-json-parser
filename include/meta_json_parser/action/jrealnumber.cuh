@@ -91,7 +91,7 @@ struct JRealNumber
     static_assert(std::is_floating_point_v<ParsingType>, "ParsingType must be floating point.");
 
 #ifdef HAVE_LIBCUDF
-    using CudfColumnConverter = CudfNumericColumn<JNumber, OutT>;
+    using CudfColumnConverter = CudfNumericColumn<JRealNumber, OutT>;
 #endif
 
     template<class KernelContextT>

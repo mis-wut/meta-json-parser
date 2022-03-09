@@ -30,6 +30,7 @@ cudaEvent_t gpu_beg, gpu_end;
 #include <meta_json_parser/action/jdict.cuh>
 #include <meta_json_parser/action/jstring.cuh>
 #include <meta_json_parser/action/jnumber.cuh>
+#include <meta_json_parser/action/jrealnumber.cuh>
 #include <meta_json_parser/action/jbool.cuh>
 #include <cub/cub.cuh>
 #include <CLI/CLI.hpp>
