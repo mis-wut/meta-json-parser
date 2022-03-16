@@ -1,3 +1,23 @@
+#include <boost/mp11/list.hpp>
+#include <boost/mp11/algorithm.hpp>
+#include <boost/mp11/integral.hpp>
+
+using AllWorkGroups = boost::mp11::mp_list<
+    boost::mp11::mp_int<32>,
+    boost::mp11::mp_int<16>,
+    boost::mp11::mp_int<8>,
+    boost::mp11::mp_int<4>
+>;
+
+struct WorkGroupNameGenerator {
+    template <typename T>
+    static std::string GetName(int i) {
+        std::stringstream stream;
+        stream << "WS_" << T::value;
+        return stream.str();
+    }
+};
+
 #define META_WS_32(mfun, ...)\
 mfun(32 __VA_OPT__(,) __VA_ARGS__)
 

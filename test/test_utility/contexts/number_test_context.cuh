@@ -33,7 +33,7 @@ template<class EpsilonT>
 struct FloatingComparator<float, EpsilonT> : public thrust::binary_function<float, float, bool> {
     __host__ __device__ inline bool operator()(float a, float b) {
         constexpr float epsilon = static_cast<float>(EpsilonT::num) / static_cast<float>(EpsilonT::den);
-        return fabsf(b - a) <= epsilon;
+        return fabsf(b - a) <= epsilon || (isnan(a) && isnan(b));
     }
 };
 
@@ -41,11 +41,11 @@ template<class EpsilonT>
 struct FloatingComparator<double, EpsilonT> : public thrust::binary_function<double, double, bool> {
     __host__ __device__ inline bool operator()(double a, double b) {
         constexpr double epsilon = static_cast<double>(EpsilonT::num) / static_cast<double>(EpsilonT::den);
-        return fabs(b - a) <= epsilon;
+        return fabs(b - a) <= epsilon || (isnan(a) && isnan(b));
     }
 };
 
-template<class CalculationT, class GenerateT = void>
+template<class CalculationT, class GenerateT = void, class PrintT = void>
 class NumberTestContext : public TestContext {
     static_assert(
             std::is_integral<CalculationT>::value || std::is_floating_point<CalculationT>::value,
@@ -66,13 +66,17 @@ protected:
     Generate m_max_val;
     size_t m_max_precision;
 
-    using RepresentType = std::common_type_t<
-        Generate,
-        boost::mp11::mp_if<
-            std::is_unsigned<Generate>,
-            uint64_t,
-            int64_t
-        >
+    using PrintType = boost::mp11::mp_if<
+        std::is_same<PrintT, void>,
+        std::common_type_t<
+            Generate,
+            boost::mp11::mp_if<
+                std::is_unsigned<Generate>,
+                uint64_t,
+                int64_t
+            >
+        >,
+        PrintT
     >;
 
     using IntegralDistribution = boost::mp11::mp_eval_if_not<
@@ -131,10 +135,16 @@ public:
               m_max_precision(3) { }
 
     void Initialize() override {
-        size_t max_len = static_cast<size_t>(std::ceil(std::max(
-                std::log10(std::fabs(m_max_val)),
-                std::log10(std::fabs(m_min_val))
-        )));
+        const auto maxLog = std::max(
+            std::log10(std::fabs(m_max_val)),
+            std::log10(std::fabs(m_min_val))
+        );
+        const auto ceil = std::ceil(maxLog);
+        size_t max_len = static_cast<size_t>(ceil);
+        if (std::abs(ceil - maxLog) < 0.0001) {
+            // If ceil(log10) ~ log10 -> power of 10 -> +1 to length
+            max_len += 1;
+        }
         if (IsLessThan0(m_min_val))
             max_len += 1;
         if (std::is_floating_point<Generate>::value) {
@@ -145,16 +155,18 @@ public:
         m_h_indices = thrust::host_vector<InputIndex>(m_test_size + 1);
         m_h_correct = thrust::host_vector<Calculation>(m_test_size);
         m_d_result = thrust::device_vector<Calculation>(m_test_size, 0);
-        std::generate(m_h_correct.begin(), m_h_correct.end(), [&]() { return static_cast<Calculation>(dist(this->m_rand)); });
+        auto corr_it = m_h_correct.begin();
         auto inp_it = m_h_input.data();
         auto ind_it = m_h_indices.begin();
         *ind_it = 0;
         ++ind_it;
         for (size_t i = 0; i < m_test_size; ++i)
         {
-            RepresentType val = m_h_correct[i];
+            auto gen_val = dist(m_rand);
+            *corr_it++ = static_cast<Calculation>(gen_val);
+            auto print_val = static_cast<PrintType>(gen_val);
             std::stringstream stream;
-            stream << std::setprecision(m_max_precision) << val;
+            stream << std::setprecision(m_max_precision) << print_val;
             auto str = stream.str();
             // Check to faster detect issues with generation
             if (str.length() > max_len) {
@@ -162,7 +174,7 @@ public:
                 FAIL();
             }
             inp_it += snprintf(inp_it, max_len + 1, "%s", str.c_str());
-            InsertedNumberCallback(i, val);
+            InsertedNumberCallback(i, print_val);
             *ind_it = (inp_it - m_h_input.data());
             ++ind_it;
         }

@@ -43,6 +43,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/action/jrealnumber.cuh
     include/meta_json_parser/action/jstring.cuh
     include/meta_json_parser/action/jstring_custom.cuh
+    include/meta_json_parser/action/number_functors/cut.cuh
     include/meta_json_parser/action/string_functors/letter_case.cuh
     include/meta_json_parser/action/string_transform_functors/polynomial_rolling_hash_matcher.cuh
     include/meta_json_parser/action/void_action.cuh
@@ -70,6 +71,8 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/meta_utility/is_base_of_template.h
     include/meta_json_parser/meta_utility/length_representation.h
     include/meta_json_parser/meta_utility/metastring.h
+    include/meta_json_parser/meta_utility/option_getter.cuh
+    include/meta_json_parser/meta_utility/real_number.cuh
     include/meta_json_parser/meta_utility/safe_drop.h
     include/meta_json_parser/meta_utils.h
     include/meta_json_parser/mp_string.h
@@ -100,6 +103,7 @@ target_sources(meta-json-parser-test PRIVATE
     include/meta_json_parser/checkpoint_results.h
     include/meta_json_parser/debug_helpers.cpp
     test/book_json.cu
+    test/cut.cu
     test/keywriter_tests.cu
     test/main.cu
     test/minmax.cu
