@@ -294,7 +294,9 @@ public:
                     exp_off = str.find('E');
                 auto digits = std::string(str.data(), exp_off);
                 auto exponent = std::string(str.data() + exp_off + 1, str.data() + str.length());
-                parse_str = (std::stringstream() << digits << ".0e" << exponent).str();
+                std::stringstream stream;
+                stream << digits << ".0e" << exponent;
+                parse_str = stream.str();
             } else {
                 parse_str = str;
             }

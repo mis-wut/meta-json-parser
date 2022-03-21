@@ -8,7 +8,7 @@
 #include <meta_json_parser/mp_string.h>
 #include <meta_json_parser/meta_utility/metastring.h>
 
-class ParseJDataTest : public ::testing::Test { };
+class ParseJDateTest : public ::testing::Test { };
 
 using namespace JsonParsers::DatetimeTokens;
 using namespace boost::mp11;
@@ -34,7 +34,7 @@ using Seconds = JDatetimeOptions::TimestampResolution::Seconds;
 using Milliseconds = JDatetimeOptions::TimestampResolution::Milliseconds;
 
 #define META_ParseJTimestampTest(WS, TYPE, FMT, NAME)\
-TEST_F(ParseJDataTest, Timestamp_##NAME##_##TYPE##_W##WS) {\
+TEST_F(ParseJDateTest, Timestamp_##NAME##_##TYPE##_W##WS) {\
 	templated_ParseTimestamp<TYPE, typestring_is(FMT), WS>();\
 }
 

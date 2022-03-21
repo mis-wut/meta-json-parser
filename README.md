@@ -445,3 +445,34 @@ You need to also use local libraries from `third_parties/` with
 ```shell
 cmake -DUSE_LIBCUDF=1 -DLOCAL_LIB=1 ..
 ```
+
+#### Provide CUDA runtime to `docker build`
+
+To use CUDA runtime in `docker build` you need to install
+[nvidia-container-runtime](https://github.com/nvidia/nvidia-container-runtime#installation).
+[_source_](https://github.com/nvidia/nvidia-container-runtime#installation)
+
+```shell
+sudo apt-get install nvidia-container-runtime
+```
+
+CUDA runtime must be set as a default runtime in `/etc/docker/daemon.json`.
+_If you installed nvidia-docker2, then nvidia runtime might be already configured._
+_In that case provide just a default-runtime option._
+
+
+```json
+{
+	"runtimes": {
+		"nvidia": {
+			"path": "/usr/bin/nvidia-container-runtime",
+			"runtimeArgs": []
+		}
+	},
+	"default-runtime": "nvidia"
+}
+```
+
+It's [the only way](https://github.com/NVIDIA/nvidia-docker/wiki/Advanced-topics#default-runtime)
+to enable CUDA runtime in `docker build`.
+

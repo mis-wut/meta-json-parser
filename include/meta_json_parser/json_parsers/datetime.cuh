@@ -197,7 +197,6 @@ namespace JsonParsers {
                 using IsTextToken = boost::mp11::mp_similar<DatetimeTokens::Text<boost::mp11::mp_list<>>, Token>;
                 static_assert(DoesYieldValue::value || IsTextToken::value, "Unsupported const length datetime token.");
                 if constexpr (DoesYieldValue::value) {
-
                     if constexpr (MillisecondT::value || Token::Field::value != DatetimeTokens::Field::Millisecond) {
                         err = _impl_Datetime::ConstLengthDigitParser<Token::Length>(_kc, value);
                     } else {
@@ -205,7 +204,6 @@ namespace JsonParsers {
                         //Allows for malformed input since milliseconds will not be validated
                         _kc.wgr.AdvanceBy(Token::Length::value);
                     }
-
                     if constexpr (Token::Field::value == DatetimeTokens::Field::Year) {
                         year = static_cast<cuda::std::chrono::year>(value);
                     } else if constexpr (Token::Field::value == DatetimeTokens::Field::Month) {

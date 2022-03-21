@@ -112,11 +112,18 @@ struct JDict
 
 	using KeyRequest = FilledMemoryRequest<typename KeyWriter::StorageSize, KeyWriter, MemoryUsage::ReadOnly, MemoryType::Shared>;
 
-	using MemoryRequests = boost::mp11::mp_list<
+	using IntenralMemoryRequests = boost::mp11::mp_list<
 		KeyRequest,
 		ScanRequest<uint32_t>,
 		ReduceRequest<uint32_t>
 	>;
+
+    using ExternalMemoryRequests = Parse::FindNoneWhiteRequests;
+
+    using MemoryRequests = boost::mp11::mp_append<
+        IntenralMemoryRequests,
+        ExternalMemoryRequests
+    >;
 
 private:
 	template<class KernelContextT>
