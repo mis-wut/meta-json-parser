@@ -10,7 +10,7 @@
 #include "test_context.cuh"
 #include <meta_json_parser/action/datetime/jdatetime.cuh>
 
-template<class TimestampTypeT>
+template<class TimestampTypeT, class OutT>
 class DatetimeTestContext : public TestContext {
     static_assert(
         std::is_same_v<TimestampTypeT, JDatetimeOptions::TimestampResolution::Seconds> ||
@@ -19,18 +19,19 @@ class DatetimeTestContext : public TestContext {
     );
 protected:
     using TimestampType = TimestampTypeT;
+    using Out = OutT;
 
-    thrust::host_vector<TimestampType> m_h_correct;
-    thrust::device_vector<TimestampType> m_d_correct;
-    thrust::device_vector<TimestampType> m_d_result;
+    thrust::host_vector<Out> m_h_correct;
+    thrust::device_vector<Out> m_d_correct;
+    thrust::device_vector<Out> m_d_result;
     std::string m_format;
 
-    using Distribution = std::uniform_int_distribution<TimestampType>;
+    using Distribution = std::uniform_int_distribution<Out>;
 
     void OutputValidate() override {
         testing::AssertionResult result = testing::AssertionSuccess();
         if (!thrust::equal(m_d_correct.begin(), m_d_correct.end(), m_d_result.begin())) {
-            thrust::host_vector<TimestampType> h_result(m_d_result);
+            thrust::host_vector<Out> h_result(m_d_result);
             auto mismatch = thrust::mismatch(m_h_correct.begin(), m_h_correct.end(), h_result.begin());
             size_t input_id = mismatch.first - m_h_correct.begin();
             size_t print_len = m_h_indices[input_id + 1] - m_h_indices[input_id];
@@ -54,8 +55,8 @@ public:
 
         m_h_input = thrust::host_vector<char>(m_test_size * max_len + 1);
         m_h_indices = thrust::host_vector<InputIndex>(m_test_size + 1);
-        m_h_correct = thrust::host_vector<TimestampType>(m_test_size);
-        m_d_result = thrust::device_vector<TimestampType>(m_test_size, 0);
+        m_h_correct = thrust::host_vector<Out>(m_test_size);
+        m_d_result = thrust::device_vector<Out>(m_test_size, 0);
 
         auto inp_it = m_h_input.data();
         auto ind_it = m_h_indices.begin();
@@ -75,10 +76,10 @@ public:
                 FAIL() << '"' << str << "\" longer than max len " << max_len << "!\n";;
             }
             inp_it += snprintf(inp_it, to_print + 1, "%s", str.c_str());
-            if constexpr (std::is_same_v<TimestampType, uint64_t>) {
-                m_h_correct[i] = static_cast<TimestampType>(timestamp) * 1000;
+            if constexpr (std::is_same_v<TimestampType, JDatetimeOptions::TimestampResolution::Milliseconds>) {
+                m_h_correct[i] = static_cast<Out>(timestamp) * 1000;
             } else {
-                m_h_correct[i] = static_cast<TimestampType>(timestamp);
+                m_h_correct[i] = static_cast<Out>(timestamp);
             }
             *ind_it = (inp_it - m_h_input.data());
             ++ind_it;
@@ -86,7 +87,7 @@ public:
         m_d_input = thrust::device_vector<char>(m_h_input.size() + 256); //256 to allow batch loading
         thrust::copy(m_h_input.begin(), m_h_input.end(), m_d_input.begin());
         m_d_indices = thrust::device_vector<InputIndex>(m_h_indices);
-        m_d_correct = thrust::device_vector<TimestampType>(m_h_correct);
+        m_d_correct = thrust::device_vector<Out>(m_h_correct);
     }
 
 #define Property(NAME, VAR)           \

@@ -13,11 +13,11 @@ class ParseJDateTest : public ::testing::Test { };
 using namespace JsonParsers::DatetimeTokens;
 using namespace boost::mp11;
 
-template<class TimestampResolutionT, class Format, int GroupSizeT>
+template<class TimestampResolutionT, class OutTypeT, class Format, int GroupSizeT>
 void templated_ParseTimestamp()
 {
     using MetaString = typestring_to_metastring<Format>;
-    DatetimeTestContext<TimestampResolutionT> context(TEST_SIZE, GroupSizeT, SEED);
+    DatetimeTestContext<TimestampResolutionT, OutTypeT> context(TEST_SIZE, GroupSizeT, SEED);
     context.SetDateFormat(Format::data());
     context.Initialize();
     using Options = boost::mp11::mp_list<
@@ -26,20 +26,22 @@ void templated_ParseTimestamp()
             TimestampResolutionT
         >
     >;
-    using BA = JDatetime<MetaString, void, Options>;
+    using BA = JDatetime<MetaString, OutTypeT, void, Options>;
     LaunchTest<BA, boost::mp11::mp_int<GroupSizeT>>(context);
 }
 
 using Seconds = JDatetimeOptions::TimestampResolution::Seconds;
 using Milliseconds = JDatetimeOptions::TimestampResolution::Milliseconds;
 
-#define META_ParseJTimestampTest(WS, TYPE, FMT, NAME)\
+#define META_ParseJTimestampTest(WS, TYPE, OUT, FMT, NAME)\
 TEST_F(ParseJDateTest, Timestamp_##NAME##_##TYPE##_W##WS) {\
-	templated_ParseTimestamp<TYPE, typestring_is(FMT), WS>();\
+	templated_ParseTimestamp<TYPE, OUT, typestring_is(FMT), WS>();\
 }
 
-META_WS_4(META_ParseJTimestampTest, Seconds, "%Y-%m-%d", YYYYmmdd)
-META_WS_4(META_ParseJTimestampTest, Seconds, "%Y-%m-%d %H:%M:%S", YYYYmmddHHMMSS)
-META_WS_4(META_ParseJTimestampTest, Milliseconds, "%Y-%m-%d", YYYYmmdd)
-META_WS_4(META_ParseJTimestampTest, Milliseconds, "%Y-%m-%d %H:%M:%S", YYYYmmddHHMMSS)
+META_WS_4(META_ParseJTimestampTest, Seconds, uint32_t, "%Y-%m-%d", u32_YYYYmmdd)
+META_WS_4(META_ParseJTimestampTest, Seconds, uint32_t, "%Y-%m-%d %H:%M:%S", u32_YYYYmmddHHMMSS)
+META_WS_4(META_ParseJTimestampTest, Seconds, uint64_t, "%Y-%m-%d", u64_YYYYmmdd)
+META_WS_4(META_ParseJTimestampTest, Seconds, uint64_t, "%Y-%m-%d %H:%M:%S", u64_YYYYmmddHHMMSS)
+META_WS_4(META_ParseJTimestampTest, Milliseconds, uint64_t, "%Y-%m-%d", u64_YYYYmmdd)
+META_WS_4(META_ParseJTimestampTest, Milliseconds, uint64_t, "%Y-%m-%d %H:%M:%S", u64_YYYYmmddHHMMSS)
 

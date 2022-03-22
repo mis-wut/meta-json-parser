@@ -13,8 +13,8 @@ struct JDatetimeOptions {
     };
 
     struct TimestampResolution {
-        using Seconds = uint32_t;
-        using Milliseconds = uint64_t;
+        struct Seconds{};
+        struct Milliseconds{};
         using Default = Seconds;
     };
 
@@ -48,15 +48,16 @@ public:
     >;
 };
 
-template<class TokensT, class TagT, class OptionsT = boost::mp11::mp_list<>>
+template<class TokensT, class OutTypeT, class TagT, class OptionsT = boost::mp11::mp_list<>>
 struct JDatetimeToken {
-    using type = JDatetimeToken<TokensT, TagT, OptionsT>;
+    using type = JDatetimeToken<TokensT, OutTypeT, TagT, OptionsT>;
 
     using Tokens = TokensT;
     using Options = OptionsT;
+    using OutType = OutTypeT;
     using TimestampType = JDatetimeOptions::GetTimestampResolution<Options>;
     using DatetimeTransformer = JDatetimeOptions::GetDatetimeTransformer<Options>;
-    using Out = decltype (std::declval<DatetimeTransformer>()(std::declval<TimestampType>()));
+    using Out = decltype (std::declval<DatetimeTransformer>()(std::declval<OutType>()));
     using Tag = TagT;
     using OutputRequests = boost::mp11::mp_list<OutputRequest<TagT, Out>>;
     using MemoryRequests = JsonParsers::DatetimeRequests;
@@ -64,16 +65,16 @@ struct JDatetimeToken {
     template<class KernelContextT>
     static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
     {
-        using Milliseconds = std::is_same<TimestampType, JDatetimeOptions::TimestampResolution::Milliseconds>;
+        using ParseMilliseconds = std::is_same<TimestampType, JDatetimeOptions::TimestampResolution::Milliseconds>;
         DatetimeTransformer transformer;
-        return JsonParsers::Datetime<Milliseconds, Tokens>(kc, [&](auto&& result) {
+        return JsonParsers::Datetime<ParseMilliseconds, Tokens, OutType>(kc, [&](auto&& result) {
             kc.om.template Get<KernelContextT, TagT>() = transformer(result);
         });
     }
 };
 
-template<class MetaString, class TagT, class OptionsT = boost::mp11::mp_list<>>
-struct JDatetime : public JDatetimeToken<JsonParsers::DatetimeTokenParser<MetaString>, TagT, OptionsT> {
+template<class MetaString, class OutTypeT, class TagT, class OptionsT = boost::mp11::mp_list<>>
+struct JDatetime : public JDatetimeToken<JsonParsers::DatetimeTokenParser<MetaString>, OutTypeT, TagT, OptionsT> {
 };
 
 #endif //META_JSON_PARSER_JDATETIME_CUH

@@ -40,7 +40,7 @@ using DictCreator = JDict < mp_list <
   mp_list<K_L1_Lines, StringFun<K_L1_Lines, STATIC_STRING_SIZE>>,
 	mp_list<K_L1_Lon, JRealNumber<float, K_L1_Lon, JRealOptionsFixedFormat>>,
 	mp_list<K_L1_Vehicle, StringFun<K_L1_Vehicle, STATIC_STRING_SIZE>>,
-	mp_list<K_L1_Time, JDatetime<DatetimeFormat_YYYYMMDD_HHMMSS, K_L1_Time, JDatetimeResolutionSeconds>>,
+	mp_list<K_L1_Time, JDatetime<DatetimeFormat_YYYYMMDD_HHMMSS, uint64_t, K_L1_Time, JDatetimeResolutionSeconds>>,
 	mp_list<K_L1_Lat, JRealNumber<float, K_L1_Lat, JRealOptionsFixedFormat>>,
 	mp_list<K_L1_Brigade, StringFun<K_L1_Brigade, STATIC_STRING_SIZE>>
 >,

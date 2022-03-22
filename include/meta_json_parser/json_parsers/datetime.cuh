@@ -151,23 +151,19 @@ namespace JsonParsers {
      * @param fn
      * @return
      */
-    template<class MillisecondT, class TokensT, class KernelContextT, class CallbackFnT>
+    template<class MillisecondT, class TokensT, class OutTypeT, class KernelContextT, class CallbackFnT>
     __device__ INLINE_METHOD ParsingError Datetime(KernelContextT& _kc, CallbackFnT&& fn) {
-        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Year>::value, "Year can occur at most on time.");
-        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Month>::value, "Month can occur at most on time.");
-        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Day>::value, "Day can occur at most on time.");
-        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Hour>::value, "Hour can occur at most on time.");
-        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Minute>::value, "Minute can occur at most on time.");
-        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Second>::value, "Second can occur at most on time.");
-        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Millisecond>::value, "Millisecond can occur at most on time.");
-        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Timezone>::value, "Timezone can occur at most on time.");
+        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Year>::value, "Year can occur at most one time.");
+        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Month>::value, "Month can occur at most one time.");
+        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Day>::value, "Day can occur at most one time.");
+        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Hour>::value, "Hour can occur at most one time.");
+        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Minute>::value, "Minute can occur at most one time.");
+        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Second>::value, "Second can occur at most one time.");
+        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Millisecond>::value, "Millisecond can occur at most one time.");
+        static_assert(_impl_Datetime::AtMostOne<TokensT, DatetimeTokens::Field::Timezone>::value, "Timezone can occur at most one time.");
         using KC = KernelContextT;
         using RT = typename KC::RT;
-        using Out = boost::mp11::mp_if<
-            MillisecondT,
-            uint64_t,
-            uint32_t
-        >;
+        using Out = OutTypeT;
         using DurationMultiplier = boost::mp11::mp_if<
             MillisecondT,
             std::integral_constant<Out, 1000>,
