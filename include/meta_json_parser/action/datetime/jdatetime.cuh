@@ -1,6 +1,13 @@
 #ifndef META_JSON_PARSER_JDATETIME_CUH
 #define META_JSON_PARSER_JDATETIME_CUH
 #include <utility>
+#include <type_traits>
+#include <cuda_runtime_api.h>
+#include <meta_json_parser/output_manager.cuh>
+#include <meta_json_parser/output_printer.cuh>
+#include <meta_json_parser/json_parse.cuh>
+#include <meta_json_parser/config.h>
+#include <meta_json_parser/parsing_error.h>
 #include <meta_json_parser/json_parsers/datetime.cuh>
 #include <meta_json_parser/json_parsers/datetime_token_parser.h>
 #include <meta_json_parser/action/datetime/datetime_options.h>
@@ -23,6 +30,11 @@ struct JDatetimeToken {
     using Tag = TagT;
     using OutputRequests = boost::mp11::mp_list<OutputRequest<TagT, Out>>;
     using MemoryRequests = JsonParsers::DatetimeRequests;
+
+#ifdef HAVE_LIBCUDF
+    // NOTE: use Out rather than OutType or OutTypeT
+    using CudfColumnConverter = CudfDatetimeColumn<JDatetimeToken, Out, TimestampType>;
+#endif
 
     template<class KernelContextT>
     static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
