@@ -19,8 +19,7 @@
 #include <cstdint>
 #include <type_traits>
 
-// TODO: is this needed??????????
-#include <meta_json_parser/action/datetime/jdatetime.cuh>
+#include <meta_json_parser/action/datetime/datetime_options.h>
 
 #ifdef HAVE_LIBCUDF
 #include <vector>
@@ -251,7 +250,6 @@ struct CudfBoolColumn {
 #endif
 	}
 };
-
 
 // TODO: enhance cudf::type_to_id, instead of creating my own
 // NOTE: trying to enhance cudf::type_to_id failed for some reason
