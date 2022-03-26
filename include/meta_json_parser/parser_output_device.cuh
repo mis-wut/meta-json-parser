@@ -19,10 +19,12 @@
 #include <cstdint>
 #include <type_traits>
 
+
 #ifdef HAVE_LIBCUDF
 #include <vector>
 #include <memory>
 
+#include <cudf/types.hpp> // enum class cudf::type_id
 #include <cudf/utilities/type_dispatcher.hpp> //< type_to_id<Type>()
 #include <cudf/column/column_factories.hpp> //< make_strings_column(...)
 #include <cudf/null_mask.hpp> //< create_null_mask(...)
@@ -32,6 +34,7 @@
 #include <rmm/device_buffer.hpp>
 
 #include <meta_json_parser/strided_range.cuh>
+#include <meta_json_parser/action/datetime/datetime_options.h>
 
 // TODO: DEBUG !!!
 #include <boost/core/demangle.hpp> //< boost::core::demangle()
@@ -225,6 +228,88 @@ struct CudfBoolColumn {
 
 		auto column = std::make_unique<cudf::column>(
 			cudf::data_type{cudf::type_id::BOOL8}, //< The element type: boolean using one byte per value
+			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
+			std::move(u.rmm) //< The column's data, as rmm::device_buffer or something convertible
+		);
+
+		columns.emplace_back(column.release());
+
+#ifdef PROFILE_CUDF_CONVERSION
+		cudaEventRecord(gpu_end, stream);
+		cpu_end = perf_clock::now();
+
+		int64_t cpu_ns = (cpu_end - cpu_beg).count();
+		std::cout << "- time on CPU: " << cpu_ns << " ns\n";
+
+		float ms;
+		cudaEventSynchronize(gpu_end);
+		cudaEventElapsedTime(&ms, gpu_beg, gpu_end);
+		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
+		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
+		nvtxRangePop();
+#endif
+	}
+};
+
+
+// TODO: enhance cudf::type_to_id, instead of creating my own
+// NOTE: trying to enhance cudf::type_to_id failed for some reason
+template <typename T>
+inline constexpr cudf::type_id datetype_to_id()
+{
+	return cudf::type_id::EMPTY;
+};
+
+template <>
+inline constexpr cudf::type_id datetype_to_id<JDatetimeOptions::TimestampResolution::Seconds>()
+{
+	return cudf::type_id::TIMESTAMP_SECONDS;
+};
+
+template <>
+inline constexpr cudf::type_id datetype_to_id<JDatetimeOptions::TimestampResolution::Milliseconds>()
+{
+	return cudf::type_id::TIMESTAMP_MILLISECONDS;
+};
+
+
+template<class T, typename OutType, typename TimestampType>
+struct CudfDatetimeColumn {
+	using OT = T;
+
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 size_t n_elements, size_t total_size)
+	{
+#ifdef PROFILE_CUDF_CONVERSION
+		nvtxRangePushA("toCudf: datetime");
+		std::cout << "converting column " << i << " (datetime: "
+				  << boost::core::demangle(typeid(TimestampType).name()) << "; "
+				  << boost::core::demangle(typeid(OutputType).name()) << ", "
+				  <<   sizeof(OutType) << " bytes, "
+				  << 8*sizeof(OutType) << " bits)\n";
+#endif
+		if (!std::is_same_v<OutType,
+		                    cudf::id_to_type<datetype_to_id<OutType>()>>) {
+			std::cout << "type do not match with "
+			          << boost::core::demangle(typeid(cudf::id_to_type<datetype_to_id<OutType>()>).name()) << "\n";
+			return;
+		}
+#ifdef PROFILE_CUDF_CONVERSION
+		perf_clock::time_point cpu_beg, cpu_end;
+		cpu_beg = perf_clock::now();
+		cudaEventRecord(gpu_beg, stream);
+#endif
+
+		//const uint8_t* data_ptr = output.m_d_outputs[idx++].data().get();
+		void* data_ptr = (void *)(output.template Pointer<TagT>());
+
+		rmm_device_buffer_union u;
+		u.data.move_into(data_ptr, total_size); //< data pointer and size in bytes
+
+		auto column = std::make_unique<cudf::column>(
+			cudf::data_type{datetype_to_id<OutType>()}, //< The element type
 			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
 			std::move(u.rmm) //< The column's data, as rmm::device_buffer or something convertible
 		);

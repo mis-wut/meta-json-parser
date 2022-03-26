@@ -1,52 +1,21 @@
 #ifndef META_JSON_PARSER_JDATETIME_CUH
 #define META_JSON_PARSER_JDATETIME_CUH
 #include <utility>
+#include <type_traits>
+#include <cuda_runtime_api.h>
+#include <meta_json_parser/output_manager.cuh>
+#include <meta_json_parser/output_printer.cuh>
+#include <meta_json_parser/json_parse.cuh>
+#include <meta_json_parser/config.h>
+#include <meta_json_parser/parsing_error.h>
 #include <meta_json_parser/json_parsers/datetime.cuh>
 #include <meta_json_parser/json_parsers/datetime_token_parser.h>
+#include <meta_json_parser/action/datetime/datetime_options.h>
 
-struct JDatetimeOptions {
-    struct JDatetimeTransformer {
-        struct DefaultDatetimeTransformer {
-            template<class T>
-            inline __device__ T operator()(T c) const { return c; }
-        };
-    };
-
-    struct TimestampResolution {
-        struct Seconds{};
-        struct Milliseconds{};
-        using Default = Seconds;
-    };
-
-private:
-    template<class OptionsT>
-    using _impl_GetDatetimeTransformer = boost::mp11::mp_map_find<OptionsT, JDatetimeOptions::JDatetimeTransformer>;
-
-    template<class OptionsT>
-    using _impl_GetTimestampResolution = boost::mp11::mp_map_find<OptionsT, JDatetimeOptions::TimestampResolution>;
-public:
-    template<class OptionsT>
-    using GetDatetimeTransformer = boost::mp11::mp_eval_if<
-        boost::mp11::mp_same<
-                _impl_GetDatetimeTransformer<OptionsT>,
-        void
-        >,
-        JDatetimeOptions::JDatetimeTransformer::DefaultDatetimeTransformer,
-        boost::mp11::mp_second,
-        _impl_GetDatetimeTransformer<OptionsT>
-    >;
-
-    template<class OptionsT>
-    using GetTimestampResolution = boost::mp11::mp_eval_if<
-        boost::mp11::mp_same<
-            _impl_GetTimestampResolution<OptionsT>,
-            void
-        >,
-        JDatetimeOptions::TimestampResolution::Default,
-        boost::mp11::mp_second,
-        _impl_GetTimestampResolution<OptionsT>
-    >;
-};
+// TODO: check if this is needed
+#ifdef HAVE_LIBCUDF
+#include <boost/mp11/utility.hpp>
+#endif
 
 template<class TokensT, class OutTypeT, class TagT, class OptionsT = boost::mp11::mp_list<>>
 struct JDatetimeToken {
@@ -61,6 +30,11 @@ struct JDatetimeToken {
     using Tag = TagT;
     using OutputRequests = boost::mp11::mp_list<OutputRequest<TagT, Out>>;
     using MemoryRequests = JsonParsers::DatetimeRequests;
+
+#ifdef HAVE_LIBCUDF
+    // NOTE: use Out rather than OutType or OutTypeT
+    using CudfColumnConverter = CudfDatetimeColumn<JDatetimeToken, Out, TimestampType>;
+#endif
 
     template<class KernelContextT>
     static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)

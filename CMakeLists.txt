@@ -35,6 +35,7 @@ target_include_directories(lib-meta-json-parser INTERFACE
 )
 
 target_sources(lib-meta-json-parser INTERFACE
+    include/meta_json_parser/action/datetime/datetime_options.h
     include/meta_json_parser/action/datetime/jdatetime.cuh
     include/meta_json_parser/action/jarray.cuh
     include/meta_json_parser/action/jbool.cuh
