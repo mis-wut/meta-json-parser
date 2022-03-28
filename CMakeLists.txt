@@ -94,6 +94,17 @@ target_sources(lib-meta-json-parser INTERFACE
 
 target_link_libraries(lib-meta-json-parser INTERFACE Boost::boost CUDA::cudart nvToolsExt)
 
+add_library(meta-cudf-parser-1 STATIC)
+target_link_libraries(meta-cudf-parser-1 PUBLIC lib-meta-json-parser)
+target_sources(meta-cudf-parser-1 PRIVATE
+    meta_cudf/parser.cu
+    meta_cudf/parser.cuh
+)
+target_include_directories(meta-cudf-parser-1 PUBLIC
+    "${PROJECT_SOURCE_DIR}/meta_cudf/opt1"
+)
+target_compile_options(meta-cudf-parser-1 PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr> $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+
 add_executable(meta-json-parser-test)
 
 target_link_libraries(meta-json-parser-test PRIVATE lib-meta-json-parser GTest::gtest GTest::gmock)
@@ -164,6 +175,22 @@ if (USE_LIBCUDF)
     message("USE_LIBCUDF is true, compiling with libcudf support")
     # TODO: make location of the cudf library and its prerequisties configurable
     #       instead of hardcoding paths to includes and to libraries, like below
+    target_include_directories(meta-cudf-parser-1 PUBLIC
+                               /usr/local/include
+                               /usr/local/include/libcudf/libcudacxx
+    )
+    target_include_directories(meta-cudf-parser-1 AFTER PUBLIC
+                               /opt/conda/envs/rapids/include
+    )
+    target_link_libraries(meta-cudf-parser-1 PRIVATE
+                          cudf
+                          -L/usr/local/cuda/lib64 -L/usr/local/lib
+                          -L/opt/conda/envs/rapids/lib
+    )
+    target_compile_definitions(meta-cudf-parser-1 PRIVATE
+                               HAVE_LIBCUDF=1
+    )
+
     target_include_directories(meta-json-parser-benchmark PUBLIC
                                /usr/local/include
                                /usr/local/include/libcudf/libcudacxx
@@ -181,6 +208,7 @@ if (USE_LIBCUDF)
     target_compile_definitions(meta-json-parser-benchmark PRIVATE
                                HAVE_LIBCUDF=1
     )
+
 endif()
 
 target_sources(meta-json-parser-benchmark PRIVATE
