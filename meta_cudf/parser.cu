@@ -242,11 +242,8 @@ void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int 
     cudaFree(d_num_selected);
 }
 
-cudf::io::table_with_metadata generate_example_metadata(const char* filename, int count, cudaStream_t pStream) {
-    if (pStream)
-        stream = pStream;
-    else
-        cudaStreamCreate(&stream);
+cudf::io::table_with_metadata generate_example_metadata(const char* filename, int count) {
+	cudaStreamCreate(&stream);
 
     auto input = get_input(filename, count);
 
