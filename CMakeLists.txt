@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 project(meta-json-parser VERSION 0.1 LANGUAGES CXX CUDA)
 
@@ -19,8 +20,8 @@ ENDIF()
 
 IF(NOT GTest_FOUND)
     add_subdirectory(third_parties/googletest)
-    add_library(GTest::gtest ALIAS gtest)
-    add_library(GTest::gmock ALIAS gmock)
+    #add_library(GTest::gtest ALIAS gtest)
+    #add_library(GTest::gmock ALIAS gmock)
 ENDIF()
 
 include(GoogleTest)
@@ -94,12 +95,14 @@ target_sources(lib-meta-json-parser INTERFACE
 
 target_link_libraries(lib-meta-json-parser INTERFACE Boost::boost CUDA::cudart nvToolsExt)
 
-add_library(meta-cudf-parser-1 STATIC)
-target_link_libraries(meta-cudf-parser-1 PUBLIC lib-meta-json-parser)
-target_sources(meta-cudf-parser-1 PRIVATE
-    meta_cudf/parser.cu
-    meta_cudf/parser.cuh
+add_library(meta-cudf-parser-1 SHARED)
+set_property(TARGET meta-cudf-parser-1 PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_sources(meta-cudf-parser-1 PUBLIC
+	meta_cudf/parser.cu
+	meta_cudf/parser.cuh
 )
+target_link_libraries(meta-cudf-parser-1 PUBLIC lib-meta-json-parser)
+
 target_include_directories(meta-cudf-parser-1 PUBLIC
     "${PROJECT_SOURCE_DIR}/meta_cudf/opt1"
 )

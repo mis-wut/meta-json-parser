@@ -1,4 +1,6 @@
-FROM rapidsai/rapidsai-core-dev:21.12-cuda11.5-devel-ubuntu20.04-py3.8
+FROM rapidsai/rapidsai-core-dev:21.10-cuda11.4-devel-ubuntu18.04-py3.8
+#22.02-cuda11.5-devel-ubuntu20.04-py3.8
+#21.12-cuda11.5-devel-ubuntu20.04-py3.8
 
 RUN mkdir -p /opt/meta-json-parser
 

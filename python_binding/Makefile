@@ -11,4 +11,4 @@ clean:
 	rm *.so
 
 test:
-	LD_LIBRARY_PATH=../bindings_cython:. python3 test.py
+	LD_LIBRARY_PATH=..:. python3 test.py
