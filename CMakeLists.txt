@@ -20,8 +20,8 @@ ENDIF()
 
 IF(NOT GTest_FOUND)
     add_subdirectory(third_parties/googletest)
-    #add_library(GTest::gtest ALIAS gtest)
-    #add_library(GTest::gmock ALIAS gmock)
+    add_library(GTest::gtest ALIAS gtest)
+    add_library(GTest::gmock ALIAS gmock)
 ENDIF()
 
 include(GoogleTest)
@@ -98,8 +98,10 @@ target_link_libraries(lib-meta-json-parser INTERFACE Boost::boost CUDA::cudart n
 add_library(meta-cudf-parser-1 SHARED)
 set_property(TARGET meta-cudf-parser-1 PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_sources(meta-cudf-parser-1 PUBLIC
-	meta_cudf/parser.cu
-	meta_cudf/parser.cuh
+    meta_cudf/parser.cu
+    meta_cudf/parser.cuh
+    include/meta_json_parser/checkpoint_results.cpp
+    include/meta_json_parser/checkpoint_results.h
 )
 target_link_libraries(meta-cudf-parser-1 PUBLIC lib-meta-json-parser)
 
