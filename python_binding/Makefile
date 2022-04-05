@@ -11,4 +11,5 @@ clean:
 	rm *.so
 
 test:
-	LD_LIBRARY_PATH=..:. python3 test.py
+	LD_LIBRARY_PATH=..:. python3 test.py ../../benchmark/examples/warszawa.jsonl 5 meta
+	LD_LIBRARY_PATH=..:. python3 test.py ../../benchmark/examples/warszawa.jsonl 5 cudf
