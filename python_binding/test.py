@@ -19,12 +19,12 @@ if __name__ == "__main__":
        if "meta" in sys.argv[3]:
             starttime = timeit.default_timer()
             df = test.wrapped_test(fname, lines)
-            time_meta = timeit.default_timer() - starttime
+            time_meta += timeit.default_timer() - starttime
 
        if "cudf" in sys.argv[3]:
             starttime = timeit.default_timer()
             df1 = cudf.io.json.read_json(fname, lines =True, orient='columns')
-            time_cudf = timeit.default_timer() - starttime
+            time_cudf += timeit.default_timer() - starttime
 
     if "meta" in sys.argv[3]:
        print(f"META runs {N} total time {time_meta}")
