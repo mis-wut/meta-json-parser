@@ -174,7 +174,16 @@ struct CudfNumericColumn {
 #endif
 
 		//const uint8_t* data_ptr = output.m_d_outputs[idx++].data().get();
-		void* data_ptr = (void *)(output.template Pointer<TagT>());
+
+		// Create in place object from std::move in order to not trigger destructor
+		// after variable ends its scope.
+		using OM = typename ParserOutputDeviceT::OM;
+		char buffer[sizeof(thrust::device_vector<uint8_t>) + alignof(thrust::device_vector<uint8_t>)];
+		char* aligned_buffer = buffer + alignof(thrust::device_vector<uint8_t>) - reinterpret_cast<intptr_t>(buffer) % alignof(thrust::device_vector<uint8_t>);
+		auto* v = new (aligned_buffer) thrust::device_vector<uint8_t>(
+			std::move(output.m_d_outputs[OM::template TagIndex<TagT>::value])
+		);
+		void* data_ptr = v->data().get();
 
 		rmm_device_buffer_union u;
 		u.data.move_into(data_ptr, total_size); //< data pointer and size in bytes
@@ -221,7 +230,13 @@ struct CudfBoolColumn {
 		cudaEventRecord(gpu_beg, stream);
 #endif
 
-		void* data_ptr = (void *)(output.template Pointer<TagT>());
+		using OM = typename ParserOutputDeviceT::OM;
+		char buffer[sizeof(thrust::device_vector<uint8_t>) + alignof(thrust::device_vector<uint8_t>)];
+		char* aligned_buffer = buffer + alignof(thrust::device_vector<uint8_t>) - reinterpret_cast<intptr_t>(buffer) % alignof(thrust::device_vector<uint8_t>);
+		auto* v = new (aligned_buffer) thrust::device_vector<uint8_t>(
+			std::move(output.m_d_outputs[OM::template TagIndex<TagT>::value])
+		);
+		void* data_ptr = v->data().get();
 
 		rmm_device_buffer_union u;
 		u.data.move_into(data_ptr, total_size); //< data pointer and size in bytes
@@ -303,7 +318,13 @@ struct CudfDatetimeColumn {
 #endif
 
 		//const uint8_t* data_ptr = output.m_d_outputs[idx++].data().get();
-		void* data_ptr = (void *)(output.template Pointer<TagT>());
+		using OM = typename ParserOutputDeviceT::OM;
+		char buffer[sizeof(thrust::device_vector<uint8_t>) + alignof(thrust::device_vector<uint8_t>)];
+		char* aligned_buffer = buffer + alignof(thrust::device_vector<uint8_t>) - reinterpret_cast<intptr_t>(buffer) % alignof(thrust::device_vector<uint8_t>);
+		auto* v = new (aligned_buffer) thrust::device_vector<uint8_t>(
+			std::move(output.m_d_outputs[OM::template TagIndex<TagT>::value])
+		);
+		void* data_ptr = v->data().get();
 
 		rmm_device_buffer_union u;
 		u.data.move_into(data_ptr, total_size); //< data pointer and size in bytes
@@ -414,8 +435,19 @@ struct CudfDynamicStringColumn {
 #endif
 
 		// - construct child columns
-		void* offsets_ptr = (void *)(output.template Pointer<LengthRequestTag>());
-		void* strdata_ptr = (void *)(output.template Pointer<DynamicStringRequestTag>());
+		using OM = typename ParserOutputDeviceT::OM;
+		char buffer[sizeof(thrust::device_vector<uint8_t>) + alignof(thrust::device_vector<uint8_t>)];
+		char* aligned_buffer = buffer + alignof(thrust::device_vector<uint8_t>) - reinterpret_cast<intptr_t>(buffer) % alignof(thrust::device_vector<uint8_t>);
+
+		auto* v = new (aligned_buffer) thrust::device_vector<uint8_t>(
+			std::move(output.m_d_outputs[OM::template TagIndex<LengthRequestTag>::value])
+		);
+		void* offsets_ptr = v->data().get();
+
+		v = new (aligned_buffer) thrust::device_vector<uint8_t>(
+			std::move(output.m_d_outputs[OM::template TagIndex<DynamicStringRequestTag>::value])
+		);
+		void* strdata_ptr = v->data().get();
 
 		rmm_device_buffer_union offsets_u, strdata_u;
 		offsets_u.data.move_into(offsets_ptr, n_elements+1);
