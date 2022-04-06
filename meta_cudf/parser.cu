@@ -188,7 +188,6 @@ KernelLaunchConfiguration prepare_dynamic_config(benchmark_input& input);
 benchmark_device_buffers initialize_buffers(benchmark_input& input, KernelLaunchConfiguration* conf);
 end_of_line detect_eol(benchmark_input& input);
 void launch_kernel(benchmark_device_buffers& device_buffers);
-ParserOutputHost<BaseAction> copy_output(benchmark_device_buffers& device_buffers);
 
 template<class EndOfLineT>
 void find_newlines(char* d_input, size_t input_size, InputIndex* d_indices, int count)
@@ -250,7 +249,6 @@ cudf::io::table_with_metadata generate_example_metadata(const char* filename, in
     KernelLaunchConfiguration conf = prepare_dynamic_config(input);
     benchmark_device_buffers device_buffers = initialize_buffers(input, &conf);
     launch_kernel(device_buffers);
-    auto host_output = copy_output(device_buffers);
     auto cudf_table  = device_buffers.parser_output_buffers.ToCudf(stream);
 
     vector<string> column_names(cudf_table.num_columns());
@@ -265,29 +263,6 @@ cudf::io::table_with_metadata generate_example_metadata(const char* filename, in
         make_unique<cudf::table>(cudf_table),
         metadata
     };
-}
-
-ParserOutputHost<BaseAction> copy_output(benchmark_device_buffers& device_buffers)
-{
-    vector<ParsingError> temp_err(device_buffers.count);
-    cudaMemcpyAsync(temp_err.data(), device_buffers.err_buffer, sizeof(ParsingError) * device_buffers.count, cudaMemcpyDeviceToHost, stream);
-    ParserOutputHost<BaseAction> output = device_buffers.parser_output_buffers.CopyToHost(stream);
-
-    //if (false)
-    //{
-    //    bool correct = thrust::all_of(
-    //        thrust::cuda::par.on(stream),
-    //        device_buffers.err_buffer,
-    //        device_buffers.err_buffer + device_buffers.count,
-    //        NoError()
-    //    );
-    //    if (!correct)
-    //    {
-    //        cerr << "Parsing errors!\n";
-    //    }
-    //}
-
-    return output;
 }
 
 void launch_kernel(benchmark_device_buffers& device_buffers)
