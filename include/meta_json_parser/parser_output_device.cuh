@@ -39,7 +39,9 @@
 // TODO: DEBUG !!!
 #include <boost/core/demangle.hpp> //< boost::core::demangle()
 // note: boost::core::demangle() is needed in CudfUnknownColumnType, with NDEBUG / without PROFILE_CUDF_CONVERSION
+//#define PROFILE_CUDF_CONVERSION 1
 #ifdef PROFILE_CUDF_CONVERSION
+#pragma message("Using PROFILE_CUDF_CONVERSION")
 #include <iostream>
 #include <chrono>
 #include <meta_json_parser/debug_helpers.h>
@@ -300,15 +302,19 @@ struct CudfDatetimeColumn {
 #ifdef PROFILE_CUDF_CONVERSION
 		nvtxRangePushA("toCudf: datetime");
 		std::cout << "converting column " << i << " (datetime: "
-				  << boost::core::demangle(typeid(TimestampType).name()) << "; "
-				  << boost::core::demangle(typeid(OutputType).name()) << ", "
+				  << boost::core::demangle(typeid(TimestampType).name()) << " as "
+				  << boost::core::demangle(typeid(OutType).name()) << ": "
 				  <<   sizeof(OutType) << " bytes, "
-				  << 8*sizeof(OutType) << " bits)\n";
+				  << 8*sizeof(OutType) << " bits)"
+		          << " -> "
+				  << type_id_to_name(datetype_to_id<TimestampType>()) << "\n";
 #endif
 		if (!std::is_same_v<OutType,
-		                    cudf::id_to_type<datetype_to_id<OutType>()>>) {
-			std::cout << "type do not match with "
-			          << boost::core::demangle(typeid(cudf::id_to_type<datetype_to_id<OutType>()>).name()) << "\n";
+		                    typename cudf::id_to_type<datetype_to_id<TimestampType>()>::rep>) {
+			std::cout << "CudfDatetimeColumn::call(): datetime column output data type " 
+			          << boost::core::demangle(typeid(OutType).name())
+			          << " do not match required cudf::column data type "
+			          << boost::core::demangle(typeid(typename cudf::id_to_type<datetype_to_id<TimestampType>()>::rep).name()) << "\n";
 			return;
 		}
 #ifdef PROFILE_CUDF_CONVERSION
@@ -330,7 +336,7 @@ struct CudfDatetimeColumn {
 		u.data.move_into(data_ptr, total_size); //< data pointer and size in bytes
 
 		auto column = std::make_unique<cudf::column>(
-			cudf::data_type{datetype_to_id<OutType>()}, //< The element type
+			cudf::data_type{datetype_to_id<TimestampType>()}, //< The element type
 			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
 			std::move(u.rmm) //< The column's data, as rmm::device_buffer or something convertible
 		);
