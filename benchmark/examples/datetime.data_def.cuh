@@ -15,7 +15,7 @@ using DatetimeFormat_YYYYMMDD_HHMMSS = metastring("%Y-%m-%d %H:%M:%S");
 #define STATIC_STRING_SIZE 32
 template<template<class, int> class StringFun, class DictOpts>
 using DictCreator = JDict < mp_list <
-    mp_list<K_L1_date, JDatetime<DatetimeFormat_YYYYMMDD_HHMMSS, uint64_t, K_L1_date>>,
+    mp_list<K_L1_date, JDatetime<DatetimeFormat_YYYYMMDD_HHMMSS, int64_t, K_L1_date>>,
 >,
     DictOpts
 > ;
