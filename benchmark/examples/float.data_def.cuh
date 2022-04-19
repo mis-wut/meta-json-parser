@@ -1,10 +1,12 @@
 // corresponding JSON file: float.json
 // { "generic": -1e6, "scientific": -1.2345e2, "fixed": -12.2345 }
 
+#include <meta_json_parser/meta_utility/metastring.h>
+
 // KEYS
-using K_L1_generic = mp_string<'g', 'e', 'n', 'e', 'r', 'i', 'c'>;
-using K_L1_scientific = mp_string<'s', 'c', 'i', 'e', 'n', 't', 'i', 'f', 'i', 'c'>;
-using K_L1_fixed = mp_string<'f', 'i', 'x', 'e', 'd'>;
+using K_L1_generic = metastring("generic");
+using K_L1_scientific = metastring("scientific");
+using K_L1_fixed = metastring("fixed");
 
 // OPTIONS
 using JRealOptionsFixedFormat = boost::mp11::mp_list<
