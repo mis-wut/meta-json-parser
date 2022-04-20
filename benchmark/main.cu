@@ -63,6 +63,9 @@ template<class Key, int Size>
 using DynamicV3CopyFun = JStringDynamicCopyV3<Key>;
 
 #include "data_def.cuh"
+#ifdef HAVE_DTYPES
+#pragma message("Included file data_def.cuh has HAVE_DTYPES defined")
+#endif /* HAVE_DTYPES */
 
 // NOTE: unix is not an identifier reserved by the Standard.
 // However, it is common to find 'unix' #defined on Unix systems
@@ -138,7 +141,11 @@ struct cmd_args {
 #ifdef HAVE_LIBCUDF
 	bool use_libcudf_parser;
 	bool show_cudf_table_structure;
-#endif
+#ifdef HAVE_DTYPES
+	// data_def.cuh includes information about dtypes, which we can use
+	bool use_dtypes;
+#endif /* HAVE_DTYPES */
+#endif /* HAVE_LIBCUDF */
 	int count;
 	workgroup_size wg_size;
 	std::string output_csv;
@@ -710,6 +717,13 @@ void main_libcudf(benchmark_input& input)
     cudaMemGetInfo(&free_gpu_mem_start, &total_gpu_mem);
 	checkpoint_event(gpu_start, stream, "Initialization");
     auto json_reader_options = prepare_libcudf(input);
+#ifdef HAVE_DTYPES
+	if (g_args.use_dtypes) {
+		// NOTE: dtypes is either std::vector< cudf::data_type >, or std::map< std::string, cudf::data_type >
+		std::cout << "dtypes size: " << dtypes.size() << "\n";
+		json_reader_options.set_dtypes(dtypes);
+	}
+#endif /* HAVE_DTYPES */
     auto libcudf_result = parse_json_libcudf(json_reader_options);
     //TODO: auto host_output = copy_output_libcudf(libcudf_result);
 	checkpoint_event(gpu_stop, stream, "Total time measured by GPU");
@@ -758,10 +772,13 @@ int main(int argc, char** argv)
 static CLI::App app{
 	"meta-json-parser-benchmark -- benchmark JSON meta-parser, running on GPU\n"
 	"(built with support for libcudf library, which is part of RAPIDS.ai)"
+#ifdef HAVE_DTYPES
+	"\n(data_def.cuh includes information about dtypes for libcudf parser)"
+#endif /* HAVE_DTYPES */
 };
-#else
+#else /* !defined(HAVE_LIBCUDF) */
 static CLI::App app{"meta-json-parser-benchmark -- benchmark JSON meta-parser, running on GPU"};
-#endif
+#endif /* HAVE_LIBCUDF */
 
 void usage()
 {
@@ -798,7 +815,10 @@ void parse_args(int argc, char** argv)
 #ifdef HAVE_LIBCUDF
 	g_args.use_libcudf_parser = false;
 	g_args.show_cudf_table_structure = false;
-#endif
+#ifdef HAVE_DTYPES
+	g_args.use_dtypes = false;
+#endif /* HAVE_DTYPES */
+#endif /* HAVE_LIBCUDF */
 	g_args.error_check = false;
 	g_args.wg_size = workgroup_size::W32;
 	g_args.dict_assumption = dictionary_assumption::none;
@@ -825,10 +845,15 @@ void parse_args(int argc, char** argv)
 	app.add_flag("--use-libcudf-parser", g_args.use_libcudf_parser,
 	             "Use libcudf JSON parser. Default = false.");
 	// NOTE: this will be used both for libcudf parser output,
-	// and for convertion of metaparser output to cudf::table
+	// and for conversion of metaparser output to cudf::table
 	app.add_flag("--cudf-structure", g_args.show_cudf_table_structure,
 	             "Describe structure of cudf::table. Default = false.");
-#endif
+#ifdef HAVE_DTYPES
+	// NOTE: used only when --use-libcudf-parser is used
+	app.add_flag("--use-dtypes", g_args.use_dtypes,
+	             "Use data types with libcudf.  Default = false");
+#endif /* HAVE_DTYPES */
+#endif /* HAVE_LIBCUDF */
 
 	// configuration of meta-json-parser, as options
 	auto meta_group = app.add_option_group("meta-json-parser", "meta parser configuration");

@@ -26,3 +26,12 @@ using DictCreator = JDict < mp_list <
 >,
     DictOpts
 > ;
+
+#ifdef HAVE_LIBCUDF
+#define HAVE_DTYPES
+std::map< std::string, cudf::data_type > dtypes{
+    { "generic", cudf::data_type{cudf::type_id::FLOAT32} },
+    { "scientific", cudf::data_type{cudf::type_id::FLOAT64} },
+    { "fixed", cudf::data_type{cudf::type_id::FLOAT32} }
+};
+#endif
