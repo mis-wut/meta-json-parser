@@ -3,6 +3,9 @@
 
 #include <boost/mp11.hpp>
 
+#include <meta_json_parser/mp_string.h>
+#include <meta_json_parser/meta_utility/metastring.h>
+
 #include <meta_json_parser/action/jnumber.cuh>
 #include <meta_json_parser/action/jdict.cuh>
 #include <meta_json_parser/action/jstring.cuh>
@@ -10,9 +13,6 @@
 #include <meta_json_parser/action/datetime/jdatetime.cuh>
 #include <meta_json_parser/action/jbool.cuh>
 
-#include <meta_json_parser/meta_utility/metastring.h>
-
-#include <meta_json_parser/mp_string.h>
 #include <meta_json_parser/action/jstring_custom.cuh>
 #include <meta_json_parser/action/string_transform_functors/polynomial_rolling_hash_matcher.cuh>
 
@@ -108,7 +108,12 @@ using Action = JStringCustom<Functor>;
 #define STATIC_STRING_SIZE 32
 template<template<class, int> class StringFun, class DictOpts>
 using DictCreator = JDict < mp_list <
+#if USE_DATETIME
     mp_list<K_L1_date, JDatetime<DatetimeFormat_YMD, int64_t, K_L1_date, JDatetimeResolutionSeconds>>,
+#else
+#pragma message("Not using JDatetime for parsing, but JString / StringFun")
+    mp_list<K_L1_date, StringFun<K_L1_date, STATIC_STRING_SIZE>>,
+#endif
     mp_list<K_L1_result, Action>, // TODO: categorical
     mp_list<K_L1_phone, StringFun<K_L1_phone, STATIC_STRING_SIZE>>, // TODO: transformation
     mp_list<K_L1_status, StringFun<K_L1_status, STATIC_STRING_SIZE>>, // TODO: transformation
@@ -125,11 +130,14 @@ using DictCreator = JDict < mp_list <
     DictOpts
 > ;
 
+// NOTE: Neither PARSER OPTIONS nor PARSER are needed for 'data_def.cuh'
+// that is for inclusion in the 'benchmark/main.cu'
+
 // PARSER OPTIONS
-template<class Key, int Size>
-using StaticCopyFun = JStringStaticCopy<mp_int<Size>, Key>;
+//template<class Key, int Size>
+//using StaticCopyFun = JStringStaticCopy<mp_int<Size>, Key>;
 
 // PARSER
-using BaseAction = DictCreator<StaticCopyFun, mp_list<>>;
+//using BaseAction = DictCreator<StaticCopyFun, mp_list<>>;
 
 #endif /* !defined(META_CUDF_META_DEF_CUH) */
