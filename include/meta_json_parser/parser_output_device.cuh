@@ -517,6 +517,68 @@ struct CudfDynamicStringColumn {
 	}
 };
 
+
+template<class T, typename OutputType>
+struct CudfCategoricalColumn {
+	using OT = T;
+
+	template<typename TagT, typename ParserOutputDeviceT>
+	static void call(const ParserOutputDeviceT& output,
+					 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
+					 size_t n_elements, size_t total_size)
+	{
+		using OM = typename ParserOutputDeviceT::OM;
+
+#ifdef PROFILE_CUDF_CONVERSION
+		nvtxRangePushA("toCudf: categorical");
+		std::cout << "converting column " << i << " (categorical: "
+				  << boost::core::demangle(typeid(OutputType).name()) << ", "
+				  << sizeof(OutputType) << " bytes, "
+				  << 8*sizeof(OutputType) << " bits)\n";
+		std::cout << "taken from column " << OM::template TagIndex<TagT>::value << "\n";
+		perf_clock::time_point cpu_beg, cpu_end;
+		cpu_beg = perf_clock::now();
+		cudaEventRecord(gpu_beg, stream);
+#endif
+
+		// Create in place object from std::move in order to not trigger destructor
+		// after variable ends its scope.
+		char buffer[sizeof(thrust::device_vector<uint8_t>) + alignof(thrust::device_vector<uint8_t>)];
+		char* aligned_buffer = buffer + alignof(thrust::device_vector<uint8_t>) - reinterpret_cast<intptr_t>(buffer) % alignof(thrust::device_vector<uint8_t>);
+		auto* v = new (aligned_buffer) thrust::device_vector<uint8_t>(
+			std::move(output.m_d_outputs[OM::template TagIndex<TagT>::value])
+		);
+		void* data_ptr = v->data().get();
+
+		rmm_device_buffer_union u;
+		u.data.move_into(data_ptr, total_size); //< data pointer and size in bytes
+
+		// TODO: add categories itself as a sibling column inside categorical
+		auto column = std::make_unique<cudf::column>(
+			cudf::data_type{cudf::type_to_id<OutputType>()}, //< The element type
+			static_cast<cudf::size_type>(n_elements), //< The number of elements in the column
+			std::move(u.rmm) //< The column's data, as rmm::device_buffer or something convertible
+		);
+
+		columns.emplace_back(column.release());
+
+#ifdef PROFILE_CUDF_CONVERSION
+		cudaEventRecord(gpu_end, stream);
+		cpu_end = perf_clock::now();
+
+		int64_t cpu_ns = (cpu_end - cpu_beg).count();
+		std::cout << "- time on CPU: " << cpu_ns << " ns\n";
+
+		float ms;
+		cudaEventSynchronize(gpu_end);
+		cudaEventElapsedTime(&ms, gpu_beg, gpu_end);
+		int64_t gpu_ns = static_cast<int64_t>(ms * 1'000'000.0);
+		std::cout << "- time on GPU: " << gpu_ns << " ns\n";
+		nvtxRangePop();
+#endif
+	}
+};
+
 // to be used when we don't know how to convert to cudf::column
 template<class T>
 struct CudfUnknownColumnType {
