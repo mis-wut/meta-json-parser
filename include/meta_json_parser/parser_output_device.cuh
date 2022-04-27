@@ -163,12 +163,15 @@ struct CudfNumericColumn {
 	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 size_t n_elements, size_t total_size)
 	{
+		using OM = typename ParserOutputDeviceT::OM;
+
 #ifdef PROFILE_CUDF_CONVERSION
 		nvtxRangePushA("toCudf: numeric");
 		std::cout << "converting column " << i << " (numeric: "
 				  << boost::core::demangle(typeid(OutputType).name()) << ", "
 				  << sizeof(OutputType) << " bytes, "
 				  << 8*sizeof(OutputType) << " bits)\n";
+		std::cout << "taken from column " << OM::template TagIndex<TagT>::value << "\n";
 
 		perf_clock::time_point cpu_beg, cpu_end;
 		cpu_beg = perf_clock::now();
@@ -179,7 +182,6 @@ struct CudfNumericColumn {
 
 		// Create in place object from std::move in order to not trigger destructor
 		// after variable ends its scope.
-		using OM = typename ParserOutputDeviceT::OM;
 		char buffer[sizeof(thrust::device_vector<uint8_t>) + alignof(thrust::device_vector<uint8_t>)];
 		char* aligned_buffer = buffer + alignof(thrust::device_vector<uint8_t>) - reinterpret_cast<intptr_t>(buffer) % alignof(thrust::device_vector<uint8_t>);
 		auto* v = new (aligned_buffer) thrust::device_vector<uint8_t>(
@@ -224,15 +226,17 @@ struct CudfBoolColumn {
 	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 size_t n_elements, size_t total_size)
 	{
+		using OM = typename ParserOutputDeviceT::OM;
+
 #ifdef PROFILE_CUDF_CONVERSION
 		nvtxRangePushA("toCudf: bool");
 		std::cout << "converting column " << i << " (bool)\n";
+		std::cout << "taken from column " << OM::template TagIndex<TagT>::value << "\n";
 		perf_clock::time_point cpu_beg, cpu_end;
 		cpu_beg = perf_clock::now();
 		cudaEventRecord(gpu_beg, stream);
 #endif
 
-		using OM = typename ParserOutputDeviceT::OM;
 		char buffer[sizeof(thrust::device_vector<uint8_t>) + alignof(thrust::device_vector<uint8_t>)];
 		char* aligned_buffer = buffer + alignof(thrust::device_vector<uint8_t>) - reinterpret_cast<intptr_t>(buffer) % alignof(thrust::device_vector<uint8_t>);
 		auto* v = new (aligned_buffer) thrust::device_vector<uint8_t>(
@@ -299,6 +303,8 @@ struct CudfDatetimeColumn {
 	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 size_t n_elements, size_t total_size)
 	{
+		using OM = typename ParserOutputDeviceT::OM;
+
 #ifdef PROFILE_CUDF_CONVERSION
 		nvtxRangePushA("toCudf: datetime");
 		std::cout << "converting column " << i << " (datetime: "
@@ -308,6 +314,7 @@ struct CudfDatetimeColumn {
 				  << 8*sizeof(OutType) << " bits)"
 		          << " -> "
 				  << type_id_to_name(datetype_to_id<TimestampType>()) << "\n";
+		std::cout << "taken from column " << OM::template TagIndex<TagT>::value << "\n";
 #endif
 		if (!std::is_same_v<OutType,
 		                    typename cudf::id_to_type<datetype_to_id<TimestampType>()>::rep>) {
@@ -324,7 +331,6 @@ struct CudfDatetimeColumn {
 #endif
 
 		//const uint8_t* data_ptr = output.m_d_outputs[idx++].data().get();
-		using OM = typename ParserOutputDeviceT::OM;
 		char buffer[sizeof(thrust::device_vector<uint8_t>) + alignof(thrust::device_vector<uint8_t>)];
 		char* aligned_buffer = buffer + alignof(thrust::device_vector<uint8_t>) - reinterpret_cast<intptr_t>(buffer) % alignof(thrust::device_vector<uint8_t>);
 		auto* v = new (aligned_buffer) thrust::device_vector<uint8_t>(
@@ -429,11 +435,17 @@ struct CudfDynamicStringColumn {
 	                 std::vector<std::unique_ptr<cudf::column>> &columns, int i,
 					 size_t n_elements, size_t total_size)
 	{
+		using OM = typename ParserOutputDeviceT::OM;
+
 #ifdef PROFILE_CUDF_CONVERSION
 		nvtxRangePushA("toCudf: dynamic string");
 		std::cout
 			<< "converting column " << i << " (dynamic string: "
 			<< n_elements << " strings, " << total_size << " characters)\n";
+		std::cout
+			<< "taken from columns length: " << OM::template TagIndex<LengthRequestTag>::value
+			<< " and data: " << OM::template TagIndex<DynamicStringRequestTag>::value
+			<< "\n";
 		perf_clock::time_point cpu_beg, cpu_end;
 
 		cpu_beg = perf_clock::now();
