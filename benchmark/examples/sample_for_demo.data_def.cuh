@@ -114,7 +114,12 @@ using DictCreator = JDict < mp_list <
 #pragma message("Not using JDatetime for parsing, but JString / StringFun")
     mp_list<K_L1_date, StringFun<K_L1_date, STATIC_STRING_SIZE>>,
 #endif
+#ifdef USE_CATEGORICAL
     mp_list<K_L1_result, Action>, // TODO: categorical
+#else
+#pragma message("Not using JStringCustom for parsing categorical data")
+    mp_list<K_L1_result, StringFun<K_L1_result, STATIC_STRING_SIZE>>,
+#endif
     mp_list<K_L1_phone, StringFun<K_L1_phone, STATIC_STRING_SIZE>>, // TODO: transformation
     mp_list<K_L1_status, StringFun<K_L1_status, STATIC_STRING_SIZE>>, // TODO: transformation
     mp_list<K_L1_score, JNumber<uint32_t, K_L1_score>>, // TODO: transform into float \in 0..1
