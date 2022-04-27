@@ -104,11 +104,15 @@ using Tag = int64_t;
 using Functor = PolynomialRollingHashMatcher<Multiplier, Modulus, StringMap, Tag>;
 using Action = JStringCustom<Functor>;
 
+// CONFIGURE USE OF EXTRA COLUMN TYPES
+#define USE_CATEGORICAL
+//#define USE_DATETIME
+
 // DICT
 #define STATIC_STRING_SIZE 32
 template<template<class, int> class StringFun, class DictOpts>
 using DictCreator = JDict < mp_list <
-#if USE_DATETIME
+#ifdef USE_DATETIME
     mp_list<K_L1_date, JDatetime<DatetimeFormat_YMD, int64_t, K_L1_date, JDatetimeResolutionSeconds>>,
 #else
 #pragma message("Not using JDatetime for parsing, but JString / StringFun")
