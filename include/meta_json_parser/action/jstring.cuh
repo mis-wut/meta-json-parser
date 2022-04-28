@@ -63,6 +63,7 @@ struct JStringStaticCopy
 	static_assert(BytesT::value > 0, "BytesT must be at greater than 0");
 
 	using type = JStringStaticCopy<BytesT, TagT>;
+	using Bytes = BytesT;
 	using Options = OptionsT;
 	using Tag = TagT;
 	using Printer = AsCharsPrinter<type>;

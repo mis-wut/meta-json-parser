@@ -53,6 +53,31 @@ namespace impl_tagged_action {
 
 	template<class T>
 	using GetTag = typename T::Tag;
+
+    template<class BaseActionT, class TagT>
+    struct impl_GetTaggedAction {
+        using Tag = TagT;
+        template<class T>
+        using SameTag = boost::mp11::mp_same<Tag, T>;
+
+        template<class Action>
+        using HaveSameTag = boost::mp11::mp_eval_if_not_q<
+            HaveTag<Action>,
+            boost::mp11::mp_false,
+            boost::mp11::mp_compose<
+                impl_tagged_action::GetTag,
+                SameTag
+            >,
+            Action
+        >;
+
+        using Actions = ActionIterator<BaseActionT>;
+
+        using WithSameTag = boost::mp11::mp_copy_if<Actions, HaveSameTag>;
+
+        using type = boost::mp11::mp_first<WithSameTag>;
+    };
+
 }
 
 //find(action_list, (action) -> {
@@ -61,29 +86,7 @@ namespace impl_tagged_action {
 //	return same(TagT, GetTag(action))
 //})
 template<class BaseActionT, class TagT>
-using GetTaggedAction = boost::mp11::mp_at<
-	ActionIterator<BaseActionT>,
-	boost::mp11::mp_find_if_q<
-		ActionIterator<BaseActionT>,
-		boost::mp11::mp_bind<
-			boost::mp11::mp_eval_if_not_q,
-			boost::mp11::mp_bind<
-				impl_tagged_action::HaveTag,
-				boost::mp11::_1
-			>,
-			boost::mp11::mp_false,
-			boost::mp11::mp_compose_q<
-				boost::mp11::mp_quote<impl_tagged_action::GetTag>,
-				boost::mp11::mp_bind<
-					boost::mp11::mp_same,
-					boost::mp11::_1,
-					TagT
-				>
-			>,
-			boost::mp11::_1
-		>
-	>
->;
-				
+using GetTaggedAction = typename impl_tagged_action::impl_GetTaggedAction<BaseActionT, TagT>::type;
+
 		
 

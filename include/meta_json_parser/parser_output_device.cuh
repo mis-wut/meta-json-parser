@@ -39,7 +39,7 @@
 // TODO: DEBUG !!!
 #include <boost/core/demangle.hpp> //< boost::core::demangle()
 // note: boost::core::demangle() is needed in CudfUnknownColumnType, with NDEBUG / without PROFILE_CUDF_CONVERSION
-#define PROFILE_CUDF_CONVERSION 1
+//#define PROFILE_CUDF_CONVERSION 1
 #ifdef PROFILE_CUDF_CONVERSION
 #pragma message("Using PROFILE_CUDF_CONVERSION")
 #include <iostream>
