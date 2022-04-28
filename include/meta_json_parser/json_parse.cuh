@@ -212,6 +212,113 @@ namespace JsonParse
 		return __dispatch_impl_Boolean<WorkGroupSize::value>::template __impl_Boolean(_kc, std::forward<CallbackFnT&&>(fn));
 	}
 
+    using IsNullRequest = FilledMemoryRequest<
+        JsonKeywords::Buffer::Size,
+        JsonKeywords,
+        MemoryUsage::ReadOnly,
+        MemoryType::Shared
+    >;
+
+    using IsNullRequests = boost::mp11::mp_list<
+        IsNullRequest,
+        ReduceRequest<
+            int
+        >,
+        ScanRequest<
+            int
+        >
+    >;
+
+    template<class KernelContextT, class CallbackFnT>
+    __device__ __forceinline__ ParsingError __impl_WS_8_plus_IsNull(KernelContextT& _kc, CallbackFnT&& fn)
+    {
+        using KC = KernelContextT;
+        using RT = typename KC::RT;
+        using WorkGroupSize = typename RT::WorkGroupSize;
+        static_assert(WorkGroupSize::value >= 5, "WorkGroup must have a size of at least 5.");
+        JsonKeywords& keywords = _kc.m3
+            .template Receive<IsNullRequest>()
+            .template Alias<JsonKeywords>();
+        char c = _kc.wgr.CurrentChar();
+        int isNull = 0;
+        if (RT::WorkerId() < 4)
+            isNull = c == keywords.words._null[RT::WorkerId()];
+        else if (RT::WorkerId() == 4)
+            isNull = HasThisByte(VALID_ENDING, c) || HasThisByte(WHITESPACES, c);
+        //TODO function should return an error for input like 'nullX', 'null3' etc.
+        isNull = Reduce<int, WorkGroupSize>(_kc).Reduce(isNull, LogicalAnd());
+        isNull = Scan<int, WorkGroupSize>(_kc).Broadcast(isNull, 0);
+        if (isNull)
+            _kc.wgr.AdvanceBy(4);
+        fn(isNull);
+        return ParsingError::None;
+    }
+
+    template<class KernelContextT, class CallbackFnT>
+    __device__ __forceinline__ ParsingError __impl_WS_4_IsNull(KernelContextT& _kc, CallbackFnT&& fn)
+    {
+        using KC = KernelContextT;
+        using RT = typename KC::RT;
+        using WorkGroupSize = typename RT::WorkGroupSize;
+        static_assert(WorkGroupSize::value == 4, "WorkGroup must have a size equal to 4.");
+        JsonKeywords& keywords = _kc.m3
+            .template Receive<IsNullRequest>()
+            .template Alias<JsonKeywords>();
+        char c = _kc.wgr.CurrentChar();
+        int isNull = c == keywords.words._null[RT::WorkerId()];
+        isNull = Reduce<int, WorkGroupSize>(_kc).Reduce(isNull, LogicalAnd());
+        isNull = Scan<int, WorkGroupSize>(_kc).Broadcast(isNull, 0);
+        // If null was mismatch at this point we pass false to callback fn.
+        // In case of mismatch null we cannot AdvanceBy because we do not wan't to skip it.
+        if (!isNull) {
+            fn(false);
+            return ParsingError::None;
+        }
+        _kc.wgr.AdvanceBy(4);
+        if (RT::WorkerId() == 0)
+            isNull = isNull && (HasThisByte(VALID_ENDING, c) || HasThisByte(WHITESPACES, c));
+        isNull = Scan<int, WorkGroupSize>(_kc).Broadcast(isNull, 0);
+        if (!isNull)
+            return ParsingError::Other;
+        fn(true);
+        return ParsingError::None;
+    }
+
+    template<int WorkGroupSize>
+    struct __dispatch_impl_IsNull {
+        template<class KernelContextT, class CallbackFnT>
+        static __device__ __forceinline__ ParsingError __impl_IsNull(KernelContextT& _kc, CallbackFnT&& fn) {
+            return __impl_WS_8_plus_IsNull(_kc, std::forward<CallbackFnT&&>(fn));
+        }
+    };
+
+    template<>
+    struct __dispatch_impl_IsNull<4> {
+        template<class KernelContextT, class CallbackFnT>
+        static __device__ __forceinline__ ParsingError __impl_IsNull(KernelContextT& _kc, CallbackFnT&& fn) {
+            return __impl_WS_4_IsNull(_kc, std::forward<CallbackFnT&&>(fn));
+        }
+    };
+
+    /**
+     * Checks if current input contains 'null' that ends with valid character. If input equals to 'null', then input
+     * will be advanced till its end (by 4 characters) and 'true' will be passed to callback function. Otherwise,
+     * input will not be advanced and 'false' will be passed to callback function.
+     * @tparam KernelContextT
+     * @tparam CallbackFnT
+     * @param _kc Kernel context
+     * @param fn Callback function
+     * @return
+     */
+    template<class KernelContextT, class CallbackFnT>
+    __device__ INLINE_METHOD ParsingError IsNull(KernelContextT& _kc, CallbackFnT&& fn)
+    {
+        using KC = KernelContextT;
+        using RT = typename KC::RT;
+        using WorkGroupSize = typename RT::WorkGroupSize;
+        return __dispatch_impl_IsNull<WorkGroupSize::value>::template __impl_IsNull(_kc, std::forward<CallbackFnT&&>(fn));
+    }
+
 	template<class OutTypeT>
 	using UnsignedIntegerOperationType = boost::mp11::mp_if_c<
 		sizeof(OutTypeT) <= sizeof(uint32_t),

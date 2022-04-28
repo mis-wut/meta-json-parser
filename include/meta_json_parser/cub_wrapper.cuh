@@ -23,6 +23,24 @@ struct BitAnd
 	}
 };
 
+struct LogicalOr
+{
+    template <typename T>
+    __host__ __device__ __forceinline__ T operator()(const T &a, const T &b) const
+    {
+        return a || b;
+    }
+};
+
+struct LogicalAnd
+{
+    template <typename T>
+    __host__ __device__ __forceinline__ T operator()(const T &a, const T &b) const
+    {
+        return a && b;
+    }
+};
+
 template<class OperationT, class WorkGroupSizeT>
 struct Reduce_impl
 {
