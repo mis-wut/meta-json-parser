@@ -140,6 +140,7 @@ struct cmd_args {
 	std::string filename;
 #ifdef HAVE_LIBCUDF
 	bool use_libcudf_parser;
+	bool use_libcudf_writer;
 	bool show_cudf_table_structure;
 #ifdef HAVE_DTYPES
 	// data_def.cuh includes information about dtypes, which we can use
@@ -625,10 +626,13 @@ void main_templated(benchmark_input& input)
         to_csv<BaseActionT>(host_output);
 #else /* defined(HAVE_LIBCUDF) */
 	if (!g_args.output_csv.empty()) {
-        to_csv<BaseActionT>(host_output);
-        // TODO: choose which to use based on command line arguments
-        // NOTE: the table is empty, so it wouldn't work anyway
-        //to_csv_libcudf(g_args.output_csv, cudf_table);
+		if (g_args.use_libcudf_writer) {
+			// write CSV file using cudf::io::write_csv()
+			to_csv_libcudf(g_args.output_csv, cudf_table);
+		} else {
+			// write CSV file using host_output.DropToCsv()
+			to_csv<BaseActionT>(host_output);
+		}
     }
     if (g_args.show_cudf_table_structure)
         describe_table(cudf_table);
@@ -814,6 +818,7 @@ void parse_args(int argc, char** argv)
 	// defaults
 #ifdef HAVE_LIBCUDF
 	g_args.use_libcudf_parser = false;
+	g_args.use_libcudf_writer = false;
 	g_args.show_cudf_table_structure = false;
 #ifdef HAVE_DTYPES
 	g_args.use_dtypes = false;
@@ -844,6 +849,10 @@ void parse_args(int argc, char** argv)
 	auto opt_libcudf_parser =
 	app.add_flag("--use-libcudf-parser", g_args.use_libcudf_parser,
 	             "Use libcudf JSON parser. Default = false.");
+	// NOTE: this matters only when parsing with meta-parser
+	// as when using libcudf JSON parser it is used uncodintionally
+	app.add_flag("--use-libcudf-writer", g_args.use_libcudf_writer,
+	             "Use cudf::io::write_csv to write CSV file also for meta-parser. Default = false.");
 	// NOTE: this will be used both for libcudf parser output,
 	// and for conversion of metaparser output to cudf::table
 	app.add_flag("--cudf-structure", g_args.show_cudf_table_structure,
