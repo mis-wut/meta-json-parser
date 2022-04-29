@@ -18,6 +18,7 @@
 //#include <meta_json_parser/action/jstring_custom.cuh>
 //#include <meta_json_parser/action/string_transform_functors/polynomial_rolling_hash_matcher.cuh>
 #include <meta_json_parser/action/decorators/null_default_value.cuh>
+#include <meta_json_parser/action/string_functors/letter_case.cuh>
 
 using namespace boost::mp11;
 using namespace std;
@@ -77,11 +78,23 @@ using K_L1_subreddit_id = metastring("subreddit_id");
 // DATETIME FORMATS
 // datetimes are stored as timestamps (as Unix epoch)
 
+// CONFIGURE TRANSFORMATIONS
+#define USE_STR_LOWER_TRANSFORMATION 1
+#ifdef USE_STR_LOWER_TRANSFORMATION
+#pragma message("Using df[<column>].str.lower transformation compile-time")
+using JStringToLowerTransformConf = mp_list< // dict
+	mp_list< // key: value
+		JStringOptions::JStringCharTransformer,
+		ToLowerStringTransformer
+	>
+>;
+#endif
+
 // CONFIGURE STRING PARSING
 #pragma message("Always using JStringStaticCopy for parsing strings")
 // NOTE: dynamic string size are dynamic configurable, but not per field
-template<class Key, int Size>
-using JStringVariant = JStringStaticCopy<mp_int<Size>, Key>;
+template<class Key, int Size, class Options = boost::mp11::mp_list<>>
+using JStringVariant = JStringStaticCopy<mp_int<Size>, Key, Options>;
 
 // DICT
 #define STATIC_STRING_SIZE 32
@@ -90,7 +103,11 @@ using DictCreator = JDict < mp_list <
     mp_list<K_L1_author, JStringVariant<K_L1_author, 32>>,
 	mp_list<K_L1_flair_css, NullDefaultEmptyString<JStringVariant<K_L1_flair_css, 64>>>,
 	mp_list<K_L1_flair, NullDefaultEmptyString<JStringVariant<K_L1_flair, 64>>>,
+#ifdef USE_STR_LOWER_TRANSFORMATION
+	mp_list<K_L1_body, JStringVariant<K_L1_body, 2048, JStringToLowerTransformConf>>,
+#else
 	mp_list<K_L1_body, JStringVariant<K_L1_body, 2048>>,
+#endif
 	mp_list<K_L1_can_gild, JBool<uint8_t, K_L1_can_gild>>, // NOTE: must be uint8_t
 	mp_list<K_L1_controv, JNumber<uint32_t, K_L1_controv>>, // NOTE: uint16_t would be enough
 	mp_list<K_L1_created_utc, JNumber<int64_t, K_L1_created_utc>>, // NOTE: timestamp, use int64_t for easy conversion
@@ -113,12 +130,14 @@ using DictCreator = JDict < mp_list <
 
 // NOTE: Neither PARSER OPTIONS nor PARSER are needed for 'data_def.cuh'
 // that is for inclusion in the 'benchmark/main.cu'
+#ifndef BENCHMARK_MAIN_CU
 
 // PARSER OPTIONS
-//template<class Key, int Size>
-//using StaticCopyFun = JStringStaticCopy<mp_int<Size>, Key>;
+template<class Key, int Size>
+using StaticCopyFun = JStringStaticCopy<mp_int<Size>, Key>;
 
 // PARSER
-//using BaseAction = DictCreator<StaticCopyFun, mp_list<>>;
+using BaseAction = DictCreator<StaticCopyFun, mp_list<>>;
+#endif /* !defined(BENCHMARK_MAIN_CU) */
 
 #endif /* !defined(META_CUDF_META_DEF_CUH) */
