@@ -77,30 +77,36 @@ using K_L1_subreddit_id = metastring("subreddit_id");
 // DATETIME FORMATS
 // datetimes are stored as timestamps (as Unix epoch)
 
+// CONFIGURE STRING PARSING
+#pragma message("Always using JStringStaticCopy for parsing strings")
+// NOTE: dynamic string size are dynamic configurable, but not per field
+template<class Key, int Size>
+using JStringVariant = JStringStaticCopy<mp_int<Size>, Key>;
+
 // DICT
 #define STATIC_STRING_SIZE 32
 template<template<class, int> class StringFun, class DictOpts>
 using DictCreator = JDict < mp_list <
-    mp_list<K_L1_author, StringFun<K_L1_author, 32>>,
-	mp_list<K_L1_flair_css, NullDefaultEmptyString<StringFun<K_L1_flair_css, 64>>>,
-	mp_list<K_L1_flair, NullDefaultEmptyString<StringFun<K_L1_flair, 64>>>,
-	mp_list<K_L1_body, StringFun<K_L1_body, 2048>>,
+    mp_list<K_L1_author, JStringVariant<K_L1_author, 32>>,
+	mp_list<K_L1_flair_css, NullDefaultEmptyString<JStringVariant<K_L1_flair_css, 64>>>,
+	mp_list<K_L1_flair, NullDefaultEmptyString<JStringVariant<K_L1_flair, 64>>>,
+	mp_list<K_L1_body, JStringVariant<K_L1_body, 2048>>,
 	mp_list<K_L1_can_gild, JBool<uint8_t, K_L1_can_gild>>, // NOTE: must be uint8_t
 	mp_list<K_L1_controv, JNumber<uint32_t, K_L1_controv>>, // NOTE: uint16_t would be enough
 	mp_list<K_L1_created_utc, JNumber<int64_t, K_L1_created_utc>>, // NOTE: timestamp, use int64_t for easy conversion
-	mp_list<K_L1_distinguished, NullDefaultEmptyString<StringFun<K_L1_distinguished, 32>>>,
+	mp_list<K_L1_distinguished, NullDefaultEmptyString<JStringVariant<K_L1_distinguished, 32>>>,
 	mp_list<K_L1_edited, JBool<uint8_t, K_L1_edited>>, // NOTE: must be uint8_t; NOTE: data needs fixing !!!
 	mp_list<K_L1_gilded, JNumber<uint32_t, K_L1_gilded>>, // NOTE: uint16_t would be enough
-	mp_list<K_L1_id, StringFun<K_L1_id, 32>>,
+	mp_list<K_L1_id, JStringVariant<K_L1_id, 32>>,
 	mp_list<K_L1_is_submitter, JBool<uint8_t, K_L1_is_submitter>>, // NOTE: must be uint8_t
-	mp_list<K_L1_link_id, StringFun<K_L1_link_id, 32>>,
-	mp_list<K_L1_parent_id, StringFun<K_L1_parent_id, 32>>,
-	mp_list<K_L1_permalink, StringFun<K_L1_permalink, 128>>,
+	mp_list<K_L1_link_id, JStringVariant<K_L1_link_id, 32>>,
+	mp_list<K_L1_parent_id, JStringVariant<K_L1_parent_id, 32>>,
+	mp_list<K_L1_permalink, JStringVariant<K_L1_permalink, 128>>,
 	mp_list<K_L1_retrieved_on, JNumber<int64_t, K_L1_retrieved_on>>, // NOTE: timestamp, use int64_t for easy conversion
 	mp_list<K_L1_score, JNumber<int32_t, K_L1_score>>, // NOTE: signed, int16_t could be enough
 	mp_list<K_L1_stickied, JBool<uint8_t, K_L1_stickied>>, // NOTE: must be uint8_t
-	mp_list<K_L1_subreddit, StringFun<K_L1_subreddit, 32>>,
-	mp_list<K_L1_subreddit_id, StringFun<K_L1_subreddit_id, 32>>,
+	mp_list<K_L1_subreddit, JStringVariant<K_L1_subreddit, 32>>,
+	mp_list<K_L1_subreddit_id, JStringVariant<K_L1_subreddit_id, 32>>,
 >,
     DictOpts
 > ;
