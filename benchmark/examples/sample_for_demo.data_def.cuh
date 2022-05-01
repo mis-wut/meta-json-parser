@@ -131,9 +131,9 @@ using DictCreator = JDict < mp_list <
     mp_list<K_L1_lon, JRealNumber<float, K_L1_lon, JRealOptionsFixedFormat>>,
     mp_list<K_L1_lognormal, JRealNumber<double, K_L1_lognormal>>, // TODO: cut (???)
     mp_list<K_L1_poisson, JNumber<uint64_t, K_L1_poisson>>, // TODO: cut (???)
-    mp_list<K_L1_pts, JNumber<uint64_t, K_L1_pts>>, // TODO: cut
+    mp_list<K_L1_pts, JRealNumber<float, K_L1_pts>>, // TODO: cut
     mp_list<K_L1_is_checked, JBool<uint8_t, K_L1_is_checked>>, // NOTE: must be uint8_t
-    mp_list<K_L1_randint, JNumber<uint8_t, K_L1_randint>>,
+    mp_list<K_L1_randint, JNumber<uint16_t, K_L1_randint>>,
     mp_list<K_L1_name_NNN, StringFun<K_L1_name_NNN, STATIC_STRING_SIZE>>
 >,
     DictOpts
