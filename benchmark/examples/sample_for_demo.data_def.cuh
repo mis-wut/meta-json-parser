@@ -106,7 +106,7 @@ using Action = JStringCustom<Functor>;
 
 // CONFIGURE USE OF EXTRA COLUMN TYPES
 #define USE_CATEGORICAL
-//#define USE_DATETIME
+#define USE_DATETIME
 
 // DICT
 #define STATIC_STRING_SIZE 32
