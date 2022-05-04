@@ -240,7 +240,7 @@ namespace JsonParse
             .template Receive<IsNullRequest>()
             .template Alias<JsonKeywords>();
         char c = _kc.wgr.CurrentChar();
-        int isNull = 0;
+        int isNull = 1;
         if (RT::WorkerId() < 4)
             isNull = c == keywords.words._null[RT::WorkerId()];
         else if (RT::WorkerId() == 4)
