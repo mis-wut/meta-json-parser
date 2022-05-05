@@ -48,6 +48,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/action/jstring_custom.cuh
     include/meta_json_parser/action/number_functors/cut.cuh
     include/meta_json_parser/action/string_functors/letter_case.cuh
+    include/meta_json_parser/action/string_transform_functors/polynomial_rolling_hash.cuh
     include/meta_json_parser/action/string_transform_functors/polynomial_rolling_hash_matcher.cuh
     include/meta_json_parser/action/void_action.cuh
     include/meta_json_parser/action_iterator.h
