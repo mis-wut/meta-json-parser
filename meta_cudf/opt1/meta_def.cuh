@@ -20,19 +20,8 @@
 #include <meta_json_parser/action/decorators/null_default_value.cuh>
 #include <meta_json_parser/action/string_functors/letter_case.cuh>
 
-#include <meta_json_parser/action/jstring_custom.cuh>
-#include <meta_json_parser/action/string_transform_functors/polynomial_rolling_hash.cuh>
-
 using namespace boost::mp11;
 using namespace std;
-
-
-using Multiplier = mp_int<107>;
-using Modulus = mp_int<109>;
-using OutputType = size_t;
-using Tag = void;
-
-using StringHash = JStringCustom<PolynomialRollingHashFunctor<Multiplier, Modulus, OutputType, Tag>>;
 
 // SETTINGS
 using WorkGroupSize = mp_int<32>;
@@ -124,8 +113,7 @@ using DictCreator = JDict < mp_list <
 	mp_list<K_L1_created_utc, JNumber<int64_t, K_L1_created_utc>>, // NOTE: timestamp, use int64_t for easy conversion
 	mp_list<K_L1_distinguished, NullDefaultEmptyString<JStringVariant<K_L1_distinguished, 32>>>,
 	//mp_list<K_L1_edited, JBool<uint8_t, K_L1_edited>>, // NOTE: must be uint8_t; NOTE: data needs fixing !!!
-	mp_list<K_L1_edited, NullDefaultInteger<JNumber<uint34_t, K_L1_edited>, mp_int<0>>>, // NOTE: must be uint8_t; NOTE: data needs fixing !!!
-	//mp_list<K_L1_edited, JNumber<uint32_t, K_L1_edited>>, // NOTE: must be uint8_t; NOTE: data needs fixing !!!
+	mp_list<K_L1_edited, JNumber<uint32_t, K_L1_edited>>, // NOTE: must be uint8_t; NOTE: data needs fixing !!!
 	mp_list<K_L1_gilded, JNumber<uint32_t, K_L1_gilded>>, // NOTE: uint16_t would be enough
 	mp_list<K_L1_id, JStringVariant<K_L1_id, 32>>,
 	mp_list<K_L1_is_submitter, JBool<uint8_t, K_L1_is_submitter>>, // NOTE: must be uint8_t
@@ -135,7 +123,6 @@ using DictCreator = JDict < mp_list <
 	mp_list<K_L1_retrieved_on, JNumber<int64_t, K_L1_retrieved_on>>, // NOTE: timestamp, use int64_t for easy conversion
 	mp_list<K_L1_score, JNumber<int32_t, K_L1_score>>, // NOTE: signed, int16_t could be enough
 	mp_list<K_L1_stickied, JBool<uint8_t, K_L1_stickied>>, // NOTE: must be uint8_t
-	//mp_list<K_L1_subreddit, StringHash>,
 	mp_list<K_L1_subreddit, JStringVariant<K_L1_subreddit, 32>>,
 	mp_list<K_L1_subreddit_id, JStringVariant<K_L1_subreddit_id, 32>>,
 >,
