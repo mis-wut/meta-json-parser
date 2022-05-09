@@ -104,6 +104,13 @@ using JStringToLowerTransformConf = mp_list< // dict
 template<class Key, int Size, class Options = boost::mp11::mp_list<>>
 using JStringVariant = JStringStaticCopy<mp_int<Size>, Key, Options>;
 
+using SignedIntOpt = mp_list<
+   mp_list<
+       JNumberOptions::JNumberSign,
+       JNumberOptions::JNumberSign::Signed
+   >
+>;
+
 // DICT
 #define STATIC_STRING_SIZE 32
 template<template<class, int> class StringFun, class DictOpts>
@@ -129,7 +136,7 @@ using DictCreator = JDict < mp_list <
 	mp_list<K_L1_parent_id, JStringVariant<K_L1_parent_id, 32>>,
 	mp_list<K_L1_permalink, JStringVariant<K_L1_permalink, 128>>,
 	mp_list<K_L1_retrieved_on, JNumber<int64_t, K_L1_retrieved_on>>, // NOTE: timestamp, use int64_t for easy conversion
-	mp_list<K_L1_score, JNumber<int32_t, K_L1_score>>, // NOTE: signed, int16_t could be enough
+	mp_list<K_L1_score, JNumber<int32_t, K_L1_score, SignedIntOpt>>, // NOTE: signed, int16_t could be enough
 	mp_list<K_L1_stickied, JBool<uint8_t, K_L1_stickied>>, // NOTE: must be uint8_t
 	mp_list<K_L1_subreddit, StringHash<K_L1_subreddit>>,
 	mp_list<K_L1_subreddit_id, JStringVariant<K_L1_subreddit_id, 32>>
