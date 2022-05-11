@@ -103,16 +103,6 @@ struct PolynomialRollingHashMetafunctor {
     using fn = PolynomialRollingHash<MultiplierT, ModulusT, WorkGroupSize, StringT>;
 };
 
-template<class ModulusT>
-struct SumModulo
-{
-    template <typename T>
-    __host__ __device__ __forceinline__ T operator()(const T &a, const T &b) const
-    {
-        return (a + b) % ModulusT::value;
-    }
-};
-
 template<class MultiplierT, class ModulusT, class HashMappingT, class TagT>
 class PolynomialRollingHashMatcher
 {

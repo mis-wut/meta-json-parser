@@ -57,6 +57,10 @@ struct JStringCustom
     using OutputRequests = typename StringTransformFunctorT::OutputRequests;
     using Printer = GetPrinter<StringTransformFunctorT>;
 
+#ifdef HAVE_LIBCUDF
+    using CudfColumnConverter = CudfCategoricalColumn<type, typename StringTransformFunctorT::OutputType>;
+#endif
+
     template<class KernelContextT>
     static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
     {

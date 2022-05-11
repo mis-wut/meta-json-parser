@@ -41,9 +41,18 @@ struct JDatetimeToken {
     {
         using ParseMilliseconds = std::is_same<TimestampType, JDatetimeOptions::TimestampResolution::Milliseconds>;
         DatetimeTransformer transformer;
-        return JsonParsers::Datetime<ParseMilliseconds, Tokens, OutType>(kc, [&](auto&& result) {
+        if (kc.wgr.PeekChar(0) != '"')
+            return ParsingError::Other;
+        kc.wgr.AdvanceBy(1);
+        ParsingError err = JsonParsers::Datetime<ParseMilliseconds, Tokens, OutType>(kc, [&](auto&& result) {
             kc.om.template Get<KernelContextT, TagT>() = transformer(result);
         });
+        if (err != ParsingError::None)
+            return err;
+        if (kc.wgr.PeekChar(0) != '"')
+            return ParsingError::Other;
+        kc.wgr.AdvanceBy(1);
+        return ParsingError::None;
     }
 };
 

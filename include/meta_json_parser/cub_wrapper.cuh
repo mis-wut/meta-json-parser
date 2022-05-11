@@ -5,6 +5,16 @@
 #include <meta_json_parser/memory_request.h>
 #include <meta_json_parser/config.h>
 
+template<class ModulusT>
+struct SumModulo
+{
+    template <typename T>
+    __host__ __device__ __forceinline__ T operator()(const T &a, const T &b) const
+    {
+        return (a + b) % ModulusT::value;
+    }
+};
+
 struct BitOr
 {
 	template <typename T>
@@ -21,6 +31,24 @@ struct BitAnd
 	{
 		return a & b;
 	}
+};
+
+struct LogicalOr
+{
+    template <typename T>
+    __host__ __device__ __forceinline__ T operator()(const T &a, const T &b) const
+    {
+        return a || b;
+    }
+};
+
+struct LogicalAnd
+{
+    template <typename T>
+    __host__ __device__ __forceinline__ T operator()(const T &a, const T &b) const
+    {
+        return a && b;
+    }
 };
 
 template<class OperationT, class WorkGroupSizeT>

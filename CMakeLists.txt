@@ -38,6 +38,7 @@ target_include_directories(lib-meta-json-parser INTERFACE
 target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/action/datetime/datetime_options.h
     include/meta_json_parser/action/datetime/jdatetime.cuh
+    include/meta_json_parser/action/decorators/null_default_value.cuh
     include/meta_json_parser/action/jarray.cuh
     include/meta_json_parser/action/jbool.cuh
     include/meta_json_parser/action/jdict.cuh
@@ -47,6 +48,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/action/jstring_custom.cuh
     include/meta_json_parser/action/number_functors/cut.cuh
     include/meta_json_parser/action/string_functors/letter_case.cuh
+    include/meta_json_parser/action/string_transform_functors/polynomial_rolling_hash.cuh
     include/meta_json_parser/action/string_transform_functors/polynomial_rolling_hash_matcher.cuh
     include/meta_json_parser/action/void_action.cuh
     include/meta_json_parser/action_iterator.h

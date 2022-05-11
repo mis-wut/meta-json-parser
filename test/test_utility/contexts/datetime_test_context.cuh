@@ -49,7 +49,7 @@ public:
               m_format("%Y-%m-%d") { }
 
     void Initialize() override {
-        size_t max_len = 28;
+        size_t max_len = 30;
 
         Distribution timestamp_dist(0, 4102444799); // 2099-12-31 23:59:59
 
@@ -75,7 +75,7 @@ public:
             if (to_print > max_len) {
                 FAIL() << '"' << str << "\" longer than max len " << max_len << "!\n";;
             }
-            inp_it += snprintf(inp_it, to_print + 1, "%s", str.c_str());
+            inp_it += snprintf(inp_it, to_print + 3, "\"%s\"", str.c_str());
             if constexpr (std::is_same_v<TimestampType, JDatetimeOptions::TimestampResolution::Milliseconds>) {
                 m_h_correct[i] = static_cast<Out>(timestamp) * 1000;
             } else {
