@@ -6,7 +6,7 @@ RUN mv /opt/conda/envs/rapids/include/boost/mp11 /opt/conda/envs/rapids/include/
 
 ### CLion remote builder
 FROM base AS clion-remote-builder
-RUN apt-get update && apt-get install -y ssh gdb
+#RUN apt-get update && apt-get install -y ssh gdb
 RUN (echo $'#!/bin/bash \n\
     export PATH="/opt/conda/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \n\
     export NVARCH="x86_64" \n\

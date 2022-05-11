@@ -11,6 +11,8 @@
 #include <meta_json_parser/action/jdict.cuh>
 #include <meta_json_parser/action/jnumber.cuh>
 #include <meta_json_parser/action/jstring.cuh>
+#include <meta_json_parser/action/jstring_custom.cuh>
+#include <meta_json_parser/action/string_transform_functors/polynomial_rolling_hash.cuh>
 //#include <meta_json_parser/action/jrealnumber.cuh>
 //#include <meta_json_parser/action/datetime/jdatetime.cuh>
 #include <meta_json_parser/action/jbool.cuh>
@@ -51,6 +53,12 @@ using WorkGroupSize = mp_int<32>;
 	"subreddit_id": "t5_2qq2q"            // 8 or 7 character identifier, starting with "t5_" prefix
 }
 */
+
+using Multiplier = std::integral_constant<uint64_t, 31>;
+using Modulus = std::integral_constant<uint64_t, static_cast<uint64_t>(1e9 + 9)>;
+
+template<class TagT>
+using StringHash = JStringCustom<PolynomialRollingHashFunctor<Multiplier, Modulus, size_t, TagT>>;
 
 // KEYS (Key, Level 1, ...)
 using K_L1_author = metastring("author");
@@ -96,13 +104,22 @@ using JStringToLowerTransformConf = mp_list< // dict
 template<class Key, int Size, class Options = boost::mp11::mp_list<>>
 using JStringVariant = JStringStaticCopy<mp_int<Size>, Key, Options>;
 
+using SignedIntOpt = mp_list<
+   mp_list<
+       JNumberOptions::JNumberSign,
+       JNumberOptions::JNumberSign::Signed
+   >
+>;
+
 // DICT
 #define STATIC_STRING_SIZE 32
 template<template<class, int> class StringFun, class DictOpts>
 using DictCreator = JDict < mp_list <
-    mp_list<K_L1_author, JStringVariant<K_L1_author, 32>>,
-	mp_list<K_L1_flair_css, NullDefaultEmptyString<JStringVariant<K_L1_flair_css, 64>>>,
-	mp_list<K_L1_flair, NullDefaultEmptyString<JStringVariant<K_L1_flair, 64>>>,
+    mp_list<K_L1_author, StringHash<K_L1_author>>, // Hash
+	//mp_list<K_L1_flair_css, NullDefaultEmptyString<JStringVariant<K_L1_flair_css, 64>>>,
+	//mp_list<K_L1_flair, NullDefaultEmptyString<JStringVariant<K_L1_flair, 64>>>,
+    	mp_list<K_L1_flair_css, NullDefaultInteger<StringHash<K_L1_flair_css>, mp_int<0>>>, // 0 if null, else hash
+    	mp_list<K_L1_flair, NullDefaultInteger<StringHash<K_L1_flair>, mp_int<0>>>, // 0 if null, else hash
 #ifdef USE_STR_LOWER_TRANSFORMATION
 	mp_list<K_L1_body, JStringVariant<K_L1_body, 2048, JStringToLowerTransformConf>>,
 #else
@@ -111,7 +128,7 @@ using DictCreator = JDict < mp_list <
 	mp_list<K_L1_can_gild, JBool<uint8_t, K_L1_can_gild>>, // NOTE: must be uint8_t
 	mp_list<K_L1_controv, JNumber<uint32_t, K_L1_controv>>, // NOTE: uint16_t would be enough
 	mp_list<K_L1_created_utc, JNumber<int64_t, K_L1_created_utc>>, // NOTE: timestamp, use int64_t for easy conversion
-	mp_list<K_L1_distinguished, NullDefaultEmptyString<JStringVariant<K_L1_distinguished, 32>>>,
+	mp_list<K_L1_distinguished, NullDefaultInteger<JNumber<int64_t, K_L1_distinguished>, mp_int<0>>>,
 	//mp_list<K_L1_edited, JBool<uint8_t, K_L1_edited>>, // NOTE: must be uint8_t; NOTE: data needs fixing !!!
 	mp_list<K_L1_edited, JNumber<uint32_t, K_L1_edited>>, // NOTE: must be uint8_t; NOTE: data needs fixing !!!
 	mp_list<K_L1_gilded, JNumber<uint32_t, K_L1_gilded>>, // NOTE: uint16_t would be enough
@@ -120,11 +137,12 @@ using DictCreator = JDict < mp_list <
 	mp_list<K_L1_link_id, JStringVariant<K_L1_link_id, 32>>,
 	mp_list<K_L1_parent_id, JStringVariant<K_L1_parent_id, 32>>,
 	mp_list<K_L1_permalink, JStringVariant<K_L1_permalink, 128>>,
-	mp_list<K_L1_retrieved_on, JNumber<int64_t, K_L1_retrieved_on>>, // NOTE: timestamp, use int64_t for easy conversion
-	mp_list<K_L1_score, JNumber<int32_t, K_L1_score>>, // NOTE: signed, int16_t could be enough
+	mp_list<K_L1_score, JNumber<int32_t, K_L1_score, SignedIntOpt>>, // NOTE: signed, int16_t could be enough
 	mp_list<K_L1_stickied, JBool<uint8_t, K_L1_stickied>>, // NOTE: must be uint8_t
-	mp_list<K_L1_subreddit, JStringVariant<K_L1_subreddit, 32>>,
+	mp_list<K_L1_subreddit, StringHash<K_L1_subreddit>>,
+	//mp_list<K_L1_subreddit, JStringVariant<K_L1_subreddit, 32>>,
 	mp_list<K_L1_subreddit_id, JStringVariant<K_L1_subreddit_id, 32>>,
+	mp_list<K_L1_retrieved_on, JNumber<int64_t, K_L1_retrieved_on>> // NOTE: timestamp, use int64_t for easy conversion
 >,
     DictOpts
 > ;
