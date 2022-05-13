@@ -77,6 +77,9 @@ def ensure_path(arg):
 @click.option('--use-libcudf-parser', '--use-libcudf', is_flag=True,
               help='Use libcudf JSON parser.',
               default=False, show_default=True)
+@click.option('--use-dtypes', is_flag=True,
+              help='Use data types with libcudf. May be not supported',
+              default=False, show_default=True)
 @click.option('--ws', '--workspace-size',
               help='Workgroup size.',
               type=click.Choice(['32','16','8','4']), show_choices=True,
@@ -96,7 +99,7 @@ def ensure_path(arg):
               type=click.IntRange(min=1))
 def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
          ws, const_order, version, str_size,
-         samples, use_libcudf_parser):
+         samples, use_libcudf_parser, use_dtypes):
 	### run as script
 
 	## Debuging
@@ -128,6 +131,8 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 	else:
 		# if using libcudf parser, most options do not matter are is unused
 		click.echo(f"  --use-libcudf-parser (assumes executable build with USE_LIBCUDF=1)")
+		if use_dtypes:
+			click.echo(f"  --use-dtypes (assumes data_def.cuh with USE_DTYPES)")
 
 	if samples > 1:
 		click.echo(f"  --samples={samples}")
@@ -162,6 +167,8 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 		]
 		if use_libcudf_parser:
 			exec_args.append(f"--use-libcudf-parser")
+			if use_dtypes:
+				exec_args.append(f"--use-dtypes")
 		else:
 			exec_args.extend([
 				f"--workspace-size={ws}",
