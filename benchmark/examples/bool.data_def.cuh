@@ -24,4 +24,13 @@ using DictCreator = JDict < mp_list <
         DictOpts
 > ;
 
+#ifdef HAVE_LIBCUDF
+#define HAVE_DTYPES
+std::map< std::string, cudf::data_type > dtypes{
+    { "is_checked",   cudf::data_type{cudf::type_id::BOOL8} },
+    { "1_is_checked", cudf::data_type{cudf::type_id::BOOL8} },
+    { "2_is_checked", cudf::data_type{cudf::type_id::BOOL8} }
+};
+#endif
+
 #endif /* !defined(META_CUDF_META_DEF_CUH) */
