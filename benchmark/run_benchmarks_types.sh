@@ -125,6 +125,9 @@ build_and_test () {
 	check --output="${type_name}-meta_self.csv" "$jsonfile" $json_size 
 	check --output="${type_name}-meta_cudf.csv" --use-libcudf-writer "$jsonfile" $json_size
 	check --output="${type_name}-libcudf.csv"   --use-libcudf-parser "$jsonfile" $json_size
+	# this one may fail
+	check --output="${type_name}-libcudf_dtypes.csv" --use-libcudf-parser --use-dtypes "$jsonfile" $json_size ||
+		echo "No --use-dtypes support"
 
 	if [[ -f "${type_name}-meta_cudf.csv" && -f "${type_name}-libcudf.csv" ]]; then
 		if ! cmp -b "${type_name}-meta_cudf.csv" "${type_name}-libcudf.csv"; then
