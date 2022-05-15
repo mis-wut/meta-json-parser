@@ -1,0 +1,10 @@
+{"a":true,"b":false,"c":false}
+{"a":false,"b":false,"c":false}
+{"a":false,"b":false,"c":true}
+{"a":true,"b":false,"c":false}
+{"a":false,"b":false,"c":true}
+{"a":false,"b":false,"c":false}
+{"a":false,"b":false,"c":true}
+{"a":true,"b":true,"c":true}
+{"a":true,"b":true,"c":true}
+{"a":false,"b":false,"c":true}
