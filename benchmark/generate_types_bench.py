@@ -54,7 +54,42 @@ def gen_sample_and_data_def(size, typename):
 		};
 		#endif
 		"""
-	
+
+	elif typename == "datetime_as_string":
+		# "D" is calendar day frequency
+		# "S" is seconds frequency
+		data = pd.date_range(
+			start='2010-01-01', end='2021-01-01',
+            periods=size
+		).round("S").strftime("%Y.%m.%d %H:%M:%S")
+		desc = """\
+		// INCLUDES
+		#include <meta_json_parser/action/jstring.cuh>
+
+		// EXAMPLE:
+		// {"a":"2021-03-18 00:16:48"}
+
+		// KEYS
+		using K_L1_a = mp_string<'a'>;
+
+		// DICT
+		#define STATIC_STRING_SIZE 32
+		template<template<class, int> class StringFun, class DictOpts>
+		using DictCreator = JDict < mp_list <
+		    mp_list<K_L1_a, StringFun<K_L1_a, STATIC_STRING_SIZE>> 
+		>,
+		    DictOpts
+		> ;
+
+		// DTYPES
+		#ifdef HAVE_LIBCUDF
+		#define HAVE_DTYPES
+		std::map< std::string, cudf::data_type > dtypes{
+			{ "a", cudf::data_type{cudf::type_id::STRING} },
+		};
+		#endif
+		"""
+
 	elif typename == "bool":
 		data = rng.choice([True, False], size=size)
 		desc = """\
@@ -229,7 +264,7 @@ def gen_sample_and_data_def(size, typename):
 @click.option('--type', 'typename',
               help='Element type in JSON object',
               type=click.Choice([
-                  'datetime', 'bool', 'string', 'nullable_string', 'integer', 'fixed', 'float'
+                  'datetime', 'datetime_as_string', 'bool', 'string', 'nullable_string', 'integer', 'fixed', 'float'
               ]),
               show_choices=True,
               default='datetime', show_default=True)
