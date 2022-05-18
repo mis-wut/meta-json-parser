@@ -87,8 +87,9 @@ run_benchmarks_all () {
 #run_generate_all
 
 # NOTE: needs meta-json-parser-benchmark
-run_benchmarks_all
+#run_benchmarks_all
 #run_benchmarks datetime
+run_benchmarks datetime_as_string
 #run_benchmarks bool
 #run_benchmarks string
 #run_benchmarks nullable_string
