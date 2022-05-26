@@ -75,10 +75,16 @@ void templated_ParseBookJson()
 	>,
 		DictOpts
 	>;
-	using A_book_array = JArray<mp_list<
-		//Pair < Index   , Action      >
-		mp_list<mp_int<0>, A_book_entry>
-	>>;
+	using A_book_array = JArray<
+	    mp_list<
+            //Pair < Index   , Action      >
+            mp_list<mp_int<0>, A_book_entry>
+        >,
+        mp_list<
+            JArrayOptions::Skip,
+            JArrayOptions::Skip::Disable
+        >
+	>;
 	using BA = JDict<mp_list<
 		mp_list<K_books, A_book_array>
 	>,

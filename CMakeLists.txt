@@ -47,6 +47,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/action/jstring.cuh
     include/meta_json_parser/action/jstring_custom.cuh
     include/meta_json_parser/action/number_functors/cut.cuh
+    include/meta_json_parser/action/skip_action.cuh
     include/meta_json_parser/action/string_functors/letter_case.cuh
     include/meta_json_parser/action/string_transform_functors/polynomial_rolling_hash.cuh
     include/meta_json_parser/action/string_transform_functors/polynomial_rolling_hash_matcher.cuh
@@ -61,6 +62,8 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/json_parsers/datetime.cuh
     include/meta_json_parser/json_parsers/datetime_token_parser.h
     include/meta_json_parser/json_parsers/float.cuh
+    include/meta_json_parser/json_parsers/skip.cuh
+    include/meta_json_parser/json_parsers/stack_token.cuh
     include/meta_json_parser/kernel_context.cuh
     include/meta_json_parser/kernel_launch_configuration.cuh
     include/meta_json_parser/kernel_launcher.cuh
@@ -139,12 +142,15 @@ target_sources(meta-json-parser-test PRIVATE
     test/parse_jstring_transform.cu
     test/parse_uint_test.cu
     test/read_only_buffer_test.cu
+    test/skip.cu
     test/test_configuration.h
     test/test_helper.h
     test/test_memory_config.cu
     test/test_utility/contexts/datetime_test_context.cuh
     test/test_utility/contexts/floating_point_test_context.cuh
     test/test_utility/contexts/number_test_context.cuh
+    test/test_utility/contexts/repeat_test_context.cu
+    test/test_utility/contexts/repeat_test_context.cuh
     test/test_utility/contexts/static_string_test_context.cu
     test/test_utility/contexts/static_string_test_context.cuh
     test/test_utility/contexts/string_test_context.cu
