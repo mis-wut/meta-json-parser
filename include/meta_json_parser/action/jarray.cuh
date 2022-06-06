@@ -6,6 +6,7 @@
 #include <meta_json_parser/parsing_error.h>
 #include <meta_json_parser/parse.cuh>
 #include <meta_json_parser/json_parsers/skip.cuh>
+#include <meta_json_parser/meta_utility/map_utility.h>
 #include <type_traits>
 
 struct JArrayOptions {
@@ -43,35 +44,10 @@ public:
 };
 
 template<class Action, int N>
-using ArrayEntry = boost::mp11::mp_list<
-    boost::mp11::mp_int<N>,
-    Action
->;
-
-namespace meta_json_parser::details {
-    template<class ...T>
-    struct _impl_ArrayEntries {
-        using List = boost::mp11::mp_list<T...>;
-        using Size = boost::mp11::mp_size<List>;
-        static_assert(Size::value % 2 == 0, "Number of elements passed to ArrayEntries must be even.");
-        using ResultOrder = boost::mp11::mp_iota_c<Size::value / 2>;
-
-        template<class ListIndex>
-        struct ArrayEntryConstructor_trait {
-            using Index = boost::mp11::mp_at_c<List, ListIndex::value * 2>;
-            using Action = boost::mp11::mp_at_c<List, ListIndex::value * 2 + 1>;
-            using type = ArrayEntry<Action, Index::value>;
-        };
-
-        using type = boost::mp11::mp_transform_q<
-            boost::mp11::mp_quote_trait<ArrayEntryConstructor_trait>,
-            ResultOrder
-        >;
-    };
-}
+using ArrayEntry = MapEntry<boost::mp11::mp_int<N>, Action>;
 
 using ArrayEntries_q = boost::mp11::mp_quote_trait<
-    meta_json_parser::details::_impl_ArrayEntries
+    meta_json_parser::details::_impl_MapEntries
 >;
 
 template<class ...T>
@@ -153,29 +129,29 @@ struct JArray
     >;
 
     template<class Idx, class KernelContextT>
-    static __device__ INLINE_METHOD typename std::enable_if<
+    static __device__ INLINE_METHOD typename std::enable_if_t<
         !IndexPresent_v<Idx> && SkippingDisabled_v,
         ParsingError
-    >::type DispatchIndex(KernelContextT& kc)
+    > DispatchIndex(KernelContextT& kc)
     {
         static_assert(!SkippingDisabled_v, "Skipping indices is disabled.");
         return ParsingError::Other;
     }
 
     template<class Idx, class KernelContextT>
-    static __device__ INLINE_METHOD typename std::enable_if<
+    static __device__ INLINE_METHOD typename std::enable_if_t<
         !IndexPresent_v<Idx> && !SkippingDisabled_v,
         ParsingError
-    >::type DispatchIndex(KernelContextT& kc)
+    > DispatchIndex(KernelContextT& kc)
     {
         return JsonParsers::Skip<KernelContextT, SkipStackSize, SkipTypes>(kc);
     }
 
     template<class Idx, class KernelContextT>
-    static __device__ INLINE_METHOD typename std::enable_if<
+    static __device__ INLINE_METHOD typename std::enable_if_t<
         IndexPresent_v<Idx>,
         ParsingError
-    >::type DispatchIndex(KernelContextT& kc)
+    > DispatchIndex(KernelContextT& kc)
     {
         using Action = boost::mp11::mp_second<boost::mp11::mp_map_find<
             SortedEntries,
@@ -185,18 +161,18 @@ struct JArray
     }
 
     template<class SkippingDisabledT, class KernelContextT>
-    static __device__ INLINE_METHOD typename std::enable_if<
+    static __device__ INLINE_METHOD typename std::enable_if_t<
         SkippingDisabledT::value,
         ParsingError
-    >::type DispatchSkipping(KernelContextT& kc) {
+    > DispatchSkipping(KernelContextT& kc) {
         return ParsingError::Other;
     }
 
     template<class SkippingDisabledT, class KernelContextT>
-    static __device__ INLINE_METHOD typename std::enable_if<
+    static __device__ INLINE_METHOD typename std::enable_if_t<
         !SkippingDisabledT::value,
         ParsingError
-    >::type DispatchSkipping(KernelContextT& kc) {
+    > DispatchSkipping(KernelContextT& kc) {
         return JsonParsers::Skip<KernelContextT, SkipStackSize, SkipTypes>(kc);
     }
 

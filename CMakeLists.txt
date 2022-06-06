@@ -77,6 +77,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/meta_memory_manager.cuh
     include/meta_json_parser/meta_utility/is_base_of_template.h
     include/meta_json_parser/meta_utility/length_representation.h
+    include/meta_json_parser/meta_utility/map_utility.h
     include/meta_json_parser/meta_utility/metastring.h
     include/meta_json_parser/meta_utility/option_getter.cuh
     include/meta_json_parser/meta_utility/real_number.cuh
@@ -148,6 +149,7 @@ target_sources(meta-json-parser-test PRIVATE
     test/test_memory_config.cu
     test/test_utility/contexts/datetime_test_context.cuh
     test/test_utility/contexts/floating_point_test_context.cuh
+    test/test_utility/contexts/format_uint_2_test_context.cuh
     test/test_utility/contexts/number_test_context.cuh
     test/test_utility/contexts/repeat_test_context.cu
     test/test_utility/contexts/repeat_test_context.cuh

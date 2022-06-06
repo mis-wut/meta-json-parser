@@ -1,199 +1,241 @@
 #include <gtest/gtest.h>
-#include <thrust/logical.h>
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
 #include <random>
 #include <meta_json_parser/parsing_error.h>
 #include <meta_json_parser/action/jnumber.cuh>
 #include <meta_json_parser/action/jdict.cuh>
 #include <meta_json_parser/parser_kernel.cuh>
 #include <meta_json_parser/mp_string.h>
+#include <meta_json_parser/meta_utility/map_utility.h>
+#include <meta_json_parser/meta_utility/metastring.h>
 #include "test_helper.h"
+#include "test_configuration.h"
+#include "test_utility/contexts/format_uint_2_test_context.cuh"
+#include "test_utility/test_launcher.cuh"
 
-class ParseJDictTest : public ::testing::Test {
-public:
-#if _DEBUG
-	static constexpr size_t TEST_SIZE = 0x1;
-#else
-	static constexpr size_t TEST_SIZE = 0x8001;
-#endif
-};
+using namespace boost::mp11;
 
-template<class Key1T, class OutType1T, class Key2T, class OutType2T, bool RandomOrder = true>
-struct TestContextJDict2UInt {
-	thrust::host_vector<OutType1T> h_correct_1;
-	thrust::host_vector<OutType2T> h_correct_2;
-	thrust::host_vector<char> h_input;
-	thrust::host_vector<InputIndex> h_indices;
-	thrust::device_vector<OutType1T> d_correct_1;
-	thrust::device_vector<OutType2T> d_correct_2;
-	thrust::device_vector<char> d_input;
-	thrust::device_vector<InputIndex> d_indices;
+template<class T>
+class ParseJDict2UIntSuite : public ::testing::Test { };
+TYPED_TEST_SUITE_P(ParseJDict2UIntSuite);
 
-	TestContextJDict2UInt(size_t testSize, size_t group_size)
-	{
-		using Generate1T = boost::mp11::mp_if_c<sizeof(OutType1T) == 1, uint16_t, OutType1T>;
-		using Generate2T = boost::mp11::mp_if_c<sizeof(OutType1T) == 1, uint16_t, OutType1T>;
-		Generate1T MAX_VAL_1 = static_cast<Generate1T>(std::numeric_limits<OutType1T>::max() - 1);
-		Generate2T MAX_VAL_2 = static_cast<Generate2T>(std::numeric_limits<OutType2T>::max() - 1);
-		size_t MAX_KEY_LEN_1 = boost::mp11::mp_size<Key1T>::value + 2;
-		size_t MAX_KEY_LEN_2 = boost::mp11::mp_size<Key2T>::value + 2;
-		size_t MAX_UINT_LEN_1 = (size_t)std::ceil(std::log10((double)MAX_VAL_1));
-		size_t MAX_UINT_LEN_2 = (size_t)std::ceil(std::log10((double)MAX_VAL_2));
-		if (MAX_UINT_LEN_1 > group_size - 1)
-		{
-			MAX_VAL_1 = 1;
-			for (int i = 0; i < group_size - 1; ++i)
-				MAX_VAL_1 *= 10;
-			MAX_VAL_1 -= 1;
-			MAX_UINT_LEN_1 = group_size - 1;
-		}
-		if (MAX_UINT_LEN_2 > group_size - 1)
-		{
-			MAX_VAL_2 = 1;
-			for (int i = 0; i < group_size - 1; ++i)
-				MAX_VAL_2 *= 10;
-			MAX_VAL_2 -= 1;
-			MAX_UINT_LEN_2 = group_size - 1;
-		}
-		std::minstd_rand rng;
-		std::uniform_int_distribution<Generate1T> dist_1(1, MAX_VAL_1);
-		std::uniform_int_distribution<Generate2T> dist_2(1, MAX_VAL_2);
-		size_t MAX_LEN = MAX_UINT_LEN_1 + MAX_UINT_LEN_2 + MAX_KEY_LEN_1 + MAX_KEY_LEN_2 + 11;
-		h_input = thrust::host_vector<char>(testSize * MAX_LEN);
-		h_correct_1 = thrust::host_vector<OutType1T>(testSize);
-		h_correct_2 = thrust::host_vector<OutType2T>(testSize);
-		h_indices = thrust::host_vector<InputIndex>(testSize + 1);
-		std::generate(h_correct_1.begin(), h_correct_1.end(), [&dist_1, &rng]() { return static_cast<OutType1T>(dist_1(rng)); });
-		std::generate(h_correct_2.begin(), h_correct_2.end(), [&dist_2, &rng]() { return static_cast<OutType2T>(dist_2(rng)); });
-		auto inp_it = h_input.data();
-		auto ind_it = h_indices.begin();
-		*ind_it = 0;
-		++ind_it;
-		std::vector<char> key_1(boost::mp11::mp_size<Key1T>::value + 1);
-		std::vector<char> key_2(boost::mp11::mp_size<Key2T>::value + 1);
-		auto key_it = key_1.begin();
-		boost::mp11::mp_for_each<Key1T>([&](auto x) {
-			*key_it++ = static_cast<char>(decltype(x)::value);
-		});
-		*key_it = 0;
-		key_it = key_2.begin();
-		boost::mp11::mp_for_each<Key2T>([&](auto x) {
-			*key_it++ = static_cast<char>(decltype(x)::value);
-		});
-		*key_it = 0;
-		for (size_t i = 0; i < testSize; ++i)
-		{
-			auto x1 = static_cast<long long unsigned int>(h_correct_1[i]);
-			auto x2 = static_cast<long long unsigned int>(h_correct_2[i]);
-			char* k1 = key_1.data();
-			char* k2 = key_2.data();
-			if (RandomOrder && dist_1(rng) & 0x1)
-			{
-				std::swap(x1, x2);
-				std::swap(k1, k2);
-			}
-			inp_it += snprintf(inp_it, MAX_LEN + 1, "{ \"%s\": %llu, \"%s\": %llu }", k1, x1, k2, x2);
-			*ind_it = (inp_it - h_input.data());
-			++ind_it;
-		}
-		d_input = thrust::device_vector<char>(h_input.size() + 256); //256 to allow batch loading
-		thrust::copy(h_input.begin(), h_input.end(), d_input.begin());
-		d_correct_1 = thrust::device_vector<OutType1T>(h_correct_1);
-		d_correct_2 = thrust::device_vector<OutType2T>(h_correct_2);
-		d_indices = thrust::device_vector<InputIndex>(h_indices);
-	}
-};
+template<class T>
+class ParseJDictWorkgroupSuite : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ParseJDictWorkgroupSuite);
 
-struct no_error {
-	typedef bool result_type;
-	typedef ParsingError argument_type;
+TYPED_TEST_P(ParseJDict2UIntSuite, ParseDict2UInt) {
+    using WorkGroupSize = mp_at_c<TypeParam, 0>;
+    using OutTypes = mp_at_c<TypeParam, 1>;
+    using OutType1 = mp_at_c<OutTypes, 0>;
+    using OutType2 = mp_at_c<OutTypes, 1>;
+    using Opts = mp_at_c<TypeParam, 2>;
+    using DictOptions = MapEntries<
+        JDictOpts::Order, mp_first<Opts>,
+        JDictOpts::Skip, mp_second<Opts>
+    >;
+    using Key1 = metastring("Key num one");
+    using Key2 = metastring("Second key");
+    using BA = JDict<
+        DictEntries<
+            Key1, JNumber<OutType1, Key1>,
+            Key2, JNumber<OutType2, Key2>
+        >,
+        DictOptions
+    >;
 
-	__host__ __device__ bool operator()(const ParsingError& err)
-	{
-		return err == ParsingError::None;
-	}
-};
+    std::vector<Uint2Format> formats;
+    formats.emplace_back( R"JSON({ "Key num one": %llu, "Second key": %llu })JSON");
+    if (std::is_same_v<mp_first<Opts>, JDictOpts::Order::RandomOrder>)
+        formats.emplace_back(
+            R"JSON({ "Second key": %llu, "Key num one": %llu })JSON",
+            Uint2Format::Order::SecondFirst
+        );
 
-template<class OutType1T, class OutType2T, int GroupSizeT, class DictOpts>
-void templated_ParseDict2UInt(ParseJDictTest &test)
-{
-	using GroupSize = boost::mp11::mp_int<GroupSizeT>;
-	constexpr int GROUP_SIZE = GroupSizeT;
-	constexpr int GROUP_COUNT = 1024 / GROUP_SIZE;
-	using GroupCount = boost::mp11::mp_int<GROUP_COUNT>;
-	using RT = RuntimeConfiguration<GroupSize, GroupCount>;
-	using Key1 = boost::mp11::mp_string<'K', 'e', 'y', ' ', 'n', 'u', 'm', ' ', 'o', 'n', 'e'>;
-	using Key2 = boost::mp11::mp_string<'S', 'e', 'c', 'o', 'n', 'd', ' ', 'k', 'e', 'y'>;
-	using BA = JDict<
-		boost::mp11::mp_list<
-			boost::mp11::mp_list<Key1, JNumber<OutType1T, Key1>>,
-			boost::mp11::mp_list<Key2, JNumber<OutType2T, Key2>>
-		>,
-		DictOpts
-	>;
-	using PC = ParserConfiguration<RT, BA>;
-	using PK = ParserKernel<PC>;
-	using M3 = typename PK::M3;
-	using BUF = typename M3::ReadOnlyBuffer;
-	thrust::host_vector<BUF> h_buff(1);
-	M3::FillReadOnlyBuffer(h_buff[0], nullptr);
-	const size_t INPUT_T = ParseJDictTest::TEST_SIZE;
-	using ConstOrder = std::is_same<DictOpts, boost::mp11::mp_list<JDictOpts::ConstOrder>>;
-	TestContextJDict2UInt<Key1, OutType1T, Key2, OutType2T, !ConstOrder::value> context(INPUT_T, GROUP_SIZE);
-	const unsigned int BLOCKS_COUNT = (INPUT_T + GROUP_COUNT - 1) / GROUP_COUNT;
-	thrust::device_vector<BUF> d_buff(h_buff);
-	thrust::device_vector<ParsingError> d_err(INPUT_T);
-	thrust::device_vector<OutType1T> d_result_1(INPUT_T);
-	thrust::device_vector<OutType2T> d_result_2(INPUT_T);
-	thrust::host_vector<void*> h_outputs(2);
-	h_outputs[0] = d_result_1.data().get();
-	h_outputs[1] = d_result_2.data().get();
-	thrust::device_vector<void*> d_outputs(h_outputs);
-	thrust::fill(d_err.begin(), d_err.end(), ParsingError::None);
-	ASSERT_TRUE(cudaDeviceSynchronize() == cudaError::cudaSuccess);
-	typename PK::Launcher(&_parser_kernel<PC>)(BLOCKS_COUNT)(
-		d_buff.data().get(),
-		context.d_input.data().get(),
-		context.d_indices.data().get(),
-		d_err.data().get(),
-		d_outputs.data().get(),
-		INPUT_T
-	);
-	ASSERT_TRUE(cudaGetLastError() == cudaError::cudaSuccess);
-	ASSERT_TRUE(cudaDeviceSynchronize() == cudaError::cudaSuccess);
-	thrust::host_vector<ParsingError> h_err(d_err);
-	thrust::host_vector<OutType1T> h_result_1(d_result_1);
-	thrust::host_vector<OutType2T> h_result_2(d_result_2);
-	ASSERT_TRUE(thrust::all_of(d_err.begin(), d_err.end(), no_error()));
-	ASSERT_TRUE(thrust::equal(context.d_correct_1.begin(), context.d_correct_1.end(), d_result_1.begin()));
-	ASSERT_TRUE(thrust::equal(context.d_correct_2.begin(), context.d_correct_2.end(), d_result_2.begin()));
+    FormatUint2TestContext<OutType1, OutType2> context(formats, TEST_SIZE, WorkGroupSize::value, SEED);
+    context.Initialize();
+    LaunchTest<BA, WorkGroupSize>(context);
 }
 
-#define META_dict_tests(WS)\
-TEST_F(ParseJDictTest, uint8_uint32_W##WS) {\
-	templated_ParseDict2UInt<uint8_t, uint32_t, WS, boost::mp11::mp_list<>>(*this);\
-}\
-TEST_F(ParseJDictTest, uint64_uint16_W##WS) {\
-	templated_ParseDict2UInt<uint64_t, uint16_t, WS, boost::mp11::mp_list<>>(*this);\
-}\
-TEST_F(ParseJDictTest, uint64_uint64_W##WS) {\
-	templated_ParseDict2UInt<uint64_t, uint64_t, WS, boost::mp11::mp_list<>>(*this);\
-}\
-TEST_F(ParseJDictTest, uint8_uint8_W##WS) {\
-	templated_ParseDict2UInt<uint8_t, uint8_t, WS, boost::mp11::mp_list<>>(*this);\
-}\
-TEST_F(ParseJDictTest, uint8_uint32_const_order_W##WS) {\
-	templated_ParseDict2UInt<uint8_t, uint32_t, WS, boost::mp11::mp_list<JDictOpts::ConstOrder>>(*this);\
-}\
-TEST_F(ParseJDictTest, uint64_uint16_const_order_W##WS) {\
-	templated_ParseDict2UInt<uint64_t, uint16_t, WS, boost::mp11::mp_list<JDictOpts::ConstOrder>>(*this);\
-}\
-TEST_F(ParseJDictTest, uint64_uint64_const_order_W##WS) {\
-	templated_ParseDict2UInt<uint64_t, uint64_t, WS, boost::mp11::mp_list<JDictOpts::ConstOrder>>(*this);\
-}\
-TEST_F(ParseJDictTest, uint8_uint8_const_order_W##WS) {\
-	templated_ParseDict2UInt<uint8_t, uint8_t, WS, boost::mp11::mp_list<JDictOpts::ConstOrder>>(*this);\
+TYPED_TEST_P(ParseJDict2UIntSuite, ParseNestedDicts) {
+    using WorkGroupSize = mp_at_c<TypeParam, 0>;
+    using OutTypes = mp_at_c<TypeParam, 1>;
+    using OutType1 = mp_at_c<OutTypes, 0>;
+    using OutType2 = mp_at_c<OutTypes, 1>;
+    using Opts = mp_at_c<TypeParam, 2>;
+    using DictOptions = MapEntries<
+        JDictOpts::Order, mp_first<Opts>,
+        JDictOpts::Skip, mp_second<Opts>
+    >;
+    using Key1 = metastring("Key num one");
+    using Key2 = metastring("Second key");
+    using Nested = metastring("Nested");
+    using Nested1 = metastring("Nested1");
+    using Nested2 = metastring("Nested2");
+    using BA = JDict<
+        DictEntries<
+            Nested, JDict<
+                DictEntries<
+                    Nested1, JDict<
+                        DictEntries<
+                            Key1, JNumber<OutType1, Key1>
+                        >,
+                        DictOptions
+                    >,
+                    Nested2, JDict<
+                        DictEntries<
+                            Nested, JDict<
+                                DictEntries<
+                                    Key2, JNumber<OutType2, Key2>
+                                >,
+                                DictOptions
+                            >
+                        >,
+                        DictOptions
+                    >
+                >,
+                DictOptions
+            >
+        >,
+        DictOptions
+    >;
+
+    std::vector<Uint2Format> formats;
+    formats.emplace_back(R"JSON({ "Nested": { "Nested1": { "Key num one": %llu } , "Nested2": { "Nested": {"Second key": %llu} }}})JSON");
+    if (std::is_same_v<mp_first<Opts>, JDictOpts::Order::RandomOrder>)
+        formats.emplace_back(
+            R"JSON({ "Nested": { "Nested2": { "Nested": {"Second key": %llu} }, "Nested1": { "Key num one": %llu }}})JSON",
+            Uint2Format::Order::SecondFirst
+        );
+
+    FormatUint2TestContext<OutType1, OutType2> context(formats, TEST_SIZE, WorkGroupSize::value, SEED);
+    context.Initialize();
+    LaunchTest<BA, WorkGroupSize>(context);
 }
 
-META_WS_4(META_dict_tests)
+TYPED_TEST_P(ParseJDictWorkgroupSuite, Skipping) {
+    using WorkGroupSize = TypeParam;
+    using DictOptions = MapEntries<
+        JDictOpts::Order, JDictOpts::Order::RandomOrder,
+        JDictOpts::Skip, JDictOpts::Skip::Enable_c<8>
+    >;
+    using Key1 = metastring("Key num one");
+    using Key2 = metastring("Second key");
+    using Nested = metastring("Nested");
+    using Nested1 = metastring("Nested1");
+    using Nested2 = metastring("Nested2");
+    using BA = JDict<
+        DictEntries<
+            Nested, JDict<
+                DictEntries<
+                    Nested1, JDict<
+                        DictEntries<
+                            Key1, JNumber<uint32_t, Key1>
+                        >,
+                        DictOptions
+                    >,
+                    Nested2, JDict<
+                        DictEntries<
+                            Nested, JDict<
+                                DictEntries<
+                                    Key2, JNumber<uint32_t, Key2>
+                                >,
+                                DictOptions
+                            >
+                        >,
+                        DictOptions
+                    >
+                >,
+                DictOptions
+            >
+        >,
+        DictOptions
+    >;
+
+    FormatUint2TestContext<uint32_t, uint32_t> context({
+           { R"JSON({ "Nested": { "Skip it": [ "nothing" ],"Nested1": { "Key num one": %llu, "Skip me": null } , "Nested2": { "Nested": {"Second key": %llu} }}})JSON" },
+           { R"JSON({ "Do not bother": [ true, 12.32, false], "Nested": { "Nested2": { "Nested": {"null": 0.42, "Second key": %llu, "false": true} }, "Nested1": { "Key num one": %llu }}})JSON", Uint2Format::Order::SecondFirst }
+       }, TEST_SIZE, WorkGroupSize::value, SEED);
+    context.Initialize();
+    LaunchTest<BA, WorkGroupSize>(context);
+}
+
+REGISTER_TYPED_TEST_SUITE_P(ParseJDict2UIntSuite, ParseDict2UInt, ParseNestedDicts);
+REGISTER_TYPED_TEST_SUITE_P(ParseJDictWorkgroupSuite, Skipping);
+
+using UnsignedTypes = mp_list<
+    mp_list<uint8_t, uint64_t>,
+    mp_list<uint32_t, uint16_t>,
+    mp_list<uint16_t, uint8_t>
+>;
+
+using DictOption = mp_list<
+    mp_list<JDictOpts::Order::RandomOrder, JDictOpts::Skip::Disable>,
+    mp_list<JDictOpts::Order::RandomOrder, JDictOpts::Skip::Enable_c<8>>,
+    mp_list<JDictOpts::Order::ConstOrder, JDictOpts::Skip::Disable>
+>;
+
+using AllWorkGroupsWith2UIntTypes = mp_rename<mp_product<
+    mp_list,
+    AllWorkGroups,
+    UnsignedTypes,
+    DictOption
+>, ::testing::Types>;
+
+using AllWorkGroupsTypes = mp_rename<AllWorkGroups, ::testing::Types>;
+
+struct NameGenerator {
+    template <typename TypeParam>
+    static std::string GetName(int i) {
+        using GroupSize = mp_at_c<TypeParam, 0>;
+        using OutTypes = mp_at_c<TypeParam, 1>;
+        using OutType1 = mp_at_c<OutTypes, 0>;
+        using OutType2 = mp_at_c<OutTypes, 1>;
+        using Opts = mp_at_c<TypeParam, 2>;
+        using Order = mp_first<Opts>;
+        using Skipping = mp_second<Opts>;
+
+        std::stringstream stream;
+        stream << "WS_" << GroupSize::value;
+        stream << "_";
+
+        for (int j = 0; j < 2; ++j) {
+            int size = j == 0 ? sizeof(OutType1) : sizeof (OutType2);
+            switch (size) {
+                case 1:
+                    stream << "uint8";
+                    break;
+                case 2:
+                    stream << "uint16";
+                    break;
+                case 4:
+                    stream << "uint32";
+                    break;
+                case 8:
+                    stream << "uint64";
+                    break;
+                default:
+                    stream << "UNKNOWN";
+                    break;
+            }
+            stream << "_";
+        }
+
+        if constexpr (std::is_same_v<Skipping , JDictOpts::Skip::Disable>) {
+            stream << "disable_skip";
+        } else {
+            stream << "enable_skip";
+        }
+
+        stream << "_";
+
+        if constexpr (std::is_same_v<Order, JDictOpts::Order::ConstOrder>) {
+            stream << "const_order";
+        } else {
+            stream << "random_order";
+        }
+
+        return stream.str();
+    }
+};
+
+INSTANTIATE_TYPED_TEST_SUITE_P(AllWorkGroupsWith2UInt, ParseJDict2UIntSuite, AllWorkGroupsWith2UIntTypes, NameGenerator);
+INSTANTIATE_TYPED_TEST_SUITE_P(AllWorkGroups, ParseJDictWorkgroupSuite, AllWorkGroupsTypes, WorkGroupNameGenerator);
