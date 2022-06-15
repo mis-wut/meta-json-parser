@@ -88,7 +88,11 @@ enum class dynamic_version {
 };
 enum class dictionary_assumption {
 	none, //< no assumptions
-	const_order //< keys in a constant order in JSON
+	const_order, //< keys in a constant order in JSON
+	no_skip, //< do not support skipping over unknown fields
+	skip_0, //< skip over unknown fields, with 0-depth stack, i.e. no nesting
+	skip_1, //< skip over unknown fields, with 1-depth stack
+	skip_default, //< skip over unknown fields
 };
 
 
@@ -654,6 +658,34 @@ void select_dict_opts(benchmark_input& input) {
                 mp_list<JDictOpts::Skip, JDictOpts::Skip::Disable>
         >>>(input);
 		return;
+	case dictionary_assumption::no_skip:
+		cout << "Assumptions: no skipping\n";
+		main_templated<DictCreator<StrFun, mp_list<
+				// list of options: mp_list<key, value>
+				mp_list<JDictOpts::Skip, JDictOpts::Skip::Disable>
+			>
+		>>(input);
+	case dictionary_assumption::skip_0:
+		cout << "Assumptions: skipping with depth=0\n";
+		main_templated<DictCreator<StrFun, mp_list<
+				// list of options: mp_list<key, value>
+				mp_list<JDictOpts::Skip, JDictOpts::Skip::Enable_c<0>>
+			>
+		>>(input);
+	case dictionary_assumption::skip_1:
+		cout << "Assumptions: skipping with depth=1\n";
+		main_templated<DictCreator<StrFun, mp_list<
+				// list of options: mp_list<key, value>
+				mp_list<JDictOpts::Skip, JDictOpts::Skip::Enable_c<1>>
+			>
+		>>(input);
+	case dictionary_assumption::skip_default:
+		cout << "Assumptions: skipping with default depth=8\n";
+		main_templated<DictCreator<StrFun, mp_list<
+				// list of options: mp_list<key, value>
+				mp_list<JDictOpts::Skip, JDictOpts::Skip::Default>
+			>
+		>>(input);
 	default:
 		cerr << "Fatal. Unknown dictionary assumption.\n";
 		break;
@@ -813,9 +845,18 @@ void parse_args(int argc, char** argv)
         {"3", dynamic_version::v3}
 	};
 
-	std::map<bool, dictionary_assumption> assumption_map{
+	std::map<bool, dictionary_assumption> const_order_map{
 		{false, dictionary_assumption::none},
 		{true, dictionary_assumption::const_order}
+	};
+
+	std::map<std::string, dictionary_assumption> assumptions_map{
+		{"none", dictionary_assumption::none},
+		{"const", dictionary_assumption::const_order},
+		{"no_skip", dictionary_assumption::no_skip},
+		{"skip_0", dictionary_assumption::skip_0},
+		{"skip_1", dictionary_assumption::skip_1},
+		{"skip", dictionary_assumption::skip_default},
 	};
 
 	// defaults
@@ -830,6 +871,9 @@ void parse_args(int argc, char** argv)
 	g_args.error_check = false;
 	g_args.wg_size = workgroup_size::W32;
 	g_args.dict_assumption = dictionary_assumption::none;
+
+	bool const_order = false;
+
 
 	// required parameters as positionals
 	app.add_option("JSONLINES_FILE", g_args.filename,
@@ -884,7 +928,12 @@ void parse_args(int argc, char** argv)
 	opt =
 	app.add_flag("--const-order", g_args.dict_assumption,
 				 "Parses json with an assumption of keys in a constant order")
-		->transform(CLI::CheckedTransformer(assumption_map));
+		->transform(CLI::CheckedTransformer(const_order_map));
+	meta_group->add_option(opt);
+	opt =
+	app.add_flag("--assumptions", g_args.dict_assumption,
+				 "Parses json with given assumptions")
+		->transform(CLI::CheckedTransformer(assumptions_map));
 	meta_group->add_option(opt);
 	opt =
 	app.add_option("-V,--version", g_args.version,

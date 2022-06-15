@@ -88,6 +88,10 @@ def ensure_path(arg):
               help='Assumption of keys in JSON in a constant order',
               type=click.Choice(['0', '1']), show_choices=True,
               default='0', show_default=True)
+@click.option('--assumptions',
+              help='Parses JSON with given assumptions about keys',
+			  type=click.Choice(["none", "const", "no_skip", "skip_0", "skip_1", "skip"]),
+			  show_choices=True)
 @click.option('-V', '--version', # NOTE: conflicts with same option for version of script
               metavar='[1|2|3]',
               help='Version of dynamic string parsing.',
@@ -98,7 +102,7 @@ def ensure_path(arg):
               help='Bytes allocated per dynamic string.  Turns on dynamic strings.',
               type=click.IntRange(min=1))
 def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
-         ws, const_order, version, str_size,
+         ws, const_order, assumptions, version, str_size,
          samples, use_libcudf_parser, use_dtypes):
 	### run as script
 
@@ -176,6 +180,8 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 				f"--const-order={const_order}",
 				f"--version={version}"
 			])
+			if assumptions is not None:
+				exec_args.append(f"--assumptions={assumptions}")
 			if str_size is not None:
 				exec_args.append(f"--max-string-size={str_size}")
 
