@@ -872,9 +872,6 @@ void parse_args(int argc, char** argv)
 	g_args.wg_size = workgroup_size::W32;
 	g_args.dict_assumption = dictionary_assumption::none;
 
-	bool const_order = false;
-
-
 	// required parameters as positionals
 	app.add_option("JSONLINES_FILE", g_args.filename,
 	               "NDJSON / JSONL input file to parse.")
