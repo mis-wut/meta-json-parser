@@ -649,7 +649,10 @@ void select_dict_opts(benchmark_input& input) {
 		return;
 	case dictionary_assumption::const_order:
 		cout << "Assumptions: constant order\n";
-		main_templated<DictCreator<StrFun, mp_list<JDictOpts::ConstOrder>>>(input);
+		main_templated<DictCreator<StrFun, mp_list<
+                mp_list<JDictOpts::Order, JDictOpts::Order::ConstOrder>,
+                mp_list<JDictOpts::Skip, JDictOpts::Skip::Disable>
+        >>>(input);
 		return;
 	default:
 		cerr << "Fatal. Unknown dictionary assumption.\n";

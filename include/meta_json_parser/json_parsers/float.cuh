@@ -245,7 +245,6 @@ namespace JsonParsers {
 
         return ParsingError::None;
     }
-
-#endif //HASH_PY_FLOAT_CUH
 }
+#endif //HASH_PY_FLOAT_CUH
 
