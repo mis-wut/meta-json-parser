@@ -7,6 +7,7 @@ find_package(CUDAToolkit 10.0 REQUIRED)
 
 IF(NOT LOCAL_LIB)
 find_package(Boost 1.73)  # version 1.73 is required to use boost::mp11::mp_flatten
+# boost::mp11::mp_pairwise_fold was added in version 1.75; we use mp_pairwise_fold_q
 ENDIF()
 
 IF(NOT Boost_FOUND)
