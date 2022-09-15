@@ -10,5 +10,5 @@ metajsonparser: setup.py *.pyx
 clean:
 	rm *.so
 
-test:
-	LD_LIBRARY_PATH=..:. python3 test.py
+run_test:
+	LD_LIBRARY_PATH=..:. PYTHONPATH=. python3 test/test.py test/sample_2000.json 2000
