@@ -187,7 +187,7 @@ cmdclass["build_ext"] = build_ext_and_proto_no_debug
 
 
 setup(
-    name="testcudf",
+    name="metajsonparser",
     classifiers=[
         "Intended Audience :: Developers",
         "Topic :: Database",
