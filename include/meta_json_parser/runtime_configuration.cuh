@@ -70,4 +70,7 @@ struct RuntimeConfiguration
 	{
 		return GlobalGroupId();
 	}
+    __device__ __forceinline__ static bool IsLeader() {
+	    return WorkerId() == 0;
+	}
 };

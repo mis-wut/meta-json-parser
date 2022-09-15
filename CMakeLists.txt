@@ -6,7 +6,7 @@ project(meta-json-parser VERSION 0.1 LANGUAGES CXX CUDA)
 find_package(CUDAToolkit 10.0 REQUIRED)
 
 IF(NOT LOCAL_LIB)
-find_package(Boost 1.73)  # version 1.73 is required to use boost::mp11::mp_flatten
+find_package(Boost 1.75)  # version 1.75 is required to use boost::mp11::mp_pairwise_fold_q
 ENDIF()
 
 IF(NOT Boost_FOUND)
@@ -47,6 +47,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/action/jstring.cuh
     include/meta_json_parser/action/jstring_custom.cuh
     include/meta_json_parser/action/number_functors/cut.cuh
+    include/meta_json_parser/action/skip_action.cuh
     include/meta_json_parser/action/string_functors/letter_case.cuh
     include/meta_json_parser/action/string_transform_functors/polynomial_rolling_hash.cuh
     include/meta_json_parser/action/string_transform_functors/polynomial_rolling_hash_matcher.cuh
@@ -61,6 +62,8 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/json_parsers/datetime.cuh
     include/meta_json_parser/json_parsers/datetime_token_parser.h
     include/meta_json_parser/json_parsers/float.cuh
+    include/meta_json_parser/json_parsers/skip.cuh
+    include/meta_json_parser/json_parsers/stack_token.cuh
     include/meta_json_parser/kernel_context.cuh
     include/meta_json_parser/kernel_launch_configuration.cuh
     include/meta_json_parser/kernel_launcher.cuh
@@ -74,6 +77,7 @@ target_sources(lib-meta-json-parser INTERFACE
     include/meta_json_parser/meta_memory_manager.cuh
     include/meta_json_parser/meta_utility/is_base_of_template.h
     include/meta_json_parser/meta_utility/length_representation.h
+    include/meta_json_parser/meta_utility/map_utility.h
     include/meta_json_parser/meta_utility/metastring.h
     include/meta_json_parser/meta_utility/option_getter.cuh
     include/meta_json_parser/meta_utility/real_number.cuh
@@ -139,12 +143,16 @@ target_sources(meta-json-parser-test PRIVATE
     test/parse_jstring_transform.cu
     test/parse_uint_test.cu
     test/read_only_buffer_test.cu
+    test/skip.cu
     test/test_configuration.h
     test/test_helper.h
     test/test_memory_config.cu
     test/test_utility/contexts/datetime_test_context.cuh
     test/test_utility/contexts/floating_point_test_context.cuh
+    test/test_utility/contexts/format_uint_2_test_context.cuh
     test/test_utility/contexts/number_test_context.cuh
+    test/test_utility/contexts/repeat_test_context.cu
+    test/test_utility/contexts/repeat_test_context.cuh
     test/test_utility/contexts/static_string_test_context.cu
     test/test_utility/contexts/static_string_test_context.cuh
     test/test_utility/contexts/string_test_context.cu

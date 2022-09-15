@@ -19,3 +19,10 @@ using DictCreator = JDict < mp_list <
 >,
     DictOpts
 > ;
+
+#ifdef HAVE_LIBCUDF
+#define HAVE_DTYPES
+std::map< std::string, cudf::data_type > dtypes{
+    { "date", cudf::data_type{cudf::type_id::TIMESTAMP_SECONDS } }
+};
+#endif

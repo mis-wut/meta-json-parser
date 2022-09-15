@@ -11,34 +11,70 @@
 #include <meta_json_parser/parse.cuh>
 #include <meta_json_parser/json_parse.cuh>
 #include <meta_json_parser/kernel_launch_configuration.cuh>
+#include <meta_json_parser/meta_utility/map_utility.h>
 #include <type_traits>
+#include <meta_json_parser/json_parsers/skip.cuh>
 
-namespace JDictOpts {
-	struct ConstOrder {};
-}
-
-namespace __JDict_internal {
-    template<class JDictT, class = void>
-    struct InvokeDispatch
-    {
-        template<class KernelContextT>
-        static __device__ __forceinline__ ParsingError dispatch(KernelContextT& kc)
-        {
-            return JDictT::invoke_base(kc);
-        }
+struct JDictOpts {
+    struct Order {
+        struct RandomOrder {};
+        struct ConstOrder {};
+        using Default = RandomOrder;
     };
+    struct Skip {
+        struct Disable {};
+        template<class StackSizeT, class SkipTypesT = JsonParsers::SkipAllTypes>
+        struct Enable {
+            using SkipTypes = SkipTypesT;
+            using StackSize = StackSizeT;
+        };
+        template<int StackSizeN, class SkipTypesT = JsonParsers::SkipAllTypes>
+        using Enable_c = Enable<boost::mp11::mp_int<StackSizeN>, SkipTypesT>;
+        using Default = Enable_c<8, JsonParsers::SkipAllTypes>;
 
-    //Temporary solution due to Visual studio compile issues
-    template<class JDictT>
-    struct InvokeDispatch<JDictT, boost::mp11::mp_list<JDictOpts::ConstOrder>>
-    {
-        template<class KernelContextT>
-        static __device__ __forceinline__ ParsingError dispatch(KernelContextT& kc)
-        {
-            return JDictT::invoke_const_order(kc);
-        }
+        template<class T>
+        using GetStackSize = typename T::StackSize;
+
+        template<class T>
+        using GetSkipTypes = typename T::SkipTypes;
     };
-}
+private:
+    template<class OptionsT>
+    using _impl_GetOrder = boost::mp11::mp_map_find<OptionsT, JDictOpts::Order>;
+    template<class OptionsT>
+    using _impl_GetSkip = boost::mp11::mp_map_find<OptionsT, JDictOpts::Skip>;
+public:
+    template<class OptionsT>
+    using GetOrder = boost::mp11::mp_eval_if<
+        boost::mp11::mp_same<
+            _impl_GetOrder<OptionsT>,
+            void
+        >,
+        JDictOpts::Order::Default,
+        boost::mp11::mp_second,
+        _impl_GetOrder<OptionsT>
+    >;
+    template<class OptionsT>
+    using GetSkip = boost::mp11::mp_eval_if<
+        boost::mp11::mp_same<
+            _impl_GetSkip<OptionsT>,
+        void
+    >,
+    JDictOpts::Skip::Default,
+    boost::mp11::mp_second,
+    _impl_GetSkip<OptionsT>
+    >;
+};
+
+template<class Key, class Action>
+using DictEntry = MapEntry<Key, Action>;
+
+using DictEntries_q = boost::mp11::mp_quote_trait<
+    meta_json_parser::details::_impl_MapEntries
+>;
+
+template<class ...T>
+using DictEntries = DictEntries_q::fn<T...>;
 
 template<class EntriesList, class OptionsT = boost::mp11::mp_list<>>
 struct JDict
@@ -60,8 +96,42 @@ struct JDict
 	static_assert(UniqueKeys::value, "Keys must be unique in JDict.");
 	static_assert(boost::mp11::mp_size<JDict>::value, "JDict needs at least 1 entry.");
 
-    template<class JDictT, class>
-    friend struct __JDict_internal::InvokeDispatch;
+	using OrderOption = JDictOpts::GetOrder<Options>;
+	using ConstOrderEnabled = std::is_same<OrderOption, JDictOpts::Order::ConstOrder>;
+    static constexpr bool ConstOrderEnabled_v = ConstOrderEnabled::value;
+
+    using SkipOption = JDictOpts::GetSkip<Options>;
+    using SkipStackSize = boost::mp11::mp_eval_or<
+        boost::mp11::mp_int<0>,
+        JDictOpts::Skip::GetStackSize,
+        SkipOption
+    >;
+    using SkipTypes = boost::mp11::mp_eval_or<
+        boost::mp11::mp_list<>,
+        JDictOpts::Skip::GetSkipTypes,
+        SkipOption
+    >;
+    using SkippingDisabled = std::is_same<
+        SkipOption,
+        JDictOpts::Skip::Disable
+    >;
+    static constexpr bool SkippingDisabled_v = SkippingDisabled::value;
+
+    template<class SkippingDisabledT, class KernelContextT>
+    static __device__ INLINE_METHOD typename std::enable_if<
+        SkippingDisabledT::value,
+        ParsingError
+    >::type DispatchSkipping(KernelContextT& kc) {
+        return ParsingError::Other;
+    }
+
+    template<class SkippingDisabledT, class KernelContextT>
+    static __device__ INLINE_METHOD typename std::enable_if<
+        !SkippingDisabledT::value,
+        ParsingError
+    >::type DispatchSkipping(KernelContextT& kc) {
+        return JsonParsers::Skip<KernelContextT, SkipStackSize, SkipTypes>(kc);
+    }
 
 	struct KeyWriter
 	{
@@ -118,10 +188,18 @@ struct JDict
 		ReduceRequest<uint32_t>
 	>;
 
+    using SkipMemoryRequests = boost::mp11::mp_eval_if<
+        SkippingDisabled,
+        boost::mp11::mp_list<>,
+        JsonParsers::SkipRequests,
+        SkipStackSize
+    >;
+
     using ExternalMemoryRequests = Parse::FindNoneWhiteRequests;
 
     using MemoryRequests = boost::mp11::mp_append<
         InternalMemoryRequests,
+        SkipMemoryRequests,
         ExternalMemoryRequests
     >;
 
@@ -225,7 +303,7 @@ private:
 		using KC = KernelContextT;
 		using RT = typename KC::RT;
 		using WS = typename RT::WorkGroupSize;
-		ParsingError err;
+		ParsingError err = ParsingError::None;
 		if (kc.wgr.PeekChar(0) != '{')
 			return ParsingError::Other;
 		kc.wgr.AdvanceBy(1);
@@ -317,13 +395,9 @@ private:
 					return;
 				if (keyBits == 0)
 				{
-					//TODO skip
-					assert(false);
-					err = ParsingError::Other;
-					return;
-					//err = SKIP
-					//if (err != ParsingError::None)
-					//	return err;
+                    err = DispatchSkipping<SkippingDisabled>(kc);
+                    if (err != ParsingError::None)
+                        return;
 				}
 				else
 				{
@@ -366,7 +440,36 @@ public:
 	template<class KernelContextT>
 	static __device__ INLINE_METHOD ParsingError Invoke(KernelContextT& kc)
 	{
-
-        return __JDict_internal::InvokeDispatch<type, Options>::dispatch(kc);
+        return DispatchInvoke<ConstOrderEnabled, SkippingDisabled>(kc);
 	}
+private:
+    template<class ConstOrderEnabledT, class SkippingDisabledT, class KernelContextT>
+    static __device__ INLINE_METHOD typename std::enable_if_t<
+        !ConstOrderEnabledT::value,
+        ParsingError
+    > DispatchInvoke(KernelContextT& kc)
+    {
+        return invoke_base(kc);
+    }
+
+    template<class ConstOrderEnabledT, class SkippingDisabledT, class KernelContextT>
+    static __device__ INLINE_METHOD typename std::enable_if_t<
+        ConstOrderEnabledT::value && SkippingDisabledT::value,
+        ParsingError
+    > DispatchInvoke(KernelContextT& kc)
+    {
+        return invoke_const_order(kc);
+    }
+
+    template<class ConstOrderEnabledT, class SkippingDisabledT, class KernelContextT>
+    static __device__ INLINE_METHOD typename std::enable_if_t<
+        ConstOrderEnabledT::value && !SkippingDisabledT::value,
+        ParsingError
+    > DispatchInvoke(KernelContextT& kc)
+    {
+        static_assert(
+            !(ConstOrderEnabledT::value && !SkippingDisabledT::value),
+            "Options ConstOrder and Skipping cannot be enabled at the same time."
+        );
+    }
 };

@@ -77,6 +77,9 @@ def ensure_path(arg):
 @click.option('--use-libcudf-parser', '--use-libcudf', is_flag=True,
               help='Use libcudf JSON parser.',
               default=False, show_default=True)
+@click.option('--use-dtypes', is_flag=True,
+              help='Use data types with libcudf. May be not supported',
+              default=False, show_default=True)
 @click.option('--ws', '--workspace-size',
               help='Workgroup size.',
               type=click.Choice(['32','16','8','4']), show_choices=True,
@@ -85,6 +88,10 @@ def ensure_path(arg):
               help='Assumption of keys in JSON in a constant order',
               type=click.Choice(['0', '1']), show_choices=True,
               default='0', show_default=True)
+@click.option('--assumptions',
+              help='Parses JSON with given assumptions about keys',
+			  type=click.Choice(["none", "const", "no_skip", "skip_0", "skip_1", "skip"]),
+			  show_choices=True)
 @click.option('-V', '--version', # NOTE: conflicts with same option for version of script
               metavar='[1|2|3]',
               help='Version of dynamic string parsing.',
@@ -95,8 +102,8 @@ def ensure_path(arg):
               help='Bytes allocated per dynamic string.  Turns on dynamic strings.',
               type=click.IntRange(min=1))
 def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
-         ws, const_order, version, str_size,
-         samples, use_libcudf_parser):
+         ws, const_order, assumptions, version, str_size,
+         samples, use_libcudf_parser, use_dtypes):
 	### run as script
 
 	## Debuging
@@ -128,6 +135,8 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 	else:
 		# if using libcudf parser, most options do not matter are is unused
 		click.echo(f"  --use-libcudf-parser (assumes executable build with USE_LIBCUDF=1)")
+		if use_dtypes:
+			click.echo(f"  --use-dtypes (assumes data_def.cuh with USE_DTYPES)")
 
 	if samples > 1:
 		click.echo(f"  --samples={samples}")
@@ -139,7 +148,8 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 		sizes = [int(size_arg, base=10)]
 	elif size_arg == 'scan':
 		# TODO: maybe find a better way of adding size 10 to beginning
-		sizes = [10]+list(range(100000, 900000+1, 100000))
+		#sizes = [10]+list(range(100000, 900000+1, 100000))
+		sizes = [10,100,1000,10000]+list(range(100000, 1000000+1, 100000))
 	else:
 		sizes = [10]
 
@@ -162,12 +172,16 @@ def main(exec_path, json_dir, pattern, size_arg, output_csv, append,
 		]
 		if use_libcudf_parser:
 			exec_args.append(f"--use-libcudf-parser")
+			if use_dtypes:
+				exec_args.append(f"--use-dtypes")
 		else:
 			exec_args.extend([
 				f"--workspace-size={ws}",
 				f"--const-order={const_order}",
 				f"--version={version}"
 			])
+			if assumptions is not None:
+				exec_args.append(f"--assumptions={assumptions}")
 			if str_size is not None:
 				exec_args.append(f"--max-string-size={str_size}")
 
