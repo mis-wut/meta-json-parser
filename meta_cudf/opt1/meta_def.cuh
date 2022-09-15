@@ -86,6 +86,9 @@ using K_L1_subreddit_id = metastring("subreddit_id");
 // DATETIME FORMATS
 // datetimes are stored as timestamps (as Unix epoch)
 
+
+#define USE_TRANSFORMATIONS 1
+#ifdef USE_TRANSFORMATIONS
 // CONFIGURE TRANSFORMATIONS
 #define USE_STR_LOWER_TRANSFORMATION 1
 #ifdef USE_STR_LOWER_TRANSFORMATION
@@ -96,6 +99,7 @@ using JStringToLowerTransformConf = mp_list< // dict
 		ToLowerStringTransformer
 	>
 >;
+#endif
 #endif
 
 // CONFIGURE STRING PARSING
@@ -111,15 +115,22 @@ using SignedIntOpt = mp_list<
    >
 >;
 
+
+
 // DICT
 #define STATIC_STRING_SIZE 32
 template<template<class, int> class StringFun, class DictOpts>
 using DictCreator = JDict < mp_list <
-    mp_list<K_L1_author, StringHash<K_L1_author>>, // Hash
-	//mp_list<K_L1_flair_css, NullDefaultEmptyString<JStringVariant<K_L1_flair_css, 64>>>,
-	//mp_list<K_L1_flair, NullDefaultEmptyString<JStringVariant<K_L1_flair, 64>>>,
+
+#ifdef USE_TRANSFORMATIONS
+	mp_list<K_L1_author, StringHash<K_L1_author>>, // Hash
     	mp_list<K_L1_flair_css, NullDefaultInteger<StringHash<K_L1_flair_css>, mp_int<0>>>, // 0 if null, else hash
     	mp_list<K_L1_flair, NullDefaultInteger<StringHash<K_L1_flair>, mp_int<0>>>, // 0 if null, else hash
+#else
+	mp_list<K_L1_author, JStringVariant<K_L1_author, 64>>,
+	mp_list<K_L1_flair_css, NullDefaultEmptyString<JStringVariant<K_L1_flair_css, 64>>>,
+	mp_list<K_L1_flair, NullDefaultEmptyString<JStringVariant<K_L1_flair, 64>>>,
+#endif
 #ifdef USE_STR_LOWER_TRANSFORMATION
 	mp_list<K_L1_body, JStringVariant<K_L1_body, 2048, JStringToLowerTransformConf>>,
 #else
@@ -139,8 +150,11 @@ using DictCreator = JDict < mp_list <
 	mp_list<K_L1_permalink, JStringVariant<K_L1_permalink, 128>>,
 	mp_list<K_L1_score, JNumber<int32_t, K_L1_score, SignedIntOpt>>, // NOTE: signed, int16_t could be enough
 	mp_list<K_L1_stickied, JBool<uint8_t, K_L1_stickied>>, // NOTE: must be uint8_t
+#ifdef USE_TRANSFORMATIONS
 	mp_list<K_L1_subreddit, StringHash<K_L1_subreddit>>,
-	//mp_list<K_L1_subreddit, JStringVariant<K_L1_subreddit, 32>>,
+#else
+	mp_list<K_L1_subreddit, JStringVariant<K_L1_subreddit, 32>>,
+#endif
 	mp_list<K_L1_subreddit_id, JStringVariant<K_L1_subreddit_id, 32>>,
 	mp_list<K_L1_retrieved_on, JNumber<int64_t, K_L1_retrieved_on>> // NOTE: timestamp, use int64_t for easy conversion
 >,

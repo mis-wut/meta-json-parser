@@ -50,6 +50,7 @@ template<class StringTransformFunctorT>
 struct JStringCustom
 {
     using type = JStringCustom<StringTransformFunctorT>;
+    using Tag = typename StringTransformFunctorT::Tag;
     using MemoryRequests = boost::mp11::mp_append<
             JsonParse::StringRequests,
             typename StringTransformFunctorT::MemoryRequests
