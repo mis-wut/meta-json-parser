@@ -28,6 +28,7 @@ In our reddit example `reddit/schema.json` will be converted to `reddit/schema.c
 In order to test our solution you need to compile meta-json-parser with libcudf support.
 The simplest way is to use docker image prepared by RAPIDS.ai (libcudf is part of RAPIDS.ai).
 
-We prepared a Dockerfile that will allow you to build 
+We prepared a Dockerfile that will allow you to build **meta-json-parser** and integrate it with **libcudf**.
+You can use `Makefile` docker recipe to build the docker.
 
-make docker TARGET=reddit
+To build paper reddit demo run `make docker TARGET=reddit` (if ou supply other JSON files change reddit accordingly).
