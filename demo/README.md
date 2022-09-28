@@ -31,4 +31,4 @@ The simplest way is to use docker image prepared by RAPIDS.ai (libcudf is part o
 We prepared a Dockerfile that will allow you to build **meta-json-parser** and integrate it with **libcudf**.
 You can use `Makefile` docker recipe to build the docker.
 
-To build paper reddit demo run `make docker TARGET=reddit` (if ou supply other JSON files change reddit accordingly).
+To build paper reddit demo run `make docker TARGET=reddit` (if ou supply other JSON files change TARGET accordingly).
