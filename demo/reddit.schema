@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/schema#",
+  "type": "object",
+  "metaparser": {
+      "boolean" : "JBool<uint8_t, {name}>",
+      "integer" : "JNumber<uint32_t, {name}>",
+      "string" : "JStringVariant<{name}, 32>"
+  },
+  "properties": {
+    "author": {
+      "type": "string",
+      "transformation":"StringHash<{name}>"
+    },
+    "author_flair_css_class": {
+      "type": "string",
+      "transformation":"NullDefaultInteger<StringHash<{name}>, mp_int<0>>"
+    },
+    "author_flair_text": {
+      "type": "string",
+      "transformation":"NullDefaultInteger<StringHash<{name}>, mp_int<0>>"
+    },
+    "body": {
+      "type": "string",
+      "transformation":"JStringVariant<{name}, 2048, JStringToLowerTransformConf>"
+    },
+    "can_gild": {
+      "type": "boolean"
+    },
+    "controversiality": {
+      "type": "integer"
+    },
+    "created_utc": {
+      "type": "integer",
+      "transformation": "JNumber<int64_t, {name}>"
+    },
+    "distinguished": {
+      "type": "string",
+      "transformation":"NullDefaultInteger<JNumber<int64_t, {name}>, mp_int<0>>"
+    },
+    "edited": {
+      "type": "integer"
+    },
+    "gilded": {
+      "type": "integer"
+    },
+    "id": {
+      "type": "string"
+    },
+    "is_submitter": {
+      "type": "boolean"
+    },
+    "link_id": {
+      "type": "string"
+    },
+    "parent_id": {
+      "type": "string"
+    },
+    "permalink": {
+      "type": "string",
+      "transformation":"JStringVariant<{name}, 128>"
+    },
+    "score": {
+      "type": "integer",
+      "transformation": "JNumber<int32_t, {name}, SignedIntOpt>"
+    },
+    "stickied": {
+      "type": "boolean"
+    },
+    "subreddit": {
+      "type": "string",
+      "transformation": "StringHash<{name}>"
+    },
+    "subreddit_id": {
+      "type": "string"
+    },
+    "retrieved_on": {
+      "type": "integer",
+      "transformation": "JNumber<int64_t, {name}>"
+    }
+  },
+  "required": [
+    "author",
+    "author_flair_css_class",
+    "author_flair_text",
+    "body",
+    "can_gild",
+    "controversiality",
+    "created_utc",
+    "distinguished",
+    "edited",
+    "gilded",
+    "id",
+    "is_submitter",
+    "link_id",
+    "parent_id",
+    "permalink",
+    "retrieved_on",
+    "score",
+    "stickied",
+    "subreddit",
+    "subreddit_id"
+  ]
+}
