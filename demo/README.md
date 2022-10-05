@@ -2,14 +2,14 @@
 
 1. Install genson (`sudo python3 -m pip install genson`).
 
-2. Place a JSON file in this directory (has to have .json extension).
+2. Place a JSON file in this directory (this file has to have .json extension).
 
 See reddit.json sample used in the paper.
 
 3. Run `make`
  
 First `make` run will setup directories for supplied JSON files and generate JSON schema files.
-For each JSON file a directory will be crated containing file raw.schem.json.
+For each JSON file a directory will be created containing file raw.schem.json.
 In our reddit example - directory `reddit` and file `reddit/raw.schema.json` will be created.
 
 4. Customize the schema and copy raw.schema.json to schema.json in each directory.
@@ -20,7 +20,7 @@ If not sure of the customizations you can copy raw.schema.json to schema.json, b
 5. Run `make`
 
 Second `make` run will generate schema.cuh for each directory associated with JSON files.
-If you recive error most probabbly you miss `schema.json` file from step 4.
+If you recive error most probably you missed creating the `schema.json` file from step 4.
 In our reddit example `reddit/schema.json` will be converted to `reddit/schema.cuh`.
 
 6. Build docker image
@@ -31,4 +31,4 @@ The simplest way is to use docker image prepared by RAPIDS.ai (libcudf is part o
 We prepared a Dockerfile that will allow you to build **meta-json-parser** and integrate it with **libcudf**.
 You can use `Makefile` docker recipe to build the docker.
 
-To build paper reddit demo run `make docker TARGET=reddit` (if ou supply other JSON files change TARGET accordingly).
+To build paper reddit demo run `make docker TARGET=reddit` (if you supply other JSON files, change TARGET accordingly).
