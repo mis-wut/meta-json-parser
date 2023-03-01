@@ -1,0 +1,92 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: Meta JSON Parser
+message: "If you use this software, please cite it using the metadata from 'preferred-citation'."
+type: software
+authors:
+  - given-names: Krzysztof
+    family-names: Kaczmarski
+    alias: kkaczmarski
+    email: krzysztof.kaczmarski@pw.edu.pl
+    affiliation: 'Warsaw University of Technology, Poland'
+    orcid: 'https://orcid.org/0000-0002-4023-5344'
+  - given-names: Jakub
+    family-names: Narębski
+    alias: jnareb
+    email: jakub.narebski@mat.umk.pl
+    affiliation: 'Nicolaus Copernicus University in Toruń, Poland'
+    orcid: 'https://orcid.org/0000-0002-3296-3915'
+  - given-names: Piotr
+    family-names: Przymus
+    alias: przymusp
+    email: piotr.przymus@mat.umk.pl
+    affiliation: 'Nicolaus Copernicus University in Toruń, Poland'
+    orcid: 'https://orcid.org/0000-0001-9548-2388'
+  - given-names: Stanisław
+    family-names: Piotrowski
+    alias: Lotherd
+    email: stanislaw.piotrowski717@gmail.com
+    affiliation: 'Warsaw University of Technology, Poland'
+  - given-names: Paweł
+    family-names: Aszklar
+    alias: paszklar
+    email: pawel.aszklar@pw.edu.pl
+    affiliation: 'Warsaw University of Technology, Poland'
+    orcid: 'https://orcid.org/0000-0002-2914-9082'
+repository-code: 'https://github.com/mis-wut/meta-json-parser'
+keywords:
+  - parallel parser
+  - metaprogramming
+  - JSON
+  - GPGPU
+license: MIT
+preferred-citation:
+  title: "Fast JSON parser using metaprogramming on GPU"
+  type: conference-paper
+  authors:
+    - given-names: Krzysztof
+      family-names: Kaczmarski
+      email: krzysztof.kaczmarski@pw.edu.pl
+      affiliation: 'Warsaw University of Technology, Poland'
+      orcid: 'https://orcid.org/0000-0002-4023-5344'
+    - given-names: Jakub
+      family-names: Narębski
+      email: jakub.narebski@mat.umk.pl
+      affiliation: 'Nicolaus Copernicus University in Toruń, Poland'
+      orcid: 'https://orcid.org/0000-0002-3296-3915'
+    - given-names: Piotr
+      family-names: Przymus
+      email: piotr.przymus@mat.umk.pl
+      affiliation: 'Nicolaus Copernicus University in Toruń, Poland'
+      orcid: 'https://orcid.org/0000-0001-9548-2388'
+    - given-names: Stanisław
+      family-names: Piotrowski
+      email: stanislaw.piotrowski717@gmail.com
+      affiliation: 'Warsaw University of Technology, Poland'
+  journal: "2022 IEEE 9th International Conference on Data Science and Advanced Analytics (DSAA)"
+  pages: "1-10"
+  publisher:
+    name: IEEE
+  doi: 10.1109/DSAA54385.2022.10032381
+  isbn: 978-1-6654-7330-9
+  date-published: "2023-02-08"
+  abstract: >-
+    We demonstrate a new idea of a parallel GPU JSON
+    parser, which is able to optimize the parsing and initial
+    transformation process through metaprogramming. It outperforms
+    other well-known solutions like simdjson, Pandas, as well as
+    cuDF – which also works on GPU. The resulting data is ready to be
+    further processed in common data frame formats and may be
+    incorporated by RAPIDS, Apache Arrow or Pandas. Our parser
+    can therefore be a part of an industrial Extract-Transform-Load
+    workflow.
+#  references:
+#    - conference:
+#        name: "2022 IEEE 9th International Conference on Data Science and Advanced Analytics (DSAA)"
+#        date-start: "2022-10-13"
+#        date-end:   "2022-10-16"
+#        location: "Shenzhen, China"
+#        website: "http://dsaa2022.dsaa.co/"
+#      type: conference
