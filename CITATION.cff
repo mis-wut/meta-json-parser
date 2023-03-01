@@ -66,12 +66,13 @@ preferred-citation:
       email: stanislaw.piotrowski717@gmail.com
       affiliation: 'Warsaw University of Technology, Poland'
   journal: "2022 IEEE 9th International Conference on Data Science and Advanced Analytics (DSAA)"
-  pages: "1-10"
+  start: 1 # First page number
+  end: 10 # Last page number
+  year: 2022
   publisher:
     name: IEEE
   doi: 10.1109/DSAA54385.2022.10032381
   isbn: 978-1-6654-7330-9
-  date-published: "2023-02-08"
   abstract: >-
     We demonstrate a new idea of a parallel GPU JSON
     parser, which is able to optimize the parsing and initial
