@@ -476,3 +476,28 @@ _In that case provide just a default-runtime option._
 It's [the only way](https://github.com/NVIDIA/nvidia-docker/wiki/Advanced-topics#default-runtime)
 to enable CUDA runtime in `docker build`.
 
+
+## Citations
+
+If you wish to cite this software in an academic publication,
+please use the following reference:
+
+Formatted:
+
+- K. Kaczmarski, J. Narębski, S. Piotrowski and P. Przymus,
+  "Fast JSON parser using metaprogramming on GPU,"
+  2022 IEEE 9th International Conference on Data Science and Advanced Analytics (DSAA),
+  Shenzhen, China, 2022, pp. 1-10,
+  doi: 10.1109/DSAA54385.2022.10032381.
+
+BibTeX:
+
+```bibtex
+@inproceedings{10032381,
+  author={Kaczmarski, Krzysztof and Narębski, Jakub and Piotrowski, Stanisław and Przymus, Piotr},
+  booktitle={2022 IEEE 9th International Conference on Data Science and Advanced Analytics (DSAA)},
+  title={Fast JSON parser using metaprogramming on GPU},
+  year={2022},
+  pages={1-10},
+  doi={10.1109/DSAA54385.2022.10032381}}
+```
