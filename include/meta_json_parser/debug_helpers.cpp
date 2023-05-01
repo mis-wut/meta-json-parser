@@ -192,7 +192,7 @@ void describe_table(cudf::io::table_with_metadata& table_with_metadata, bool dum
 	printf("table (with metadata) has %d columns\n", n_cols);
 	for (int col_idx = 0; col_idx < n_cols; col_idx++) {
 		printf("column(%d) name is \"%s\":\n", col_idx,
-		       table_with_metadata.metadata.column_names[col_idx].c_str());
+		       table_with_metadata.metadata.schema_info[col_idx].name.c_str());
 		describe_column(table.column(col_idx), dump_data);
     }
 }
