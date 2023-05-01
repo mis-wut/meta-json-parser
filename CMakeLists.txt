@@ -6,7 +6,7 @@ project(meta-json-parser VERSION 0.1 LANGUAGES CXX CUDA)
 # As of now not using LIBCUDF throws
 set(USE_LIBCUDF 1)
 
-find_package(CUDAToolkit 10.0 REQUIRED)
+find_package(CUDAToolkit EXACT 11.8 REQUIRED)
 
 # Add Boost MP11 library
 add_subdirectory(third_parties/mp11)
