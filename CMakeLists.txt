@@ -186,7 +186,7 @@ if (USE_LIBCUDF)
     #       instead of hardcoding paths to includes and to libraries, like below
     target_include_directories(meta-cudf-parser-1 PUBLIC
                                /usr/local/include
-                               /usr/local/include/libcudf/libcudacxx
+                               $ENV{CONDA_PREFIX}/include
     )
     target_include_directories(meta-cudf-parser-1 AFTER PUBLIC
         $ENV{CONDA_PREFIX}/include
@@ -202,8 +202,9 @@ if (USE_LIBCUDF)
 
     target_include_directories(meta-json-parser-benchmark PUBLIC
                                /usr/local/include
-                               /usr/local/include/libcudf/libcudacxx
+                               $ENV{CONDA_PREFIX}/include
     )
+
     # NOTE: needs to be added as the last directory to be checked, because
     # it can contain outdated Boost library (which in Ubuntu 20.04 is Boost 1.72)
     target_include_directories(meta-json-parser-benchmark AFTER PUBLIC
