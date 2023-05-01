@@ -1,9 +1,12 @@
-[submodule "third_parties/googletest"]
-	path = third_parties/googletest
-	url = https://github.com/google/googletest.git
+[submodule "third_parties/fmt"]
+	path = third_parties/fmt
+	url = https://github.com/fmtlib/fmt.git
 [submodule "third_parties/mp11"]
 	path = third_parties/mp11
-	url = git@github.com:mis-wut/mp11.git
+	url = https://github.com/boostorg/mp11.git
 [submodule "third_parties/CLI11"]
 	path = third_parties/CLI11
 	url = https://github.com/CLIUtils/CLI11.git
+[submodule "third_parties/googletest"]
+	path = third_parties/googletest
+	url = https://github.com/google/googletest
