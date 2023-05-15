@@ -123,6 +123,8 @@ target_sources(meta-json-parser-test PRIVATE
     test/cut.cu
     test/keywriter_tests.cu
     test/main.cu
+    test/round.cu
+    test/to_bool.cu
     test/minmax.cu
     test/parse_dynamic_string.cu
     test/parse_jarray.cu
@@ -186,7 +188,6 @@ if (USE_LIBCUDF)
     #       instead of hardcoding paths to includes and to libraries, like below
     target_include_directories(meta-cudf-parser-1 PUBLIC
                                /usr/local/include
-                               $ENV{CONDA_PREFIX}/include
     )
     target_include_directories(meta-cudf-parser-1 AFTER PUBLIC
         $ENV{CONDA_PREFIX}/include
