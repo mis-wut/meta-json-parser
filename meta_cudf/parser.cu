@@ -257,7 +257,8 @@ cudf::io::table_with_metadata generate_example_metadata(const char* filename, in
         return "Column " + to_string(i++);
     });
 
-    cudf::io::table_metadata metadata{column_names};
+    cudf::io::table_metadata metadata;
+    std::for_each(begin(column_names), end(column_names), [&](auto& elem){metadata.schema_info.push_back({elem});});
 
     return cudf::io::table_with_metadata{
         make_unique<cudf::table>(cudf_table),

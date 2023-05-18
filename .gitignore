@@ -462,3 +462,6 @@ MigrationBackup/
 
 # End of https://www.toptal.com/developers/gitignore/api/clion,visualstudio
 /CMakeSettings.json
+
+# Build directory
+build/
