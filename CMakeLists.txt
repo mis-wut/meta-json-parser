@@ -113,6 +113,7 @@ target_link_libraries(meta-cudf-parser-1 PUBLIC lib-meta-json-parser)
 
 target_include_directories(meta-cudf-parser-1 PUBLIC
     "${PROJECT_SOURCE_DIR}/meta_cudf/opt1"
+    "$ENV{CONDA_PREFIX}/include"
 )
 target_compile_options(meta-cudf-parser-1 PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr> $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
 
@@ -196,11 +197,13 @@ if (USE_LIBCUDF)
     )
     target_include_directories(meta-cudf-parser-1 AFTER PUBLIC
                                /opt/conda/envs/rapids/include
+                               $ENV{CONDA_PREFIX}/include
     )
     target_link_libraries(meta-cudf-parser-1 PRIVATE
                           cudf
                           -L/usr/local/cuda/lib64 -L/usr/local/lib
                           -L/opt/conda/envs/rapids/lib
+                          -L$ENV{CONDA_PREFIX}/lib
     )
     target_compile_definitions(meta-cudf-parser-1 PRIVATE
                                HAVE_LIBCUDF=1
@@ -214,11 +217,13 @@ if (USE_LIBCUDF)
     # it can contain outdated Boost library (which in Ubuntu 20.04 is Boost 1.72)
     target_include_directories(meta-json-parser-benchmark AFTER PUBLIC
                                /opt/conda/envs/rapids/include
+                               $ENV{CONDA_PREFIX}/include
     )
     target_link_libraries(meta-json-parser-benchmark PRIVATE
                           cudf
                           -L/usr/local/cuda/lib64 -L/usr/local/lib
                           -L/opt/conda/envs/rapids/lib
+                          -L$ENV{CONDA_PREFIX}/lib
     )
     target_compile_definitions(meta-json-parser-benchmark PRIVATE
                                HAVE_LIBCUDF=1
