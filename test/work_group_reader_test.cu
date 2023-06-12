@@ -38,7 +38,7 @@ __global__ void __launch_bounds__(1024, 2)
 	using PK = ParserKernel<PC>;
 	using KC = typename PK::KC;
 	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
-	KC context(nullptr, sharedBuffers, input, indices, nullptr, count);
+	KC context(nullptr, sharedBuffers, input, indices, nullptr, nullptr, count);
 	if (RT::InputId() >= count)
 	{
 		return;
@@ -141,7 +141,7 @@ __global__ void __launch_bounds__(1024, 2)
 	using PK = ParserKernel<PC>;
 	using KC = typename PK::KC;
 	__shared__ typename KC::M3::SharedBuffers sharedBuffers;
-	KC context(nullptr, sharedBuffers, input, indices, nullptr, count);
+	KC context(nullptr, sharedBuffers, input, indices, nullptr, nullptr, count);
 	if (RT::InputId() >= count)
 	{
 		return;

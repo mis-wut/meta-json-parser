@@ -465,3 +465,5 @@ MigrationBackup/
 
 # Build directory
 build/
+python_binding/test.cpp
+.vscode/settings.json

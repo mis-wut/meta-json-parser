@@ -132,7 +132,7 @@ public:
             : TestContext(testSize, groupSize, seed),
               m_min_val(std::numeric_limits<Generate>::min()),
               m_max_val(std::numeric_limits<Generate>::max()),
-              m_max_precision(3) { }
+              m_max_precision(10) { }
 
     void Initialize() override {
         const auto maxLog = std::max(

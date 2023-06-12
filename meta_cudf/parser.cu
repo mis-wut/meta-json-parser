@@ -5,6 +5,7 @@
 #include <boost/mp11.hpp>
 #include <cudf/io/types.hpp>
 #include <thrust/logical.h>
+#include <thrust/gather.h>
 #include <iomanip>
 #include <meta_json_parser/parser_output_device.cuh>
 #include <meta_json_parser/parser_kernel.cuh>
@@ -176,6 +177,8 @@ struct benchmark_device_buffers
     char* readonly_buffers;
     char* input_buffer;
     InputIndex* indices_buffer;
+    char* indices_mask;
+    int* indices_positions;
     ParsingError* err_buffer;
     void** output_buffers;
     int count;
@@ -248,6 +251,12 @@ cudf::io::table_with_metadata generate_example_metadata(const char* filename, in
 
     KernelLaunchConfiguration conf = prepare_dynamic_config(input);
     benchmark_device_buffers device_buffers = initialize_buffers(input, &conf);
+    // here set the mask to appropriate values:
+    cudaMemset(device_buffers.indices_mask, 1, count);
+    const auto filtered_count = thrust::reduce(thrust::device, device_buffers.indices_mask, device_buffers.indices_mask + count, 0);
+    thrust::gather(device_buffers.indices_mask, device_buffers.indices_mask + count, thrust::counting_iterator<int>(0), device_buffers.indices_positions);
+    device_buffers.count = filtered_count;
+
     launch_kernel(device_buffers);
     auto cudf_table  = device_buffers.parser_output_buffers.ToCudf(stream);
 
@@ -282,10 +291,11 @@ void launch_kernel(benchmark_device_buffers& device_buffers)
     pk.Run(
         device_buffers.input_buffer,
         device_buffers.indices_buffer,
+        device_buffers.indices_positions,
         device_buffers.err_buffer,
         device_buffers.output_buffers,
         device_buffers.count,
-        device_buffers.host_output_buffers.data()
+        device_buffers.host_output_buffers.data()    
     );
 }
 
@@ -378,6 +388,8 @@ benchmark_device_buffers initialize_buffers(benchmark_input& input, KernelLaunch
     cudaMalloc(&result.readonly_buffers, sizeof(BUF));
     cudaMalloc(&result.input_buffer, input.data.size());
     cudaMalloc(&result.indices_buffer, sizeof(InputIndex) * (input.count + 1));
+    cudaMalloc(&result.indices_mask, sizeof(char) * (input.count));
+    cudaMalloc(&result.indices_positions, sizeof(int) * (input.count));
     cudaMalloc(&result.err_buffer, sizeof(ParsingError) * input.count);
     cudaMalloc(&result.output_buffers, sizeof(void*) * REQUEST_COUNT);
 
@@ -409,6 +421,8 @@ benchmark_device_buffers initialize_buffers(benchmark_input& input, KernelLaunch
             std::cerr << "Unknown end of line character!";
             throw std::runtime_error("Unknown end of line character");
     }
+
+
 
     return result;
 }

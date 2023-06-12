@@ -40,6 +40,7 @@ _parser_kernel(
 	typename MetaMemoryManager<ParserConfigurationT>::ReadOnlyBuffer* readOnlyBuffer,
 	const char* input,
 	const InputIndex* indices,
+	const int* indices_positions,
 	ParsingError* err,
 	void** output,
 	const uint32_t count);
@@ -63,6 +64,7 @@ struct ParserKernel
 		typename M3::ReadOnlyBuffer*,
 		const char*,
 		const InputIndex*,
+		const int*,
 		ParsingError*,
 		void**,
 		const uint32_t
@@ -88,6 +90,7 @@ struct ParserKernel
 	void Run(
 		const char* input,
 		const InputIndex* indices,
+		const int* indices_positions,
 		ParsingError* errors,
 		void** d_outputs, // Device array of pointers to device outputs
 		const uint32_t count,
@@ -111,6 +114,7 @@ struct ParserKernel
 			m_d_rob,
 			input,
 			indices,
+			indices_positions,
 			errors,
 			d_outputs,
 			count
@@ -165,6 +169,7 @@ __global__ void __launch_bounds__(1024, 2)
 		typename MetaMemoryManager<ParserConfigurationT>::ReadOnlyBuffer* readOnlyBuffer,
 		const char* input,
 		const InputIndex* indices,
+		const int* indices_positions,
 		ParsingError* err,
 		void** output,
 		const uint32_t count
@@ -176,7 +181,7 @@ __global__ void __launch_bounds__(1024, 2)
 	using KC = typename PK::KC;
 	using RT = typename PK::RT;
 	__shared__ typename PK::M3::SharedBuffers sharedBuffers;
-	KC kc(readOnlyBuffer, sharedBuffers, input, indices, output, count);
+	KC kc(readOnlyBuffer, sharedBuffers, input, indices, indices_positions, output, count);
 	if (RT::InputId() >= count)
 		return;
 	ParsingError e = BaseAction::Invoke(kc);

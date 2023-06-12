@@ -101,6 +101,7 @@ void templated_ParseBool(ParseJBoolTest &test)
 		d_buff.data().get(),
 		context.d_input.data().get(),
 		context.d_indices.data().get(),
+		nullptr,
 		d_err.data().get(),
 		d_outputs.data().get(),
 		INPUT_T
