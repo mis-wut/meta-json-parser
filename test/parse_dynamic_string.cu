@@ -135,6 +135,7 @@ void templated_DynamicStringCopy(size_t max_str_len)
 	pk.Run(
 		context.d_input.data().get(),
 		context.d_indices.data().get(),
+		nullptr,
 		d_err.data().get(),
 		d_outputs.data().get(),
 		INPUT_T,

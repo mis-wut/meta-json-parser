@@ -472,6 +472,7 @@ void launch_kernel(benchmark_device_buffers<BaseActionT>& device_buffers)
 	pk.Run(
 		device_buffers.input_buffer,
 		device_buffers.indices_buffer,
+		nullptr,
 		device_buffers.err_buffer,
 		device_buffers.output_buffers,
 		device_buffers.count,

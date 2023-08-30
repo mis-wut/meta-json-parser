@@ -56,6 +56,7 @@ void LaunchTest(TestContext& context) {
     pk.Run(
         context.InputData().data().get(),
         context.InputIndices().data().get(),
+        nullptr,
         context.Errors().data().get(),
         d_output_buffers.data().get(),
         context.TestSize(),

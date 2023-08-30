@@ -1,7 +1,6 @@
 #pragma once 
 #include <cuda_runtime_api.h>
 #include <thrust/host_vector.h>
-#include <thrust/system/cuda/experimental/pinned_allocator.h>
 #include <boost/mp11/list.hpp>
 #include <fstream>
 #include <meta_json_parser/config.h>

@@ -54,14 +54,15 @@ struct KernelContext
 		typename M3::SharedBuffers& sharedBuffers,
 		const char* input,
 		const InputIndex* indices,
+		const int* indices_positions,
 		void** output,
 		const uint32_t count
 	) :
 		m3(sharedBuffers, readonlyBuffers),
 		wgr(
 			m3.template Receive<typename WGR::MemoryRequest>(),
-			RT::InputId() < count ? input + indices[RT::InputId()] : nullptr,
-			RT::InputId() < count ? input + indices[RT::InputId() + 1] : nullptr
+			RT::InputId() < count ? input + (indices_positions == nullptr ? indices[RT::InputId()] : indices[indices_positions[RT::InputId()]]) : nullptr,
+			RT::InputId() < count ? input + (indices_positions == nullptr ? indices[RT::InputId() + 1]: indices[indices_positions[RT::InputId()] + 1]) : nullptr
 		),
 		om(
 			output,
